@@ -166,7 +166,7 @@ layout_start('Add Dumpster', 'inventory');
 </div>
 <?php endif; ?>
 
-<div class="tp-card" style="max-width:640px;">
+<div class="tp-card" style="max-width:1160px;width:100%;">
     <form method="POST" action="create.php" enctype="multipart/form-data">
         <?= csrf_field() ?>
 
@@ -214,7 +214,7 @@ layout_start('Add Dumpster', 'inventory');
             </div>
 
             <!-- Type -->
-            <div class="col-md-4">
+            <div class="col-md-6 col-lg-4">
                 <label class="form-label" for="type">Type</label>
                 <select id="type" name="type" class="form-select">
                     <option value="dumpster" <?= $f['type'] === 'dumpster' ? 'selected' : '' ?>>Dumpster</option>
@@ -238,6 +238,11 @@ layout_start('Add Dumpster', 'inventory');
                     Booking Pricing
                 </h6>
                 <hr class="mt-1 mb-0" style="border-color:rgba(255,255,255,.07);">
+            </div>
+            <div class="col-12">
+                <div class="alert alert-light border mb-0 py-2 px-3" style="font-size:.9rem;">
+                    After saving, use the inventory Stripe sync to publish this item’s booking price plus weekly, bi-weekly, and monthly recurring prices.
+                </div>
             </div>
 
             <!-- Base Price -->

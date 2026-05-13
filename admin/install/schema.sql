@@ -340,6 +340,7 @@ CREATE TABLE IF NOT EXISTS `invoices` (
   `id`                  INT(11)       NOT NULL AUTO_INCREMENT,
   `invoice_number`      VARCHAR(20)   NOT NULL,
   `customer_id`         INT(11)                DEFAULT NULL,
+  `work_order_id`       INT(11)                DEFAULT NULL,
   `cust_name`           VARCHAR(100)  NOT NULL,
   `cust_email`          VARCHAR(150)           DEFAULT NULL,
   `cust_phone`          VARCHAR(20)            DEFAULT NULL,
@@ -361,7 +362,9 @@ CREATE TABLE IF NOT EXISTS `invoices` (
   `updated_at`          DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_invoices_number` (`invoice_number`),
+  KEY `idx_invoices_work_order_id` (`work_order_id`),
   CONSTRAINT `fk_inv_customer_id` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_inv_work_order_id` FOREIGN KEY (`work_order_id`) REFERENCES `work_orders` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_inv_created_by`  FOREIGN KEY (`created_by`)  REFERENCES `users`     (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -457,5 +460,6 @@ INSERT IGNORE INTO `settings` (`key`, `value`) VALUES
   ('stripe_statement_descriptor',''),
   ('billing_email_enabled',  '1'),
   ('billing_retry_days',     '[1,3,5]'),
+  ('booking_flow_mode',      'instant'),
   ('ach_enabled',            '1'),
   ('subscription_enabled',   '1');

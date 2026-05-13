@@ -69,6 +69,8 @@ $customer_city    = trim($data['customer_city']      ?? '');
 $payment_method   = trim($data['payment_method']     ?? 'stripe');
 $notes            = trim($data['notes']              ?? '');
 $terms_accepted   = !empty($data['terms_accepted']);
+$booking_flow_mode = get_setting('booking_flow_mode', 'instant');
+$requires_approval = $booking_flow_mode === 'request';
 
 // Support both unit_ids (array) and unit_id (single)
 if (!empty($data['unit_ids']) && is_array($data['unit_ids'])) {
@@ -113,7 +115,7 @@ if ($payment_method === 'ach' && get_setting('ach_enabled', '1') !== '1') {
 // For Stripe payments, verify the SDK and secret key are available before
 // creating any booking records. This prevents unnecessary DB operations and
 // gives a clearer error when Stripe is not yet configured.
-if (in_array($payment_method, ['stripe', 'ach'], true)) {
+if (!$requires_approval && in_array($payment_method, ['stripe', 'ach'], true)) {
     $_stripe_autoload = $_admin_root . '/vendor/autoload.php';
     if (!file_exists($_stripe_autoload)) {
         api_error('Online payment is currently unavailable. Please select a different payment method.', 503);
@@ -140,6 +142,13 @@ $pay_status_map = [
 ];
 $payment_status = $pay_status_map[$payment_method] ?? 'pending';
 $booking_status = in_array($payment_method, ['stripe', 'ach'], true) ? 'pending' : 'confirmed';
+
+if ($requires_approval) {
+    $booking_status = 'pending';
+    if (in_array($payment_method, ['stripe', 'ach'], true)) {
+        $payment_status = 'unpaid';
+    }
+}
 
 // Validate each unit, check availability, collect booking data
 $units_data = [];   // validated unit rows
@@ -291,8 +300,8 @@ if ($push_loaded) {
         $view_url
     );
 
-    // Notify customer immediately for cash/check bookings (Stripe bookings get notified via webhook)
-    if ($payment_method !== 'stripe') {
+    // Notify customer immediately for non-instant bookings only when the booking is already confirmed.
+    if (!$requires_approval && $payment_method !== 'stripe') {
         $cust_push_ids = array_unique(array_filter([
             !empty($customer_email) ? strtolower(trim($customer_email)) : '',
             !empty($customer_phone) ? preg_replace('/\D/', '', $customer_phone) : '',
@@ -306,6 +315,19 @@ if ($push_loaded) {
                 '📦 Booking Confirmed — ' . $bk_label_short,
                 'Your ' . $pm_label . ' booking for $' . number_format($grand_total, 2) . ' is confirmed.'
             );
+        }
+    }
+}
+
+if ($requires_approval) {
+    foreach ($new_ids as $bid) {
+        try {
+            $pending_booking = db_fetch('SELECT * FROM bookings WHERE id = ? LIMIT 1', [$bid]);
+            if ($pending_booking) {
+                notify_booking_request_received($pending_booking);
+            }
+        } catch (\Throwable $e) {
+            error_log('[Booking] notify_booking_request_received failed for booking ' . $bid . ': ' . $e->getMessage());
         }
     }
 }
@@ -332,7 +354,7 @@ function rollback_stripe_bookings(array $new_ids): void {
 }
 
 // Stripe checkout
-if (in_array($payment_method, ['stripe', 'ach'], true)) {
+if (!$requires_approval && in_array($payment_method, ['stripe', 'ach'], true)) {
     // SDK and key were already verified before booking creation; no need to reload.
 
     try {
@@ -377,7 +399,7 @@ if (in_array($payment_method, ['stripe', 'ach'], true)) {
     }
 }
 
-// Cash / check — all dumpsters already marked reserved above.
+// Cash / check or approval-mode requests — all dumpsters already marked reserved above.
 // Send booking confirmation emails (best-effort, non-blocking).
 foreach ($new_ids as $bid) {
     try {

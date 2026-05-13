@@ -33,6 +33,26 @@ if (!$wo) {
     redirect(APP_URL . '/modules/work_orders/index.php');
 }
 
+$linked_invoice = db_fetch(
+    'SELECT id, invoice_number, status
+     FROM invoices
+     WHERE work_order_id = ?
+     ORDER BY id DESC
+     LIMIT 1',
+    [$wo_id]
+);
+
+if (!$linked_invoice) {
+    $linked_invoice = db_fetch(
+        'SELECT id, invoice_number, status
+         FROM invoices
+         WHERE notes LIKE ?
+         ORDER BY id DESC
+         LIMIT 1',
+        ['%Work Order ' . ($wo['wo_number'] ?? '') . '%']
+    );
+}
+
 // ── Company settings ──────────────────────────────────────────────────────────
 $company_name    = get_setting('company_name',    'Trash Panda Roll-Offs');
 $company_phone   = get_setting('company_phone',   '');
@@ -79,11 +99,21 @@ if ($is_print):
         <a href="view.php?id=<?= $wo_id ?>" class="btn-tp-ghost btn-tp-sm">
             <i class="fa-solid fa-arrow-left"></i> Back to Work Order
         </a>
+        <?php if ($linked_invoice): ?>
+        <a href="<?= e(APP_URL) ?>/modules/invoices/view.php?id=<?= (int)$linked_invoice['id'] ?>" class="btn-tp-primary btn-tp-sm">
+            <i class="fa-solid fa-file-invoice-dollar"></i> View Real Invoice
+        </a>
+        <?php endif; ?>
         <a href="invoice.php?wo_id=<?= $wo_id ?>&print=1" class="btn-tp-ghost btn-tp-sm" target="_blank">
             <i class="fa-solid fa-print"></i> Print
         </a>
     </div>
 </div>
+<?php if ($linked_invoice): ?>
+<div class="alert alert-info py-2 px-3">
+    A real invoice already exists for this work order as <strong><?= e($linked_invoice['invoice_number']) ?></strong>. This page is the printable standalone document version.
+</div>
+<?php endif; ?>
 <?php endif; ?>
 
 <!-- Invoice document -->

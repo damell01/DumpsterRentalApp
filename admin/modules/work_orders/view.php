@@ -39,6 +39,26 @@ $notes_stmt = $pdo->prepare(
 $notes_stmt->execute([$id]);
 $notes = $notes_stmt->fetchAll(PDO::FETCH_ASSOC);
 
+$linked_invoice = db_fetch(
+    'SELECT id, invoice_number, status, total, stripe_payment_link
+     FROM invoices
+     WHERE work_order_id = ?
+     ORDER BY id DESC
+     LIMIT 1',
+    [$id]
+);
+
+if (!$linked_invoice) {
+    $linked_invoice = db_fetch(
+        'SELECT id, invoice_number, status, total, stripe_payment_link
+         FROM invoices
+         WHERE notes LIKE ?
+         ORDER BY id DESC
+         LIMIT 1',
+        ['%Work Order ' . ($wo['wo_number'] ?? '') . '%']
+    );
+}
+
 // ── Print mode ────────────────────────────────────────────────────────────────
 $is_print = isset($_GET['print']);
 
@@ -528,9 +548,38 @@ layout_start('WO: ' . $wo['wo_number'], 'work_orders');
                 <h5 class="card-title mb-0"><i class="fas fa-file-invoice me-2"></i>Invoice</h5>
             </div>
             <div class="card-body">
-                <p class="text-muted small mb-3">Generate a printable invoice document for this work order. Payments are handled outside the system.</p>
-                <a href="<?= e(APP_URL) ?>/modules/work_orders/invoice.php?wo_id=<?= $id ?>" class="btn btn-sm btn-outline-primary w-100">
-                    <i class="fas fa-print me-1"></i>Print / View Invoice
+                <?php if ($linked_invoice): ?>
+                <p class="text-muted small mb-2">A real invoice has already been created for this work order.</p>
+                <div class="mb-3 p-2 rounded border bg-light">
+                    <div class="fw-semibold"><?= e($linked_invoice['invoice_number']) ?></div>
+                    <div class="small text-muted">
+                        <?= e(fmt_money($linked_invoice['total'] ?? 0)) ?> · <?= e(ucfirst((string)($linked_invoice['status'] ?? 'draft'))) ?>
+                    </div>
+                </div>
+                <a href="<?= e(APP_URL) ?>/modules/invoices/view.php?id=<?= (int)$linked_invoice['id'] ?>" class="btn btn-sm btn-primary w-100 mb-2">
+                    <i class="fas fa-eye me-1"></i> View Real Invoice
+                </a>
+                <?php else: ?>
+                <p class="text-muted small mb-3">Create a real invoice from this work order with an online payment link, or print the standalone document version.</p>
+                <form method="POST" action="create_invoice.php" class="mb-2">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="wo_id" value="<?= $id ?>">
+                    <div class="mb-2">
+                        <label class="form-label small mb-1">Invoice Payment Method</label>
+                        <select name="payment_method" class="form-select form-select-sm">
+                            <option value="stripe">Card Checkout</option>
+                            <option value="ach">ACH Checkout</option>
+                            <option value="cash">Cash</option>
+                            <option value="check">Check</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-primary w-100">
+                        <i class="fas fa-file-circle-plus me-1"></i> Create Real Invoice
+                    </button>
+                </form>
+                <?php endif; ?>
+                <a href="<?= e(APP_URL) ?>/modules/work_orders/invoice.php?wo_id=<?= $id ?>" class="btn btn-sm btn-outline-secondary w-100">
+                    <i class="fas fa-print me-1"></i> Print Standalone Document
                 </a>
             </div>
         </div>

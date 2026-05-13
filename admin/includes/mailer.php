@@ -420,6 +420,116 @@ function notify_booking_confirmed(array $booking): void
 }
 
 /**
+ * Send a booking request received email to the customer and admins.
+ */
+function notify_booking_request_received(array $booking): void
+{
+    $email = trim($booking['customer_email'] ?? '');
+    $bk_num = htmlspecialchars($booking['booking_number'] ?? '', ENT_QUOTES, 'UTF-8');
+    $name = htmlspecialchars($booking['customer_name'] ?? 'Customer', ENT_QUOTES, 'UTF-8');
+    $unit = htmlspecialchars(($booking['unit_code'] ?? '') . ' - ' . ($booking['unit_size'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $start = !empty($booking['rental_start']) ? date('l, F j, Y', strtotime($booking['rental_start'])) : '-';
+    $end = !empty($booking['rental_end']) ? date('l, F j, Y', strtotime($booking['rental_end'])) : '-';
+    $total = fmt_money($booking['total_amount'] ?? 0);
+    $method = htmlspecialchars(payment_method_label($booking['payment_method'] ?? ''), ENT_QUOTES, 'UTF-8');
+
+    $body = '<p>Hello ' . $name . ',</p>
+<p>We received your dumpster rental request and it is now <strong>awaiting review</strong>.</p>
+<table width="100%" style="border-collapse:collapse;font-size:.95rem;margin:16px 0;">
+  <tr style="background:#f9fafb;">
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;width:40%;">Request #</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">' . $bk_num . '</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Unit</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;">' . $unit . '</td>
+  </tr>
+  <tr style="background:#f9fafb;">
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Rental Period</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;">' . $start . ' -> ' . $end . '</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Estimated Total</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">' . $total . '</td>
+  </tr>
+  <tr style="background:#f9fafb;">
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Preferred Payment</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;">' . $method . '</td>
+  </tr>
+</table>
+<p>Our team will review availability and follow up with approval details and payment instructions if needed.</p>';
+
+    if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $html = email_template('Booking Request Received - ' . $bk_num, $body);
+        send_email($email, 'Booking Request Received - ' . $bk_num, $html);
+    }
+
+    notify_admins(
+        'New Booking Request - ' . $bk_num . ' (' . ($booking['customer_name'] ?? '') . ')',
+        $body
+    );
+}
+
+/**
+ * Send an invoice email to the customer.
+ */
+function send_invoice_email_to_customer(array $invoice): bool
+{
+    $email = trim((string)($invoice['cust_email'] ?? ''));
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return false;
+    }
+
+    $invoiceNumber = htmlspecialchars((string)($invoice['invoice_number'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $customerName = htmlspecialchars((string)($invoice['cust_name'] ?? 'Customer'), ENT_QUOTES, 'UTF-8');
+    $amount = fmt_money($invoice['total'] ?? 0);
+    $dueDate = !empty($invoice['due_date']) ? fmt_date((string)$invoice['due_date']) : 'upon receipt';
+    $paymentLink = trim((string)($invoice['stripe_payment_link'] ?? ''));
+    $notes = trim((string)($invoice['notes'] ?? ''));
+
+    $body = '<p>Hello ' . $customerName . ',</p>
+<p>Your invoice <strong>' . $invoiceNumber . '</strong> is ready.</p>
+<table width="100%" style="border-collapse:collapse;font-size:.95rem;margin:16px 0;">
+  <tr style="background:#f9fafb;">
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;width:40%;">Invoice #</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">' . $invoiceNumber . '</td>
+  </tr>
+  <tr>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Amount Due</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">' . htmlspecialchars($amount, ENT_QUOTES, 'UTF-8') . '</td>
+  </tr>
+  <tr style="background:#f9fafb;">
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Due Date</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;">' . htmlspecialchars($dueDate, ENT_QUOTES, 'UTF-8') . '</td>
+  </tr>
+</table>';
+
+    if ($notes !== '') {
+        $body .= '<p><strong>Notes:</strong><br>' . nl2br(htmlspecialchars($notes, ENT_QUOTES, 'UTF-8')) . '</p>';
+    }
+
+    $body .= '<p>You can review and pay this invoice using the link below.</p>';
+
+    $html = email_template(
+        'Invoice ' . (string)($invoice['invoice_number'] ?? ''),
+        $body,
+        $paymentLink !== '' ? 'View & Pay Invoice' : '',
+        $paymentLink !== '' ? $paymentLink : ''
+    );
+
+    $sent = send_email($email, 'Invoice ' . (string)($invoice['invoice_number'] ?? '') . ' from ' . get_setting('company_name', 'Trash Panda Roll-Offs'), $html);
+
+    if ($sent) {
+        notify_admins(
+            'Invoice Sent - ' . (string)($invoice['invoice_number'] ?? ''),
+            '<p>Invoice <strong>' . $invoiceNumber . '</strong> was sent to ' . htmlspecialchars($email, ENT_QUOTES, 'UTF-8') . '.</p>'
+        );
+    }
+
+    return $sent;
+}
+
+/**
  * Send a rental expiry reminder to the customer (typically 3 days before end).
  */
 function notify_booking_expiry_reminder(array $booking): void

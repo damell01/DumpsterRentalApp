@@ -130,17 +130,26 @@ if (empty($bookings)) {
 // Use first booking for customer name / contact info
 $first_booking = $bookings[0];
 $grand_total   = array_sum(array_column($bookings, 'total_amount'));
+$all_pending_review = true;
+foreach ($bookings as $booking_row) {
+    $pending_payment_states = ['unpaid', 'pending', 'pending_cash', 'pending_check'];
+    if (($booking_row['booking_status'] ?? '') !== 'pending' || !in_array((string)($booking_row['payment_status'] ?? ''), $pending_payment_states, true)) {
+        $all_pending_review = false;
+        break;
+    }
+}
 
 $company_name  = get_setting('company_name', 'Trash Panda Roll-Offs');
 $company_phone = get_setting('company_phone', '');
 $multi         = count($bookings) > 1;
+$page_title = $all_pending_review ? 'Booking Request Received' : 'Booking Confirmed';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Booking Confirmed — <?= htmlspecialchars($company_name, ENT_QUOTES, 'UTF-8') ?></title>
+    <title><?= htmlspecialchars($page_title, ENT_QUOTES, 'UTF-8') ?> — <?= htmlspecialchars($company_name, ENT_QUOTES, 'UTF-8') ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap">
@@ -240,11 +249,19 @@ $multi         = count($bookings) > 1;
         <i class="fas fa-check"></i>
     </div>
 
+    <?php if ($all_pending_review): ?>
+    <div class="success-title">REQUEST <span>RECEIVED!</span></div>
+    <p style="color:var(--gray-light);margin-bottom:1rem;">
+        Thank you, <?= htmlspecialchars($first_booking['customer_name'], ENT_QUOTES, 'UTF-8') ?>.
+        <?= $multi ? 'Your booking requests have' : 'Your booking request has' ?> been submitted for review. We will follow up with approval details and payment instructions if needed.
+    </p>
+    <?php else: ?>
     <div class="success-title">BOOKING<?= $multi ? 'S' : '' ?> <span>CONFIRMED!</span></div>
     <p style="color:var(--gray-light);margin-bottom:1rem;">
         Thank you, <?= htmlspecialchars($first_booking['customer_name'], ENT_QUOTES, 'UTF-8') ?>!
         <?= $multi ? count($bookings) . ' dumpster rentals have' : 'Your dumpster rental has' ?> been booked.
     </p>
+    <?php endif; ?>
 
     <!-- Booking number(s) -->
     <div>

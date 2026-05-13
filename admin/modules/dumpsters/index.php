@@ -64,9 +64,9 @@ layout_start('Inventory', 'inventory');
         <form method="POST" action="sync_all_stripe.php" id="syncAllForm">
             <?= csrf_field() ?>
             <button type="submit" class="btn-tp-ghost btn-tp-sm"
-                    onclick="return confirm('Sync all dumpsters to Stripe? This will create or update Stripe products/prices for all active dumpsters.')"
+                    onclick="return confirm('Sync all dumpsters to Stripe? This will create or update Stripe products and booking/recurring prices for all active dumpsters.')"
                     id="syncAllBtn">
-                <i class="fa-brands fa-stripe me-1"></i> Sync All to Stripe
+                <i class="fa-brands fa-stripe me-1"></i> Sync Inventory to Stripe
             </button>
         </form>
         <?php endif; ?>
@@ -76,6 +76,12 @@ layout_start('Inventory', 'inventory');
     </div>
     <?php endif; ?>
 </div>
+
+<?php if (trim(get_setting('stripe_secret_key', '')) !== ''): ?>
+<div class="alert alert-info py-2 px-3 mb-3" role="alert">
+    <strong>Stripe catalog sync:</strong> this sync pushes each active dumpster to Stripe as a product and keeps booking, weekly, bi-weekly, and monthly prices aligned from your local inventory rates.
+</div>
+<?php endif; ?>
 
 <!-- Status filter tabs -->
 <div class="tp-filter-tabs mb-3">

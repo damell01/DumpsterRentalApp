@@ -64,11 +64,27 @@ layout_start('Subscriptions', 'subscriptions');
 <div class="row g-4">
     <div class="col-xl-8">
         <div class="tp-card">
-            <div class="tp-card-header d-flex justify-content-between align-items-center">
+            <div class="tp-card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <span><i class="fa-solid fa-arrows-rotate me-2 text-muted"></i>Recurring Subscriptions</span>
-                <span class="text-muted" style="font-size:.8rem;"><?= count($subscriptions) ?> total</span>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <?php if (trim(get_setting('stripe_secret_key', '')) !== ''): ?>
+                    <form method="POST" action="../dumpsters/sync_all_stripe.php" class="d-inline">
+                        <?= csrf_field() ?>
+                        <button type="submit" class="btn-tp-ghost btn-tp-xs"
+                                onclick="return confirm('Sync inventory catalog to Stripe? This updates dumpster products plus recurring prices used for subscription billing.')">
+                            <i class="fa-brands fa-stripe me-1"></i> Sync Pricing Catalog
+                        </button>
+                    </form>
+                    <?php endif; ?>
+                    <span class="text-muted" style="font-size:.8rem;"><?= count($subscriptions) ?> total</span>
+                </div>
             </div>
             <div class="tp-card-body p-0">
+                <div class="px-3 pt-3">
+                    <div class="alert alert-info py-2 px-3 mb-3" role="alert">
+                        Subscription pricing comes from your in-app catalog. Use <strong>Sync Pricing Catalog</strong> after changing dumpster pricing so Stripe stays aligned.
+                    </div>
+                </div>
                 <?php if (!$subscriptions): ?>
                 <p class="text-muted p-3 mb-0">No subscriptions created yet.</p>
                 <?php else: ?>

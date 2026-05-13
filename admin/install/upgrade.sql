@@ -112,5 +112,6 @@ INSERT IGNORE INTO `settings` (`key`, `value`) VALUES
   ('stripe_statement_descriptor',''),
   ('billing_email_enabled',  '1'),
   ('billing_retry_days',     '[1,3,5]'),
+  ('booking_flow_mode',      'instant'),
   ('ach_enabled',            '1'),
   ('subscription_enabled',   '1');

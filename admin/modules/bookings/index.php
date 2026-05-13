@@ -249,6 +249,36 @@ layout_start('Bookings', 'bookings');
                         <a href="edit.php?id=<?= (int)$b['id'] ?>" class="btn-tp-ghost btn-tp-xs">
                             <i class="fa-solid fa-pencil"></i> Edit
                         </a>
+                        <?php if (($b['booking_status'] ?? '') === 'pending' && has_role('admin', 'office')): ?>
+                        <form method="post" action="approve_request.php" style="display:inline;">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="id" value="<?= (int)$b['id'] ?>">
+                            <input type="hidden" name="approval_action" value="approve_only">
+                            <input type="hidden" name="redirect_to" value="index.php<?= e('?' . http_build_query(array_filter(['filter' => $filter, 'q' => $q, 'date_qs' => $date_qs, 'page' => $page]))) ?>">
+                            <button type="submit" class="btn-tp-ghost btn-tp-xs"
+                                    onclick="return confirm('Approve booking <?= e($b['booking_number']) ?>?')">
+                                <i class="fa-solid fa-check"></i> Approve
+                            </button>
+                        </form>
+                        <form method="post" action="approve_request.php" style="display:inline;">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="id" value="<?= (int)$b['id'] ?>">
+                            <input type="hidden" name="approval_action" value="invoice">
+                            <button type="submit" class="btn-tp-primary btn-tp-xs"
+                                    onclick="return confirm('Approve booking <?= e($b['booking_number']) ?> and create an invoice?')">
+                                <i class="fa-solid fa-file-invoice-dollar"></i> Invoice
+                            </button>
+                        </form>
+                        <form method="post" action="approve_request.php" style="display:inline;">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="id" value="<?= (int)$b['id'] ?>">
+                            <input type="hidden" name="approval_action" value="work_order">
+                            <button type="submit" class="btn-tp-ghost btn-tp-xs"
+                                    onclick="return confirm('Approve booking <?= e($b['booking_number']) ?> and create a work order?')">
+                                <i class="fa-solid fa-clipboard-list"></i> Work Order
+                            </button>
+                        </form>
+                        <?php endif; ?>
                         <?php if ($is_unpaid && has_role('admin', 'office')): ?>
                         <form method="post" action="quick_pay.php" style="display:inline;">
                             <?= csrf_field() ?>

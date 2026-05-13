@@ -93,62 +93,7 @@ function stripe_list_charges(int $limit = 50, ?int $created_gte = null, ?int $cr
 
 function stripe_sync_dumpster_product(array $dumpster): array
 {
-    $client = stripe_client();
-    $name = trim((string)($dumpster['product_name'] ?? '')) ?: (($dumpster['size'] ?? '') . ' Dumpster');
-    $desc = trim((string)($dumpster['description'] ?? '')) ?: null;
-    $metadata = [
-        'dumpster_id' => (string)($dumpster['id'] ?? ''),
-        'unit_code' => $dumpster['unit_code'] ?? '',
-        'size' => $dumpster['size'] ?? '',
-    ];
-
-    $existing_product_id = trim((string)($dumpster['stripe_product_id'] ?? ''));
-    if ($existing_product_id !== '') {
-        $product = $client->products->update($existing_product_id, array_filter([
-            'name' => $name,
-            'description' => $desc,
-            'metadata' => $metadata,
-            'active' => (bool)($dumpster['active'] ?? 1),
-        ], static fn($value) => $value !== null));
-    } else {
-        $product = $client->products->create(array_filter([
-            'name' => $name,
-            'description' => $desc,
-            'metadata' => $metadata,
-        ], static fn($value) => $value !== null));
-    }
-
-    $productId = $product->id;
-    $basePriceCents = (int)round((float)($dumpster['base_price'] ?? 0) * 100);
-    $currency = strtolower(get_setting('currency', 'usd') ?: 'usd');
-
-    $existingPriceId = trim((string)($dumpster['stripe_price_id'] ?? ''));
-    if ($existingPriceId !== '' && $basePriceCents > 0) {
-        try {
-            $client->prices->update($existingPriceId, ['active' => false]);
-        } catch (\Throwable) {
-        }
-    }
-
-    $priceId = '';
-    if ($basePriceCents > 0) {
-        $price = $client->prices->create([
-            'product' => $productId,
-            'currency' => $currency,
-            'unit_amount' => $basePriceCents,
-            'nickname' => $name . ' - Base (' . ($dumpster['rental_days'] ?? 7) . ' day rental)',
-            'metadata' => [
-                'dumpster_id' => (string)($dumpster['id'] ?? ''),
-                'rental_days' => (string)($dumpster['rental_days'] ?? 7),
-            ],
-        ]);
-        $priceId = $price->id;
-    }
-
-    return [
-        'stripe_product_id' => $productId,
-        'stripe_price_id' => $priceId,
-    ];
+    return billing_catalog_sync_service()->syncDumpster($dumpster);
 }
 
 function stripe_create_setup_intent(string $stripe_customer_id, array $payment_method_types = ['card', 'us_bank_account']): array

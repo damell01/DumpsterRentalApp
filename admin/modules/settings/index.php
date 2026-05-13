@@ -9,6 +9,63 @@ require_once TMPL_PATH . '/layout.php';
 require_login();
 require_role('admin', 'office');
 
+function normalize_retry_days_input(string $input): string
+{
+    $input = trim($input);
+    if ($input === '') {
+        return '[1,3,5]';
+    }
+
+    $decoded = json_decode($input, true);
+    if (is_array($decoded)) {
+        $days = [];
+        foreach ($decoded as $value) {
+            $day = max(1, (int)$value);
+            if ($day > 0) {
+                $days[] = $day;
+            }
+        }
+        $days = array_values(array_unique($days));
+        sort($days);
+        return json_encode($days, JSON_UNESCAPED_SLASHES);
+    }
+
+    $parts = preg_split('/[^0-9]+/', $input) ?: [];
+    $days = [];
+    foreach ($parts as $part) {
+        if ($part === '') {
+            continue;
+        }
+        $day = max(1, (int)$part);
+        if ($day > 0) {
+            $days[] = $day;
+        }
+    }
+    $days = array_values(array_unique($days));
+    sort($days);
+
+    return json_encode($days ?: [1, 3, 5], JSON_UNESCAPED_SLASHES);
+}
+
+function retry_days_display_value(): string
+{
+    $raw = get_setting('billing_retry_days', '[1,3,5]');
+    $decoded = json_decode((string)$raw, true);
+    if (!is_array($decoded)) {
+        return '1, 3, 5';
+    }
+
+    $days = [];
+    foreach ($decoded as $value) {
+        $day = (int)$value;
+        if ($day > 0) {
+            $days[] = $day;
+        }
+    }
+
+    return $days ? implode(', ', array_values(array_unique($days))) : '1, 3, 5';
+}
+
 // ── POST handler ──────────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
@@ -101,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'save_stripe' => [
             'stripe_mode', 'stripe_publishable_key', 'stripe_secret_key', 'stripe_webhook_secret',
             'portal_signing_key', 'portal_link_ttl_minutes', 'stripe_statement_descriptor',
-            'billing_retry_days', 'ach_enabled', 'subscription_enabled',
+            'billing_retry_days', 'booking_flow_mode', 'ach_enabled', 'subscription_enabled',
         ],
     ];
 
@@ -112,6 +169,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     foreach ($fields as $key) {
         $raw = trim($_POST[$key] ?? '');
+        if ($key === 'billing_retry_days') {
+            $raw = normalize_retry_days_input($raw);
+        }
         // Never overwrite existing sensitive fields with blank
         if (in_array($key, $sensitive_blanks, true) && $raw === '') {
             if (!empty(get_setting($key))) {
@@ -438,9 +498,23 @@ layout_start('Settings', 'settings');
                        value="<?= e(get_setting('stripe_statement_descriptor', '')) ?>" maxlength="22">
             </div>
             <div class="col-md-6">
-                <label class="form-label" for="billing_retry_days">Billing Retry Days (JSON)</label>
+                <label class="form-label" for="booking_flow_mode">Website Booking Flow</label>
+                <select id="booking_flow_mode" name="booking_flow_mode" class="form-select">
+                    <?php $booking_flow_mode = get_setting('booking_flow_mode', 'instant'); ?>
+                    <option value="instant" <?= $booking_flow_mode === 'instant' ? 'selected' : '' ?>>Instant checkout after booking</option>
+                    <option value="request" <?= $booking_flow_mode === 'request' ? 'selected' : '' ?>>Request first, approve and invoice later</option>
+                </select>
+                <div class="form-text" style="color:var(--gy);">
+                    Choose whether customers pay right away online, or submit a request for your team to review before sending an invoice or payment link.
+                </div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="billing_retry_days">Billing Retry Schedule</label>
                 <input type="text" id="billing_retry_days" name="billing_retry_days" class="form-control"
-                       value="<?= e(get_setting('billing_retry_days', '[1,3,5]')) ?>">
+                       value="<?= e(retry_days_display_value()) ?>" placeholder="1, 3, 5">
+                <div class="form-text" style="color:var(--gy);">
+                    Enter the days after a failed payment when Stripe retries should happen, separated by commas. Example: <code>1, 3, 5</code>.
+                </div>
             </div>
             <div class="col-md-3">
                 <label class="form-label" for="ach_enabled">ACH Payments</label>

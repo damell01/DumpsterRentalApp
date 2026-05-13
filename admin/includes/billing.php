@@ -2,6 +2,7 @@
 
 use TrashPanda\Billing\AuditLogService;
 use TrashPanda\Billing\BillingNotificationService;
+use TrashPanda\Billing\CatalogSyncService;
 use TrashPanda\Billing\CheckoutService;
 use TrashPanda\Billing\InvoiceBillingService;
 use TrashPanda\Billing\PaymentMethodService;
@@ -48,6 +49,15 @@ function billing_checkout_service(): CheckoutService
     return $service ??= new CheckoutService(
         billing_stripe_factory(),
         billing_customer_service(),
+    );
+}
+
+function billing_catalog_sync_service(): CatalogSyncService
+{
+    static $service = null;
+    return $service ??= new CatalogSyncService(
+        billing_stripe_factory(),
+        billing_audit_log_service(),
     );
 }
 

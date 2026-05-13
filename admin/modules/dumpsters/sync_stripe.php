@@ -41,7 +41,8 @@ try {
 
     log_activity('update', "Synced dumpster {$dumpster['unit_code']} to Stripe (product: {$result['stripe_product_id']})", 'dumpster', $id);
 
-    flash_success("Dumpster {$dumpster['unit_code']} synced to Stripe successfully. Product ID: {$result['stripe_product_id']}");
+    $priceSummary = !empty($result['price_map']) ? implode(', ', array_keys($result['price_map'])) : 'product only';
+    flash_success("Dumpster {$dumpster['unit_code']} synced to Stripe successfully. Synced: {$priceSummary}.");
 } catch (\Throwable $e) {
     flash_error('Stripe sync failed: ' . $e->getMessage());
 }

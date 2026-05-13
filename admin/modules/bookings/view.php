@@ -41,6 +41,35 @@ layout_start('Booking Detail', 'bookings');
         <a href="update_payment.php?id=<?= $id ?>" class="btn-tp-ghost btn-tp-sm">
             <i class="fa-solid fa-credit-card"></i> Update Payment
         </a>
+        <?php if (has_role('admin', 'office') && ($booking['booking_status'] ?? '') === 'pending'): ?>
+        <form method="POST" action="approve_request.php" class="d-inline"
+              onsubmit="return confirm('Approve this booking request?');">
+            <?= csrf_field() ?>
+            <input type="hidden" name="id" value="<?= $id ?>">
+            <input type="hidden" name="approval_action" value="approve_only">
+            <button type="submit" class="btn-tp-ghost btn-tp-sm">
+                <i class="fa-solid fa-check"></i> Approve Only
+            </button>
+        </form>
+        <form method="POST" action="approve_request.php" class="d-inline"
+              onsubmit="return confirm('Approve this booking request and create an invoice?');">
+            <?= csrf_field() ?>
+            <input type="hidden" name="id" value="<?= $id ?>">
+            <input type="hidden" name="approval_action" value="invoice">
+            <button type="submit" class="btn-tp-primary btn-tp-sm">
+                <i class="fa-solid fa-file-invoice-dollar"></i> Approve + Invoice
+            </button>
+        </form>
+        <form method="POST" action="approve_request.php" class="d-inline"
+              onsubmit="return confirm('Approve this booking request and create a work order?');">
+            <?= csrf_field() ?>
+            <input type="hidden" name="id" value="<?= $id ?>">
+            <input type="hidden" name="approval_action" value="work_order">
+            <button type="submit" class="btn-tp-ghost btn-tp-sm">
+                <i class="fa-solid fa-clipboard-list"></i> Approve + Work Order
+            </button>
+        </form>
+        <?php endif; ?>
         <?php if (
             $booking['payment_method'] === 'stripe' &&
             $booking['payment_status'] === 'paid' &&
@@ -178,6 +207,11 @@ layout_start('Booking Detail', 'bookings');
                 <i class="fa-solid fa-circle-info me-2 text-muted"></i> Status
             </div>
             <div class="tp-card-body">
+                <?php if (($booking['booking_status'] ?? '') === 'pending' && has_role('admin', 'office')): ?>
+                <div class="alert alert-info py-2 px-3 mb-3" role="alert">
+                    This request is waiting for approval. You can approve it only, approve it and invoice it, or approve it and turn it into a work order.
+                </div>
+                <?php endif; ?>
                 <div class="row g-3">
                     <div class="col-6">
                         <div class="text-muted" style="font-size:.8rem;">Booking Status</div>

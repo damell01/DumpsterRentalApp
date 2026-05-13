@@ -143,6 +143,7 @@ ALTER TABLE `invoices`
   ADD COLUMN IF NOT EXISTS `stripe_hosted_invoice_url` varchar(500) DEFAULT NULL AFTER `stripe_invoice_id`,
   ADD COLUMN IF NOT EXISTS `stripe_payment_intent_id` varchar(255) DEFAULT NULL AFTER `stripe_hosted_invoice_url`,
   ADD COLUMN IF NOT EXISTS `subscription_id` int(11) DEFAULT NULL AFTER `customer_id`,
+  ADD COLUMN IF NOT EXISTS `work_order_id` int(11) DEFAULT NULL AFTER `subscription_id`,
   ADD COLUMN IF NOT EXISTS `collection_method` varchar(50) DEFAULT NULL AFTER `stripe_payment_intent_id`,
   ADD COLUMN IF NOT EXISTS `billing_reason` varchar(100) DEFAULT NULL AFTER `collection_method`,
   ADD COLUMN IF NOT EXISTS `paid_at` datetime DEFAULT NULL AFTER `billing_reason`,
@@ -168,6 +169,7 @@ ALTER TABLE `bookings`
   ADD KEY `idx_bookings_subscription_id` (`subscription_id`);
 
 ALTER TABLE `invoices`
+  ADD KEY `idx_invoices_work_order_id` (`work_order_id`),
   ADD KEY `idx_invoices_subscription_id` (`subscription_id`),
   ADD KEY `idx_invoices_stripe_invoice_id` (`stripe_invoice_id`);
 
@@ -187,6 +189,10 @@ ALTER TABLE `bookings`
     FOREIGN KEY (`subscription_id`) REFERENCES `subscriptions` (`id`) ON DELETE SET NULL;
 
 ALTER TABLE `invoices`
+  ADD CONSTRAINT `fk_invoices_work_order_id`
+    FOREIGN KEY (`work_order_id`) REFERENCES `work_orders` (`id`) ON DELETE SET NULL;
+
+ALTER TABLE `invoices`
   ADD CONSTRAINT `fk_invoices_subscription_id`
     FOREIGN KEY (`subscription_id`) REFERENCES `subscriptions` (`id`) ON DELETE SET NULL;
 
@@ -196,6 +202,7 @@ INSERT IGNORE INTO `settings` (`key`, `value`) VALUES
   ('stripe_statement_descriptor', ''),
   ('billing_email_enabled', '1'),
   ('billing_retry_days', '[1,3,5]'),
+  ('booking_flow_mode', 'instant'),
   ('ach_enabled', '1'),
   ('subscription_enabled', '1');
 
@@ -218,3 +225,12 @@ LEFT JOIN `customers` c
   )
 SET i.customer_id = c.id
 WHERE i.customer_id IS NULL;
+
+UPDATE `invoices` i
+INNER JOIN `work_orders` wo
+  ON i.work_order_id IS NULL
+ AND wo.wo_number IS NOT NULL
+ AND wo.wo_number != ''
+ AND i.notes LIKE CONCAT('%Work Order ', wo.wo_number, '%')
+SET i.work_order_id = wo.id
+WHERE i.work_order_id IS NULL;

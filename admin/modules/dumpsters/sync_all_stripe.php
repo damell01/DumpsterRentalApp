@@ -55,7 +55,7 @@ foreach ($dumpsters as $dumpster) {
 }
 
 if ($fail_count === 0) {
-    flash_success("All {$success_count} dumpster(s) synced to Stripe successfully.");
+    flash_success("All {$success_count} dumpster(s) synced to Stripe successfully, including recurring catalog prices where rates were set.");
 } elseif ($success_count > 0) {
     flash_warning("{$success_count} dumpster(s) synced successfully. {$fail_count} failed: " . implode('; ', $fail_msgs));
 } else {

@@ -31,6 +31,8 @@ $company_name = get_setting('company_name', 'Trash Panda Roll-Offs');
 $booking_terms = get_setting('booking_terms', 'By completing this booking, you agree to our rental terms and conditions.');
 $stripe_pub_key = get_setting('stripe_publishable_key', '');
 $ach_enabled = get_setting('ach_enabled', '1') === '1';
+$booking_flow_mode = get_setting('booking_flow_mode', 'instant');
+$request_mode = $booking_flow_mode === 'request';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -295,9 +297,15 @@ $ach_enabled = get_setting('ach_enabled', '1') === '1';
 </div>
 
 <!-- Main content -->
-<div class="book-container">
+    <div class="book-container">
+        <?php if ($request_mode): ?>
+        <div class="book-alert book-alert-info">
+            <i class="fas fa-circle-info"></i>
+            Your booking will be submitted as a request for approval. We will review it first, then send an invoice or payment link if needed.
+        </div>
+        <?php endif; ?>
 
-    <!-- Step indicators -->
+        <!-- Step indicators -->
     <div class="step-nav">
         <div class="step-nav-item active" id="step-nav-1">
             <i class="fas fa-dumpster"></i> 1. Unit &amp; Dates
@@ -490,7 +498,7 @@ $ach_enabled = get_setting('ach_enabled', '1') === '1';
                 <i class="fas fa-arrow-left"></i> Back
             </button>
             <button type="button" id="btnSubmit" class="btn-panda" onclick="submitBooking()">
-                <i class="fas fa-calendar-check"></i> Continue to Payment
+                <i class="fas fa-calendar-check"></i> <?= $request_mode ? 'Submit Booking Request' : 'Continue to Payment' ?>
             </button>
         </div>
 
@@ -780,7 +788,7 @@ function submitBooking() {
     };
 
     btnEl.disabled = true;
-    btnEl.innerHTML = '<span class="spinner-inline"></span> Processing…';
+    btnEl.innerHTML = '<span class="spinner-inline"></span> Processing...';
 
     fetch('/api/create-booking.php', {
         method:  'POST',
@@ -804,7 +812,7 @@ function submitBooking() {
             errEl.innerHTML     = '<i class="fas fa-times-circle"></i> ' + (data.error || 'An error occurred. Please try again.');
             errEl.style.display = 'block';
             btnEl.disabled      = false;
-            btnEl.innerHTML     = '<i class="fas fa-calendar-check"></i> Continue to Payment';
+            btnEl.innerHTML     = '<i class="fas fa-calendar-check"></i> <?= $request_mode ? 'Submit Booking Request' : 'Continue to Payment' ?>';
             window.scrollTo(0, errEl.getBoundingClientRect().top + window.scrollY - 80);
         }
     })
@@ -812,7 +820,7 @@ function submitBooking() {
         errEl.textContent   = 'Network error. Please try again.';
         errEl.style.display = 'block';
         btnEl.disabled      = false;
-        btnEl.innerHTML     = '<i class="fas fa-calendar-check"></i> Continue to Payment';
+        btnEl.innerHTML     = '<i class="fas fa-calendar-check"></i> <?= $request_mode ? 'Submit Booking Request' : 'Continue to Payment' ?>';
     });
 }
 </script>

@@ -192,9 +192,9 @@ layout_start('Edit Dumpster', 'inventory');
             <?= csrf_field() ?>
             <input type="hidden" name="id" value="<?= $id ?>">
             <button type="submit" class="btn-tp-ghost btn-tp-sm"
-                    onclick="return confirm('Sync this dumpster product and pricing to Stripe?')"
-                    title="Create or update this dumpster as a Stripe product">
-                <i class="fa-brands fa-stripe"></i> Sync to Stripe
+                    onclick="return confirm('Sync this dumpster product and booking/recurring pricing to Stripe?')"
+                    title="Create or update this dumpster as a Stripe product with booking and recurring prices">
+                <i class="fa-brands fa-stripe"></i> Sync Pricing to Stripe
             </button>
         </form>
         <?php endif; ?>
@@ -214,7 +214,7 @@ layout_start('Edit Dumpster', 'inventory');
 </div>
 <?php endif; ?>
 
-<div class="tp-card" style="max-width:640px;">
+<div class="tp-card" style="max-width:1160px;width:100%;">
     <form method="POST" action="edit.php" enctype="multipart/form-data">
         <?= csrf_field() ?>
         <input type="hidden" name="id" value="<?= $id ?>">
@@ -263,7 +263,7 @@ layout_start('Edit Dumpster', 'inventory');
             </div>
 
             <!-- Type -->
-            <div class="col-md-4">
+            <div class="col-md-6 col-lg-4">
                 <label class="form-label" for="type">Type</label>
                 <select id="type" name="type" class="form-select">
                     <option value="dumpster" <?= ($dumpster['type'] ?? 'dumpster') === 'dumpster' ? 'selected' : '' ?>>Dumpster</option>
@@ -287,6 +287,11 @@ layout_start('Edit Dumpster', 'inventory');
                     Booking Pricing
                 </h6>
                 <hr class="mt-1 mb-0" style="border-color:rgba(255,255,255,.07);">
+            </div>
+            <div class="col-12">
+                <div class="alert alert-light border mb-0 py-2 px-3" style="font-size:.9rem;">
+                    Save here first, then use <strong>Sync Pricing to Stripe</strong> to push booking price plus weekly, bi-weekly, and monthly recurring catalog prices from this item.
+                </div>
             </div>
 
             <!-- Base Price -->
@@ -339,7 +344,7 @@ layout_start('Edit Dumpster', 'inventory');
                 <hr class="mt-1 mb-0" style="border-color:rgba(255,255,255,.07);">
             </div>
 
-            <div class="col-md-3">
+            <div class="col-md-4 col-lg-3">
                 <label class="form-label" for="delivery_fee">Delivery Fee ($)</label>
                 <input type="number"
                        id="delivery_fee"
@@ -351,7 +356,7 @@ layout_start('Edit Dumpster', 'inventory');
                        placeholder="0.00">
             </div>
 
-            <div class="col-md-3">
+            <div class="col-md-4 col-lg-3">
                 <label class="form-label" for="pickup_fee">Pickup Fee ($)</label>
                 <input type="number"
                        id="pickup_fee"
@@ -363,7 +368,7 @@ layout_start('Edit Dumpster', 'inventory');
                        placeholder="0.00">
             </div>
 
-            <div class="col-md-3">
+            <div class="col-md-4 col-lg-3">
                 <label class="form-label" for="mileage_fee">Mileage/Trip Fee ($) <small class="text-muted">optional</small></label>
                 <input type="number"
                        id="mileage_fee"
@@ -403,6 +408,11 @@ layout_start('Edit Dumpster', 'inventory');
                         <div style="font-size:.85rem;font-family:monospace;"><?= e($dumpster['stripe_price_id']) ?></div>
                     </div>
                     <?php endif; ?>
+                    <div class="col-12">
+                        <div class="text-muted" style="font-size:.8rem;">
+                            Recurring Stripe prices are synced by catalog lookup key from your weekly and monthly rates so you can refresh them from this screen without hand-editing Stripe.
+                        </div>
+                    </div>
                 </div>
             </div>
             <?php endif; ?>
