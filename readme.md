@@ -26,22 +26,102 @@ A root-level `.htaccess` file ensures that visiting the bare domain URL (e.g. `h
 - Shared navigation and footer injected via `shared-components.js`
 
 ### Admin Panel (`/admin/`)
-- **Bookings Management** — full booking list, detail view, payment status updates, cancellation
-- **Stripe Checkout Integration** — server-side checkout session creation + webhook handler
-- **Cash / Check payments** — manual payment recording with pending/paid statuses
-- **Inventory Blocks** — admin can block any unit from being booked for specific date ranges
-- **Leads Management** — contact form submissions land here automatically
-- **Customer Database**
-- **Quote Builder** with print layout
-- **Work Order Management** with printable invoice
-- **Dumpster Inventory** tracking
-- **Scheduling Calendar**
-- **Reports & Revenue Tracking**
-- **User & Role Management** (admin, office, dispatcher, readonly)
-- **Email Notifications** via PHPMailer (SMTP) or PHP `mail()` fallback
-- **Two-Factor Authentication** per user (TOTP — Google Authenticator, Authy, etc.)
+
+#### 📦 Bookings
+- Full booking list with status/payment filters and date range search
+- Detailed booking view with customer info, unit details, pricing breakdown
+- Booking status workflow: Pending → Confirmed → Completed → Canceled
+- Payment status updates: Unpaid, Pending, Paid (Stripe), Paid Cash, Paid Check, Refunded
+- Quick-mark cash/check payments with optional payment notes
+- Create Work Order directly from a booking
+
+#### 🛠️ Work Orders
+- Work order list with status tabs and search
+- Full work order detail view with notes timeline
+- Work order statuses: Scheduled, Delivered, Active, Pickup Requested, Picked Up, Completed, Canceled
+- Add timestamped notes to any work order
+- **Printable work order** with company letterhead, logo, and configurable footer text
+- Generate an invoice from a completed work order
+- Assign dumpsters to work orders
+
+#### 📄 Invoices
+- Create custom invoices with unlimited line items
+- Line item rate types: Fixed, Daily, Weekly, Monthly
+- Auto-generate Stripe Checkout payment links when Stripe is configured
+- Invoice statuses: Draft, Sent, Paid, Void, Canceled
+- Quick-pay actions: Mark Paid (Cash), Mark Paid (Check), Mark as Sent, Cancel
+- **Printable invoice** with company logo, contact info, line items, totals, terms, and footer text
+- Payment records only appear for actually-paid invoices (not just drafts/sent)
+
+#### 💰 Payments
+- All-time revenue totals by payment method (Stripe, Cash, Check)
+- Month-to-date revenue summary
+- Filterable payment records: by method, status, date range, source (booking/invoice)
+- Stripe live data: account balance, recent payouts, monthly charge summary
+- Only shows invoices with actual payment activity (not draft/sent without payment)
+
+#### 🗑️ Inventory (Dumpsters)
+- Full dumpster fleet management with status tracking
+- Dumpster statuses: Available, Reserved, In Use, Maintenance
+- Flexible pricing: base price + rental days + extra-day rate (or legacy daily/weekly/monthly)
+- Optional delivery fee, pickup fee, mileage fee, and tax rate per unit
+- Sync individual dumpsters or **Sync All to Stripe** with one click
+- Inventory block system: block units from booking for specific date ranges
+
+#### 📅 Calendar
+- Visual monthly calendar view of all deliveries and pickups
+- Color-coded booking events with clickable links
+
+#### 👥 Customers
+- Customer database with contact info and billing address
+- View full booking history per customer
+- Create invoices directly from a customer profile
+
+#### 📊 Reports
+- Revenue breakdown by payment method for any date range or all-time
+- Booking and invoice revenue summaries
+
+#### 🔔 Notifications
+- Send email/SMS notifications to customers about their bookings
+- Contact form submissions saved as leads and trigger admin alert emails
+
+#### ⚙️ Settings
+- **Company Information** — name, phone, email, address
+- **Logo Upload** — upload a logo image directly (PNG, JPG, SVG, etc.) or enter a URL
+- **Document Templates** — Invoice T&C, work order footer text, invoice footer text, booking terms
+- **Email / SMTP** — configure SMTP for reliable email delivery (or use PHP mail())
+- **Stripe** — API keys, webhook secret, currency, mode (test/live)
+- **Database Upgrade** — run schema migrations from the UI
+- Section-isolated saves: saving company info never touches email/SMTP settings
+
+#### 👤 Users
+- Manage admin users with roles: admin, office
+- Password change with force-change-on-first-login flow
+
+#### ❓ Help & Guide
+- In-app help documentation
+- Stripe onboarding walkthrough
+- Email setup guide (SMTP providers, test card numbers)
+- Admin navigation overview
 
 ---
+
+## 📧 Email Notifications
+
+The following emails are sent automatically by the system:
+
+| Event | Recipient | Description |
+|-------|-----------|-------------|
+| New booking (online) | Customer + admin notification emails | Booking confirmation with dumpster, dates, total, and Stripe payment link |
+| Booking confirmed by admin | Customer | Confirmation that booking has been approved |
+| Booking canceled | Customer | Cancellation notification |
+| Payment received (Stripe webhook) | Customer + admin | Payment confirmation and receipt details |
+| Pickup request submitted | Admin notification emails | Customer has requested pickup via public form |
+| Contact form submission | Admin notification emails | Inquiry with customer name, email, message |
+| Test email (manual trigger) | Company email address | Verifies that email sending is configured correctly |
+
+All emails use an HTML template with your company name and branding. Configure SMTP in **Settings → Email Configuration** for reliable delivery.
+
 
 ## Tech Stack
 
@@ -114,249 +194,7 @@ cp -r admin/          /home/youraccount/public_html/admin/
 
 ---
 
-## ③ VPS Installation (Apache or Nginx)
-
-If you host this on a VPS under a domain such as `bellflowapp.com`, use this section instead of the cPanel-style upload flow.
-
-### Recommended VPS Layout
-
-Clone or upload the project to a dedicated app directory such as:
-
-```bash
-/var/www/bellflowapp
-```
-
-Recommended structure:
-
-```bash
-/var/www/bellflowapp/
-  ├── .htaccess
-  ├── public/
-  ├── admin/
-  ├── .env
-  └── ...
-```
-
-### 1. Install System Packages
-
-Example for Ubuntu/Debian:
-
-```bash
-sudo apt update
-sudo apt install -y apache2 mysql-server unzip git curl software-properties-common
-sudo add-apt-repository ppa:ondrej/php -y
-sudo apt update
-sudo apt install -y php8.3 php8.3-cli php8.3-mysql php8.3-curl php8.3-mbstring php8.3-xml php8.3-zip php8.3-intl composer
-```
-
-If you prefer Nginx with PHP-FPM:
-
-```bash
-sudo apt install -y nginx php8.3-fpm php8.3-mysql php8.3-curl php8.3-mbstring php8.3-xml php8.3-zip php8.3-intl composer
-```
-
-### 2. Upload or Clone the App
-
-```bash
-cd /var/www
-sudo git clone YOUR_REPO_URL bellflowapp
-cd /var/www/bellflowapp
-```
-
-Or upload the project archive and extract it there.
-
-### 3. Set Ownership and Permissions
-
-```bash
-sudo chown -R www-data:www-data /var/www/bellflowapp
-sudo find /var/www/bellflowapp -type d -exec chmod 755 {} \;
-sudo find /var/www/bellflowapp -type f -exec chmod 644 {} \;
-sudo chmod -R 775 /var/www/bellflowapp/admin/uploads
-```
-
-### 4. Create the `.env` File
-
-Because this app now expects real production secrets to come from `.env`, create:
-
-```bash
-sudo nano /var/www/bellflowapp/.env
-```
-
-Example starter config:
-
-```env
-APP_ENV=production
-APP_DEBUG=false
-APP_NAME="Trash Panda Roll-Offs"
-APP_VERSION=1.0.0
-
-DB_HOST=127.0.0.1
-DB_NAME=bellflowapp
-DB_USER=bellflowapp
-DB_PASS=CHANGE_THIS_DATABASE_PASSWORD
-DB_CHARSET=utf8mb4
-
-SESSION_LIFETIME=7200
-CRON_KEY=CHANGE_THIS_TO_A_LONG_RANDOM_SECRET
-PORTAL_SIGNING_KEY=CHANGE_THIS_TO_A_LONG_RANDOM_PORTAL_SECRET
-APP_INSTALLED=false
-```
-
-Generate secure random values with:
-
-```bash
-openssl rand -hex 32
-```
-
-### 5. Create the Database
-
-```sql
-CREATE DATABASE bellflowapp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'bellflowapp'@'localhost' IDENTIFIED BY 'CHANGE_THIS_DATABASE_PASSWORD';
-GRANT ALL PRIVILEGES ON bellflowapp.* TO 'bellflowapp'@'localhost';
-FLUSH PRIVILEGES;
-```
-
-### 6. Install Composer Dependencies
-
-```bash
-cd /var/www/bellflowapp/admin
-composer install --no-dev --optimize-autoloader
-```
-
-### 7. Apache Virtual Host Example
-
-Enable rewrite first:
-
-```bash
-sudo a2enmod rewrite
-```
-
-Create `/etc/apache2/sites-available/bellflowapp.com.conf`:
-
-```apache
-<VirtualHost *:80>
-    ServerName bellflowapp.com
-    ServerAlias www.bellflowapp.com
-    DocumentRoot /var/www/bellflowapp
-
-    <Directory /var/www/bellflowapp>
-        AllowOverride All
-        Require all granted
-    </Directory>
-
-    ErrorLog ${APACHE_LOG_DIR}/bellflowapp-error.log
-    CustomLog ${APACHE_LOG_DIR}/bellflowapp-access.log combined
-</VirtualHost>
-```
-
-Then enable it:
-
-```bash
-sudo a2ensite bellflowapp.com.conf
-sudo systemctl reload apache2
-```
-
-### 8. Nginx Server Block Example
-
-Create `/etc/nginx/sites-available/bellflowapp.com`:
-
-```nginx
-server {
-    listen 80;
-    server_name bellflowapp.com www.bellflowapp.com;
-    root /var/www/bellflowapp;
-    index index.php index.html;
-
-    location / {
-        try_files $uri $uri/ /public/index.html;
-    }
-
-    location /admin/ {
-        try_files $uri $uri/ /admin/index.php?$query_string;
-    }
-
-    location ~ \.php$ {
-        include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        include fastcgi_params;
-    }
-
-    location ~ /\.ht {
-        deny all;
-    }
-}
-```
-
-Then enable it:
-
-```bash
-sudo ln -s /etc/nginx/sites-available/bellflowapp.com /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-### 9. Run the Installer
-
-Open:
-
-```text
-https://bellflowapp.com/admin/install/install.php
-```
-
-After install, log in, then run the database upgrade from **Admin → Settings → Run Database Upgrade** so the ACH/subscription tables are applied on the live database too.
-
-### 10. Enable SSL
-
-If using Apache:
-
-```bash
-sudo apt install -y certbot python3-certbot-apache
-sudo certbot --apache -d bellflowapp.com -d www.bellflowapp.com
-```
-
-If using Nginx:
-
-```bash
-sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d bellflowapp.com -d www.bellflowapp.com
-```
-
-### 11. Configure Cron on the VPS
-
-Edit the web server user's crontab:
-
-```bash
-sudo crontab -e
-```
-
-Add:
-
-```bash
-0 8 * * * /usr/bin/php /var/www/bellflowapp/admin/cron/daily.php >> /var/log/bellflowapp-cron.log 2>&1
-```
-
-### 12. Stripe URLs for `bellflowapp.com`
-
-Use these production URLs in Stripe:
-
-- Webhook endpoint: `https://bellflowapp.com/public/api/stripe-webhook.php`
-- Customer portal link request page: `https://bellflowapp.com/public/portal/request-link.php`
-- Booking page: `https://bellflowapp.com/book.php`
-- Admin login: `https://bellflowapp.com/admin/login.php`
-
-### 13. VPS Go-Live Notes
-
-- Keep `.env` outside version control.
-- Confirm the web server can write to `admin/uploads/`.
-- Use the domain name in Stripe webhook configuration, not the server IP.
-- Set `APP_INSTALLED=true` after installation is complete.
-- Test one full booking, one ACH payment, one invoice payment, and one webhook delivery before launch.
-
----
-
-## ④ Configure the Admin
+## ③ Configure the Admin
 
 Edit `admin/config/config.php`:
 
@@ -372,7 +210,7 @@ define('CRON_KEY', 'change-me-to-a-random-secret'); // used to secure the cron U
 
 ---
 
-## ⑤ Run the Installer
+## ④ Run the Installer
 
 Navigate to your site's installer URL, for example:
 
@@ -403,7 +241,7 @@ define('APP_INSTALLED', true);
 
 ---
 
-## ⑥ Set Up the Booking & Payment System
+## ⑤ Set Up the Booking & Payment System
 
 ### Run the Booking Schema Migration
 
@@ -474,7 +312,7 @@ With `stripe_mode = test`:
 
 ---
 
-## ⑦ PHPMailer (Recommended for Reliable Email)
+## ⑥ PHPMailer (Recommended for Reliable Email)
 
 PHPMailer is **not required** — the system falls back to PHP's built-in `mail()` — but SMTP via PHPMailer is strongly recommended for reliable delivery (Gmail, Mailgun, SendGrid, etc.).
 
@@ -507,7 +345,7 @@ Many cPanel/shared hosts also offer Composer under **cPanel → Software → PHP
 
 ---
 
-## ⑧ Set Folder Permissions
+## ⑦ Set Folder Permissions
 
 ```bash
 chmod 755 admin/assets/img/
@@ -521,7 +359,7 @@ chmod 775 admin/assets/img/
 
 ---
 
-## ⑨ Set Up the Daily Cron Job (cPanel)
+## ⑧ Set Up the Daily Cron Job (cPanel)
 
 Go to **cPanel → Cron Jobs** and add:
 
@@ -544,7 +382,7 @@ The cron job:
 
 ---
 
-## ⑩ Enable HTTPS
+## ⑨ Enable HTTPS
 
 In `admin/.htaccess`, uncomment the HTTPS redirect block:
 
@@ -733,13 +571,11 @@ Only users with the `admin` role can delete work orders. Deletion is permanent a
 Complete all items below before going live with real customers.
 
 ### Configuration
-- [ ] Configure production secrets in `.env` (`DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`, `CRON_KEY`, `PORTAL_SIGNING_KEY`)
+- [ ] Edit `admin/config/config.php`: set `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`
 - [ ] Change `CRON_KEY` to a long random string (e.g. `openssl rand -hex 32`)
-- [ ] Change `PORTAL_SIGNING_KEY` to a long random string
 - [ ] Set `APP_INSTALLED = true` in `config.php` after running the installer
 - [ ] Run the main installer: `https://yourdomain.com/admin/install/install.php`
 - [ ] Run the booking schema migration (`admin/install/booking_schema.sql`)
-- [ ] Run the ACH/subscription billing upgrade from Admin → Settings → Run Database Upgrade
 
 ### Security
 - [ ] Enable HTTPS — uncomment the redirect block in `admin/.htaccess`
@@ -764,7 +600,7 @@ Complete all items below before going live with real customers.
 - [ ] Set a default Work Order footer in Admin → Settings → Work Order Footer
 
 ### Cron Job
-- [ ] Add the daily cron job in cPanel or your VPS crontab (see **⑨ Set Up the Daily Cron Job** section above and the VPS section)
+- [ ] Add the daily cron job in cPanel → Cron Jobs (see **⑧ Set Up the Daily Cron Job** section above)
 
 ### Final Checks
 - [ ] Visit the public website and confirm all pages load correctly
