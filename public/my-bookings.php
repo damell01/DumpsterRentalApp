@@ -118,6 +118,37 @@ $company_name = get_setting('company_name', 'Trash Panda Roll-Offs');
         }
         .bk-dates { font-size: .85rem; color: var(--gray-light); }
         .bk-meta  { font-size: .8rem;  color: var(--gray); margin-top: .15rem; }
+        .bk-actions {
+            display: flex;
+            gap: .65rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        .bk-actions .btn-panda,
+        .bk-actions .btn-ghost {
+            padding: 10px 18px;
+            font-size: .85rem;
+        }
+        .invoice-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(249,115,22,.12);
+            border: 1px solid rgba(249,115,22,.28);
+            color: #fdba74;
+            font-size: .72rem;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            margin-top: .7rem;
+        }
+        .invoice-meta {
+            margin-top: .45rem;
+            color: var(--gray-light);
+            font-size: .78rem;
+        }
 
         .status-badge {
             display: inline-block;
@@ -367,12 +398,14 @@ function renderBookings(bookings) {
     bookings.forEach(function(b) {
         var bkStatus  = statusLabel(b.booking_status);
         var payStatus = payLabel(b.payment_status);
+        var invoice = b.invoice || null;
 
         var start  = formatDate(b.rental_start);
         var end    = formatDate(b.rental_end);
         var total  = '$' + parseFloat(b.total_amount).toFixed(2);
         var addr   = b.address ? '<i class="fas fa-map-marker-alt" style="color:var(--orange);width:12px;"></i> ' + escHtml(b.address) + ' &nbsp;·&nbsp; ' : '';
         var days   = parseInt(b.rental_days, 10) > 1 ? parseInt(b.rental_days, 10) + ' days' : '1 day';
+        var portalUrl = b.customer_email ? '/portal/request-link.php?email=' + encodeURIComponent(b.customer_email) : '/portal/request-link.php';
 
         // Build unit line — show sibling units if this is part of a group
         var unitHtml = '<div class="bk-unit">' + escHtml(b.unit) + '</div>';
@@ -381,6 +414,25 @@ function renderBookings(bookings) {
                 + '<i class="fas fa-layer-group" style="color:var(--orange);font-size:.7rem;margin-right:.3rem;"></i>'
                 + 'Also in group: ' + b.group_units.map(escHtml).join(', ')
                 + '</div>';
+        }
+
+        var invoiceHtml = '';
+        if (invoice && invoice.number) {
+            invoiceHtml += '<div class="invoice-chip"><i class="fas fa-file-invoice-dollar"></i> Invoice ' + escHtml(invoice.number) + '</div>';
+            invoiceHtml += '<div class="invoice-meta">'
+                + 'Status: ' + escHtml(invoiceLabel(invoice.status))
+                + (invoice.total > 0 ? ' &nbsp;·&nbsp; Total: $' + parseFloat(invoice.total).toFixed(2) : '')
+                + '</div>';
+        }
+
+        var actionsHtml = '';
+        if (invoice && invoice.payment_link) {
+            actionsHtml += '<a class="btn-panda" href="' + escHtml(invoice.payment_link) + '" target="_blank" rel="noopener">'
+                + '<i class="fas fa-credit-card"></i> Pay Invoice</a>';
+        }
+        if (invoice && invoice.number) {
+            actionsHtml += '<a class="btn-ghost" href="' + escHtml(portalUrl) + '">'
+                + '<i class="fas fa-file-lines"></i> View Billing Portal</a>';
         }
 
         var html = '<div class="bk-card">'
@@ -396,6 +448,8 @@ function renderBookings(bookings) {
             + '</div>'
             + '<div class="bk-dates"><i class="fas fa-calendar-alt" style="color:var(--orange);width:14px;"></i> ' + escHtml(start) + ' → ' + escHtml(end) + ' &nbsp;·&nbsp; ' + escHtml(days) + '</div>'
             + '<div class="bk-meta">' + addr + '<i class="fas fa-dollar-sign" style="color:var(--orange);width:12px;"></i> ' + total + ' &nbsp;·&nbsp; ' + escHtml(pmLabel(b.payment_method)) + '</div>'
+            + invoiceHtml
+            + (actionsHtml ? '<div class="bk-actions">' + actionsHtml + '</div>' : '')
             + '</div>';
         list.innerHTML += html;
     });
@@ -417,6 +471,10 @@ function statusLabel(s) {
 }
 function payLabel(s) {
     var map = { paid: 'Paid', pending: 'Awaiting Payment', pending_cash: 'Pay by Cash', pending_check: 'Pay by Check', unpaid: 'Unpaid' };
+    return map[s] || s;
+}
+function invoiceLabel(s) {
+    var map = { draft: 'Draft', sent: 'Sent', paid: 'Paid', void: 'Void', overdue: 'Overdue' };
     return map[s] || s;
 }
 function pmLabel(s) {

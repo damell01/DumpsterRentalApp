@@ -5,6 +5,7 @@ require_once $_admin_root . '/config/config.php';
 require_once INC_PATH . '/helpers.php';
 
 $company_name = get_setting('company_name', 'Trash Panda Roll-Offs');
+$prefill_email = trim((string)($_GET['email'] ?? ''));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -23,7 +24,7 @@ $company_name = get_setting('company_name', 'Trash Panda Roll-Offs');
         <div id="portal-msg" class="alert alert-info d-none"></div>
         <div class="mb-3">
             <label class="form-label">Email address</label>
-            <input type="email" id="portal-email" class="form-control" placeholder="you@example.com">
+            <input type="email" id="portal-email" class="form-control" placeholder="you@example.com" value="<?= e($prefill_email) ?>">
         </div>
         <button class="btn btn-warning" onclick="requestPortalLink()">Send secure link</button>
     </div>

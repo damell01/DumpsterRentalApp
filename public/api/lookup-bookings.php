@@ -68,7 +68,42 @@ try {
                     b.unit_code, b.unit_size, b.rental_start, b.rental_end, b.rental_days,
                     b.total_amount, b.payment_method, b.payment_status, b.booking_status,
                     b.customer_address, b.customer_city, b.notes, b.created_at,
-                    b.booking_group_id
+                    b.booking_group_id,
+                    (
+                        SELECT i.id
+                        FROM invoices i
+                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
+                        ORDER BY i.id DESC
+                        LIMIT 1
+                    ) AS invoice_id,
+                    (
+                        SELECT i.invoice_number
+                        FROM invoices i
+                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
+                        ORDER BY i.id DESC
+                        LIMIT 1
+                    ) AS invoice_number,
+                    (
+                        SELECT i.status
+                        FROM invoices i
+                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
+                        ORDER BY i.id DESC
+                        LIMIT 1
+                    ) AS invoice_status,
+                    (
+                        SELECT i.total
+                        FROM invoices i
+                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
+                        ORDER BY i.id DESC
+                        LIMIT 1
+                    ) AS invoice_total,
+                    (
+                        SELECT i.stripe_payment_link
+                        FROM invoices i
+                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
+                        ORDER BY i.id DESC
+                        LIMIT 1
+                    ) AS invoice_payment_link
                FROM bookings b
               WHERE LOWER(TRIM(b.customer_email)) = ?
               ORDER BY b.rental_start DESC
@@ -82,7 +117,42 @@ try {
                     b.unit_code, b.unit_size, b.rental_start, b.rental_end, b.rental_days,
                     b.total_amount, b.payment_method, b.payment_status, b.booking_status,
                     b.customer_address, b.customer_city, b.notes, b.created_at,
-                    b.booking_group_id
+                    b.booking_group_id,
+                    (
+                        SELECT i.id
+                        FROM invoices i
+                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
+                        ORDER BY i.id DESC
+                        LIMIT 1
+                    ) AS invoice_id,
+                    (
+                        SELECT i.invoice_number
+                        FROM invoices i
+                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
+                        ORDER BY i.id DESC
+                        LIMIT 1
+                    ) AS invoice_number,
+                    (
+                        SELECT i.status
+                        FROM invoices i
+                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
+                        ORDER BY i.id DESC
+                        LIMIT 1
+                    ) AS invoice_status,
+                    (
+                        SELECT i.total
+                        FROM invoices i
+                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
+                        ORDER BY i.id DESC
+                        LIMIT 1
+                    ) AS invoice_total,
+                    (
+                        SELECT i.stripe_payment_link
+                        FROM invoices i
+                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
+                        ORDER BY i.id DESC
+                        LIMIT 1
+                    ) AS invoice_payment_link
                FROM bookings b
               WHERE REGEXP_REPLACE(b.customer_phone, '[^0-9]', '') LIKE ?
               ORDER BY b.rental_start DESC
@@ -131,9 +201,17 @@ $format_row = function(array $b, array $group_siblings = []): array {
         'booking_status'   => $b['booking_status'],
         'address'          => trim(($b['customer_address'] ?? '') . ($b['customer_city'] ? ', ' . $b['customer_city'] : ''), ', '),
         'customer_name'    => $b['customer_name'],
+        'customer_email'   => $b['customer_email'],
         'created_at'       => $b['created_at'],
         'booking_group_id' => $b['booking_group_id'] ?? null,
         'group_units'      => $sibling_units,
+        'invoice'          => !empty($b['invoice_id']) ? [
+            'id'           => (int)$b['invoice_id'],
+            'number'       => (string)($b['invoice_number'] ?? ''),
+            'status'       => (string)($b['invoice_status'] ?? ''),
+            'total'        => (float)($b['invoice_total'] ?? 0),
+            'payment_link' => (string)($b['invoice_payment_link'] ?? ''),
+        ] : null,
     ];
 };
 
