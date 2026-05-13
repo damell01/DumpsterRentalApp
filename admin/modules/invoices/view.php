@@ -357,6 +357,7 @@ function copyPayLink(btn) {
                 <form method="POST" action="generate_payment_link.php" class="mt-2">
                     <?= csrf_field() ?>
                     <input type="hidden" name="id" value="<?= $id ?>">
+                    <input type="hidden" name="payment_method" value="<?= e($inv['payment_method'] === 'ach' ? 'ach' : 'stripe') ?>">
                     <button type="submit" class="btn-tp-ghost btn-tp-xs w-100"
                             onclick="return confirm('Regenerate Stripe payment link? The old link may still work.')">
                         <i class="fa-solid fa-arrows-rotate me-1"></i> Regenerate Link
@@ -371,8 +372,15 @@ function copyPayLink(btn) {
                 <form method="POST" action="generate_payment_link.php">
                     <?= csrf_field() ?>
                     <input type="hidden" name="id" value="<?= $id ?>">
+                    <div class="mb-2">
+                        <label class="form-label" style="font-size:.82rem;">Online Payment Method</label>
+                        <select name="payment_method" class="form-select form-select-sm">
+                            <option value="stripe" <?= ($inv['payment_method'] ?? 'stripe') !== 'ach' ? 'selected' : '' ?>>Card Checkout</option>
+                            <option value="ach" <?= ($inv['payment_method'] ?? '') === 'ach' ? 'selected' : '' ?>>ACH Checkout</option>
+                        </select>
+                    </div>
                     <button type="submit" class="btn-tp-primary btn-tp-sm w-100">
-                        <i class="fa-brands fa-stripe me-1"></i> Generate Stripe Payment Link
+                        <i class="fa-brands fa-stripe me-1"></i> Generate Online Payment Link
                     </button>
                 </form>
             </div>
@@ -446,7 +454,7 @@ function copyPayLink(btn) {
                 <tr><td style="color:var(--gl);">Invoice #</td><td class="fw-semibold"><?= e($inv['invoice_number']) ?></td></tr>
                 <tr><td style="color:var(--gl);">Status</td><td><?= status_badge($inv['status']) ?></td></tr>
                 <?php if (!empty($inv['payment_method'])): ?>
-                <tr><td style="color:var(--gl);">Paid Via</td><td><?= e(ucfirst($inv['payment_method'])) ?></td></tr>
+                <tr><td style="color:var(--gl);">Paid Via</td><td><?= e(payment_method_label($inv['payment_method'])) ?></td></tr>
                 <?php endif; ?>
                 <tr><td style="color:var(--gl);">Items</td><td><?= count($items) ?></td></tr>
                 <?php if ((float)($inv['tax_rate'] ?? 0) > 0): ?>

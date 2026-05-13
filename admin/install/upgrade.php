@@ -665,6 +665,44 @@ $log[] = "[SKIP] invoice_footer setting — inserted via application on first sa
 echo "\n" . str_repeat('=', 60) . "\n";
 echo "RESULTS:\n\n";
 
+$billingUpgradeFile = __DIR__ . '/billing_upgrade.sql';
+if (is_file($billingUpgradeFile)) {
+    echo "\n--- Upgrade 24: ACH + recurring billing schema ---\n";
+    try {
+        $sql = file_get_contents($billingUpgradeFile);
+        if ($sql === false) {
+            throw new RuntimeException('Unable to read billing_upgrade.sql');
+        }
+
+        $statements = preg_split('/;\s*(?:\r?\n|$)/', $sql);
+        foreach ($statements as $statement) {
+            $statement = preg_replace('/--[^\n]*/', '', $statement);
+            $statement = preg_replace('/\/\*.*?\*\//s', '', $statement);
+            $statement = trim($statement);
+            if ($statement === '' || str_starts_with($statement, '--')) {
+                continue;
+            }
+            try {
+                $pdo->exec($statement);
+            } catch (PDOException $e) {
+                $msg = $e->getMessage();
+                if (
+                    stripos($msg, 'Duplicate column') !== false ||
+                    stripos($msg, 'already exists') !== false ||
+                    stripos($msg, 'Duplicate key') !== false ||
+                    stripos($msg, 'Duplicate foreign key') !== false
+                ) {
+                    continue;
+                }
+                $errors[] = '[FAIL] billing upgrade - ' . $msg;
+            }
+        }
+        $log[] = '[OK]  billing_upgrade.sql applied';
+    } catch (Throwable $e) {
+        $errors[] = '[FAIL] billing upgrade file - ' . $e->getMessage();
+    }
+}
+
 foreach ($log as $line) {
     echo "  $line\n";
 }

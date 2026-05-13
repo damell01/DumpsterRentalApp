@@ -147,3 +147,44 @@ function db_execute(string $sql, array $params = []): bool
 {
     return get_db()->prepare($sql)->execute($params);
 }
+
+/**
+ * Execute a callback within a DB transaction.
+ *
+ * @template T
+ * @param callable(PDO):T $callback
+ * @return T
+ * @throws Throwable
+ */
+function db_transaction(callable $callback): mixed
+{
+    $pdo = get_db();
+    $started = false;
+
+    if (!$pdo->inTransaction()) {
+        $pdo->beginTransaction();
+        $started = true;
+    }
+
+    try {
+        $result = $callback($pdo);
+        if ($started && $pdo->inTransaction()) {
+            $pdo->commit();
+        }
+        return $result;
+    } catch (Throwable $e) {
+        if ($started && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+}
+
+/**
+ * Fetch the first column from the first row, or null if no rows are returned.
+ */
+function db_value(string $sql, array $params = []): mixed
+{
+    $value = db_query($sql, $params)->fetchColumn();
+    return $value === false ? null : $value;
+}

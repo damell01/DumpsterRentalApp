@@ -15,6 +15,7 @@ require_once INC_PATH . '/db.php';
 require_once INC_PATH . '/helpers.php';
 require_once INC_PATH . '/auth.php';
 require_once INC_PATH . '/mailer.php';
+require_once INC_PATH . '/billing.php';
 
 // Load push support when the library is available
 $_push_autoload = ROOT_PATH . '/vendor/autoload.php';
@@ -207,10 +208,69 @@ try {
     $log[] = '  → ERROR: ' . $e->getMessage();
 }
 
-// ── Task 7: Log completion ────────────────────────────────────────────────────
+// ── Task 7: Subscription reminders, portal cleanup, ACH follow-up ────────────
+$log[] = '';
+$log[] = '[Task 7] Subscription reminders, portal cleanup, ACH follow-up';
+try {
+    $threeDays = date('Y-m-d', strtotime('+3 days'));
+    $upcomingSubscriptions = db_fetchall(
+        "SELECT s.*, c.email
+         FROM subscriptions s
+         INNER JOIN customers c ON c.id = s.customer_id
+         WHERE s.status IN ('active','trialing') AND s.next_billing_date = ?",
+        [$threeDays]
+    );
+    foreach ($upcomingSubscriptions as $subscription) {
+        billing_notification_service()->sendUpcomingRenewalReminder(
+            ['email' => $subscription['email'] ?? ''],
+            $subscription['service_name'] ?? ('Subscription ' . $subscription['id']),
+            $subscription['next_billing_date']
+        );
+    }
+
+    db_execute(
+        "UPDATE customers
+         SET portal_access_token_hash = NULL, portal_access_expires_at = NULL, updated_at = NOW()
+         WHERE portal_access_expires_at IS NOT NULL AND portal_access_expires_at < NOW()"
+    );
+
+    $staleAchPayments = db_fetchall(
+        "SELECT p.*, c.email, b.booking_number, i.invoice_number
+         FROM payments p
+         LEFT JOIN customers c ON c.id = p.customer_id
+         LEFT JOIN bookings b ON b.id = p.booking_id
+         LEFT JOIN invoices i ON i.id = p.invoice_id
+         WHERE p.payment_method = 'ach'
+           AND p.payment_status IN ('pending','processing')
+           AND p.created_at <= DATE_SUB(NOW(), INTERVAL 5 DAY)"
+    );
+    foreach ($staleAchPayments as $payment) {
+        billing_notification_service()->sendAchFailed(
+            ['email' => $payment['email'] ?? ''],
+            $payment['booking_number'] ?: ($payment['invoice_number'] ?: ('Payment ' . $payment['id']))
+        );
+    }
+
+    $failedWebhooks = (int)(db_value("SELECT COUNT(*) FROM webhook_logs WHERE processing_status = 'failed'") ?? 0);
+    if ($failedWebhooks > 0) {
+        notify_admins(
+            'Stripe webhook health alert',
+            email_template(
+                'Stripe webhook health alert',
+                '<p>There are currently <strong>' . $failedWebhooks . '</strong> failed webhook events waiting for review in the admin panel.</p>'
+            )
+        );
+    }
+
+    $log[] = '  → Completed billing maintenance tasks';
+} catch (\Throwable $e) {
+    $log[] = '  → ERROR: ' . $e->getMessage();
+}
+
+// ── Task 8: Log completion ────────────────────────────────────────────────────
 $elapsed = round(microtime(true) - $start, 2);
 $log[]   = '';
-$log[]   = '[Task 7] Logging to activity_log';
+$log[]   = '[Task 8] Logging to activity_log';
 try {
     db_execute(
         "INSERT INTO activity_log (user_id, action, description, entity_type, entity_id, ip_address, created_at)

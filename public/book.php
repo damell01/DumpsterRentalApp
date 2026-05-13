@@ -30,6 +30,7 @@ if ($preselect_unit_id <= 0 && $preselect_size !== '') {
 $company_name = get_setting('company_name', 'Trash Panda Roll-Offs');
 $booking_terms = get_setting('booking_terms', 'By completing this booking, you agree to our rental terms and conditions.');
 $stripe_pub_key = get_setting('stripe_publishable_key', '');
+$ach_enabled = get_setting('ach_enabled', '1') === '1';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -450,6 +451,13 @@ $stripe_pub_key = get_setting('stripe_publishable_key', '');
                             <i class="fab fa-stripe" style="font-size:1.5rem;color:#6772e5;"></i>
                             <span>Pay Online (Card)</span>
                         </label>
+                        <?php if ($ach_enabled): ?>
+                        <label class="unit-card d-flex align-items-center gap-2" style="flex:0 0 auto;padding:.85rem 1.25rem;" for="pm_ach">
+                            <input type="radio" id="pm_ach" name="payment_method" value="ach">
+                            <i class="fas fa-building-columns" style="font-size:1.25rem;color:#14b8a6;"></i>
+                            <span>Pay by ACH</span>
+                        </label>
+                        <?php endif; ?>
                         <label class="unit-card d-flex align-items-center gap-2" style="flex:0 0 auto;padding:.85rem 1.25rem;" for="pm_cash">
                             <input type="radio" id="pm_cash" name="payment_method" value="cash">
                             <i class="fas fa-money-bill-wave" style="font-size:1.3rem;color:#22c55e;"></i>
@@ -482,7 +490,7 @@ $stripe_pub_key = get_setting('stripe_publishable_key', '');
                 <i class="fas fa-arrow-left"></i> Back
             </button>
             <button type="button" id="btnSubmit" class="btn-panda" onclick="submitBooking()">
-                <i class="fas fa-calendar-check"></i> Confirm Booking
+                <i class="fas fa-calendar-check"></i> Continue to Payment
             </button>
         </div>
 
@@ -796,7 +804,7 @@ function submitBooking() {
             errEl.innerHTML     = '<i class="fas fa-times-circle"></i> ' + (data.error || 'An error occurred. Please try again.');
             errEl.style.display = 'block';
             btnEl.disabled      = false;
-            btnEl.innerHTML     = '<i class="fas fa-calendar-check"></i> Confirm Booking';
+            btnEl.innerHTML     = '<i class="fas fa-calendar-check"></i> Continue to Payment';
             window.scrollTo(0, errEl.getBoundingClientRect().top + window.scrollY - 80);
         }
     })
@@ -804,7 +812,7 @@ function submitBooking() {
         errEl.textContent   = 'Network error. Please try again.';
         errEl.style.display = 'block';
         btnEl.disabled      = false;
-        btnEl.innerHTML     = '<i class="fas fa-calendar-check"></i> Confirm Booking';
+        btnEl.innerHTML     = '<i class="fas fa-calendar-check"></i> Continue to Payment';
     });
 }
 </script>

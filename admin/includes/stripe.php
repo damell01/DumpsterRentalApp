@@ -1,203 +1,54 @@
 <?php
 /**
- * Stripe helper – Trash Panda Roll-Offs
- * Uses the Stripe PHP SDK (installed via Composer).
- * SECRET KEY IS NEVER EXPOSED TO FRONTEND.
+ * Legacy Stripe helper wrappers.
+ * The application now routes billing behavior through service classes, while
+ * these functions preserve compatibility for older modules.
  */
 
-/**
- * Returns true when the Stripe PHP SDK is available (Composer autoloader loaded).
- * Use this to guard SDK calls gracefully instead of triggering a fatal error.
- */
+if (!function_exists('billing_stripe_factory')) {
+    require_once __DIR__ . '/billing.php';
+}
+
+use TrashPanda\Billing\Exception\BillingException;
+
 function stripe_sdk_available(): bool
 {
-    // Allow the autoloader to attempt loading the class so this returns true
-    // whenever the Stripe SDK is properly installed via Composer.
     return class_exists(\Stripe\StripeClient::class);
 }
 
 function stripe_client(): \Stripe\StripeClient
 {
-    static $client = null;
-    if ($client === null) {
-        if (!stripe_sdk_available()) {
-            throw new \RuntimeException(
-                'Stripe PHP SDK not found. Run `composer install` inside the /admin directory, then reload.'
-            );
-        }
-        $secret = get_setting('stripe_secret_key', '');
-        if (empty($secret)) {
-            throw new \RuntimeException('Stripe secret key is not configured.');
-        }
-        $client = new \Stripe\StripeClient($secret);
-    }
-    return $client;
+    return billing_stripe_factory()->requireClient();
 }
-
-/**
- * Create a Stripe Checkout Session for a booking.
- */
-function stripe_create_checkout(array $booking, string $success_url, string $cancel_url): \Stripe\Checkout\Session
-{
-    $currency     = strtolower(get_setting('currency', 'usd') ?: 'usd');
-    $company      = get_setting('company_name', 'Trash Panda Roll-Offs');
-    $amount_cents = (int)round((float)$booking['total_amount'] * 100);
-
-    $description = sprintf(
-        '%s %s — %s to %s',
-        $booking['unit_size'] ?? '',
-        ucfirst($booking['unit_type'] ?? 'Dumpster'),
-        fmt_date($booking['rental_start']),
-        fmt_date($booking['rental_end'])
-    );
-
-    $session_params = [
-        'payment_method_types' => ['card'],
-        'line_items' => [[
-            'price_data' => [
-                'currency'     => strtolower($currency),
-                'product_data' => [
-                    'name'        => $company . ' — Dumpster Rental',
-                    'description' => $description,
-                ],
-                'unit_amount'  => $amount_cents,
-            ],
-            'quantity' => 1,
-        ]],
-        'mode'        => 'payment',
-        'success_url' => $success_url,
-        'cancel_url'  => $cancel_url,
-        'metadata'    => [
-            'booking_id'      => (string)$booking['id'],
-            'booking_number'  => $booking['booking_number'],
-            'customer_name'   => $booking['customer_name'] ?? '',
-            'customer_phone'  => $booking['customer_phone'] ?? '',
-            'unit_code'       => $booking['unit_code'] ?? '',
-            'rental_start'    => $booking['rental_start'] ?? '',
-            'rental_end'      => $booking['rental_end'] ?? '',
-        ],
-        'payment_intent_data' => [
-            'metadata' => [
-                'booking_id'     => (string)$booking['id'],
-                'booking_number' => $booking['booking_number'] ?? '',
-                'customer_name'  => $booking['customer_name'] ?? '',
-                'unit_code'      => $booking['unit_code'] ?? '',
-            ],
-        ],
-    ];
-
-    // Only include customer_email when a valid email address is provided.
-    // Passing null or an empty string causes Stripe's API to return a validation error.
-    $cust_email = trim((string)($booking['customer_email'] ?? ''));
-    if ($cust_email !== '' && filter_var($cust_email, FILTER_VALIDATE_EMAIL)) {
-        $session_params['customer_email'] = $cust_email;
-    }
-
-    // For $0 amounts, allow checkout completion without requiring a payment method.
-    if ($amount_cents === 0) {
-        $session_params['payment_method_collection'] = 'if_required';
-    }
-
-    return stripe_client()->checkout->sessions->create($session_params);
-}
-
-/**
- * Create a Stripe Checkout Session for multiple bookings in a single payment.
- *
- * @param array  $bookings     Array of booking rows from the database
- * @param string $success_url
- * @param string $cancel_url
- */
-function stripe_create_multi_checkout(array $bookings, string $success_url, string $cancel_url): \Stripe\Checkout\Session
-{
-    $currency = strtolower(get_setting('currency', 'usd') ?: 'usd');
-    $company  = get_setting('company_name', 'Trash Panda Roll-Offs');
-
-    $line_items    = [];
-    $total_cents   = 0;
-    $booking_ids   = [];
-    $booking_nums  = [];
-
-    foreach ($bookings as $booking) {
-        $amount_cents = (int)round((float)$booking['total_amount'] * 100);
-        $total_cents += $amount_cents;
-
-        $description = sprintf(
-            '%s %s — %s to %s',
-            $booking['unit_size'] ?? '',
-            ucfirst($booking['unit_type'] ?? 'Dumpster'),
-            fmt_date($booking['rental_start']),
-            fmt_date($booking['rental_end'])
-        );
-
-        $line_items[] = [
-            'price_data' => [
-                'currency'     => strtolower($currency),
-                'product_data' => [
-                    'name'        => $company . ' — ' . ($booking['unit_code'] ?? 'Dumpster Rental'),
-                    'description' => $description,
-                ],
-                'unit_amount'  => $amount_cents,
-            ],
-            'quantity' => 1,
-        ];
-
-        $booking_ids[]  = (string)$booking['id'];
-        $booking_nums[] = $booking['booking_number'];
-    }
-
-    $session_params = [
-        'payment_method_types' => ['card'],
-        'line_items'           => $line_items,
-        'mode'                 => 'payment',
-        'success_url'          => $success_url,
-        'cancel_url'           => $cancel_url,
-        'metadata'             => [
-            'booking_ids'     => implode(',', $booking_ids),
-            'booking_numbers' => implode(',', $booking_nums),
-            'customer_name'   => $bookings[0]['customer_name'] ?? '',
-            'customer_phone'  => $bookings[0]['customer_phone'] ?? '',
-            'rental_start'    => $bookings[0]['rental_start'] ?? '',
-            'rental_end'      => $bookings[0]['rental_end'] ?? '',
-        ],
-        'payment_intent_data'  => [
-            'metadata' => [
-                'booking_ids'     => implode(',', $booking_ids),
-                'booking_numbers' => implode(',', $booking_nums),
-                'customer_name'   => $bookings[0]['customer_name'] ?? '',
-            ],
-        ],
-    ];
-
-    // Only include customer_email when a valid email address is provided.
-    // Passing null or an empty string causes Stripe's API to return a validation error.
-    $cust_email = trim((string)($bookings[0]['customer_email'] ?? ''));
-    if ($cust_email !== '' && filter_var($cust_email, FILTER_VALIDATE_EMAIL)) {
-        $session_params['customer_email'] = $cust_email;
-    }
-
-    if ($total_cents === 0) {
-        $session_params['payment_method_collection'] = 'if_required';
-    }
-
-    return stripe_client()->checkout->sessions->create($session_params);
-}
-
 
 function stripe_verify_webhook(string $payload, string $sig_header): \Stripe\Event
 {
-    $secret = get_setting('stripe_webhook_secret', '');
-    return \Stripe\Webhook::constructEvent($payload, $sig_header, $secret);
+    /** @var \Stripe\Event $event */
+    $event = billing_webhook_service()->constructEvent($payload, $sig_header);
+    return $event;
 }
 
-/**
- * Issue a full or partial refund for a Stripe Payment Intent or Charge.
- *
- * @param string   $payment_id  Stripe payment intent ID (pi_…) or charge ID (ch_…)
- * @param int|null $amount_cents Amount to refund in cents; null = full refund
- * @param string   $reason      Stripe refund reason: 'duplicate', 'fraudulent', or 'requested_by_customer'
- * @return \Stripe\Refund
- */
+function stripe_create_checkout(array $booking, string $success_url, string $cancel_url, string $payment_method = 'stripe'): \Stripe\Checkout\Session
+{
+    /** @var \Stripe\Checkout\Session $session */
+    $session = billing_checkout_service()->createBookingCheckout([$booking], $success_url, $cancel_url, $payment_method);
+    return $session;
+}
+
+function stripe_create_multi_checkout(array $bookings, string $success_url, string $cancel_url, string $payment_method = 'stripe'): \Stripe\Checkout\Session
+{
+    /** @var \Stripe\Checkout\Session $session */
+    $session = billing_checkout_service()->createBookingCheckout($bookings, $success_url, $cancel_url, $payment_method);
+    return $session;
+}
+
+function stripe_create_invoice_checkout(array $invoice, string $success_url, string $cancel_url, string $payment_method = 'stripe'): \Stripe\Checkout\Session
+{
+    /** @var \Stripe\Checkout\Session $session */
+    $session = billing_checkout_service()->createInvoiceCheckout($invoice, $success_url, $cancel_url, $payment_method);
+    return $session;
+}
+
 function stripe_issue_refund(string $payment_id, ?int $amount_cents = null, string $reason = 'requested_by_customer'): \Stripe\Refund
 {
     $params = ['reason' => $reason];
@@ -215,35 +66,16 @@ function stripe_issue_refund(string $payment_id, ?int $amount_cents = null, stri
     return stripe_client()->refunds->create($params);
 }
 
-/**
- * Retrieve the current Stripe account balance (available + pending).
- *
- * @return \Stripe\Balance
- */
 function stripe_get_balance(): \Stripe\Balance
 {
     return stripe_client()->balance->retrieve();
 }
 
-/**
- * List recent Stripe payouts.
- *
- * @param int $limit  Number of payouts to return (max 100)
- * @return \Stripe\Collection
- */
 function stripe_list_payouts(int $limit = 20): \Stripe\Collection
 {
     return stripe_client()->payouts->all(['limit' => $limit]);
 }
 
-/**
- * List recent Stripe charges.
- *
- * @param int         $limit
- * @param int|null    $created_gte  Unix timestamp — return charges on/after this time
- * @param int|null    $created_lte  Unix timestamp — return charges on/before this time
- * @return \Stripe\Collection
- */
 function stripe_list_charges(int $limit = 50, ?int $created_gte = null, ?int $created_lte = null): \Stripe\Collection
 {
     $params = ['limit' => $limit];
@@ -259,138 +91,92 @@ function stripe_list_charges(int $limit = 50, ?int $created_gte = null, ?int $cr
     return stripe_client()->charges->all($params);
 }
 
-/**
- * Sync a dumpster product to Stripe.
- * Creates or updates the Stripe product and price record.
- *
- * Returns an array with keys:
- *   'stripe_product_id' => string
- *   'stripe_price_id'   => string
- *
- * @param array $dumpster  Row from the dumpsters table
- * @return array{stripe_product_id: string, stripe_price_id: string}
- */
 function stripe_sync_dumpster_product(array $dumpster): array
 {
-    $client   = stripe_client();
-    $name     = trim($dumpster['product_name'] ?? '') ?: (($dumpster['size'] ?? '') . ' Dumpster');
-    $desc     = trim($dumpster['description'] ?? '') ?: null;
+    $client = stripe_client();
+    $name = trim((string)($dumpster['product_name'] ?? '')) ?: (($dumpster['size'] ?? '') . ' Dumpster');
+    $desc = trim((string)($dumpster['description'] ?? '')) ?: null;
     $metadata = [
-        'dumpster_id'  => (string)($dumpster['id'] ?? ''),
-        'unit_code'    => $dumpster['unit_code'] ?? '',
-        'size'         => $dumpster['size'] ?? '',
+        'dumpster_id' => (string)($dumpster['id'] ?? ''),
+        'unit_code' => $dumpster['unit_code'] ?? '',
+        'size' => $dumpster['size'] ?? '',
     ];
 
-    // ── Product ──────────────────────────────────────────────────────────────
-    $existing_product_id = trim($dumpster['stripe_product_id'] ?? '');
-
+    $existing_product_id = trim((string)($dumpster['stripe_product_id'] ?? ''));
     if ($existing_product_id !== '') {
-        // Update existing product
         $product = $client->products->update($existing_product_id, array_filter([
-            'name'        => $name,
+            'name' => $name,
             'description' => $desc,
-            'metadata'    => $metadata,
-            'active'      => (bool)($dumpster['active'] ?? 1),
-        ], fn($v) => $v !== null));
+            'metadata' => $metadata,
+            'active' => (bool)($dumpster['active'] ?? 1),
+        ], static fn($value) => $value !== null));
     } else {
-        // Create new product
         $product = $client->products->create(array_filter([
-            'name'        => $name,
+            'name' => $name,
             'description' => $desc,
-            'metadata'    => $metadata,
-        ], fn($v) => $v !== null));
+            'metadata' => $metadata,
+        ], static fn($value) => $value !== null));
     }
 
-    $product_id = $product->id;
+    $productId = $product->id;
+    $basePriceCents = (int)round((float)($dumpster['base_price'] ?? 0) * 100);
+    $currency = strtolower(get_setting('currency', 'usd') ?: 'usd');
 
-    // ── Price ─────────────────────────────────────────────────────────────────
-    $base_price_cents = (int)round((float)($dumpster['base_price'] ?? 0) * 100);
-    $currency         = strtolower(get_setting('currency', 'usd') ?: 'usd');
-
-    // Always create a new price (Stripe prices are immutable); archive the old one if needed
-    $existing_price_id = trim($dumpster['stripe_price_id'] ?? '');
-    if ($existing_price_id !== '' && $base_price_cents > 0) {
+    $existingPriceId = trim((string)($dumpster['stripe_price_id'] ?? ''));
+    if ($existingPriceId !== '' && $basePriceCents > 0) {
         try {
-            // Archive the old price so it won't show up as the default
-            $client->prices->update($existing_price_id, ['active' => false]);
+            $client->prices->update($existingPriceId, ['active' => false]);
         } catch (\Throwable) {
-            // Ignore if archiving fails (e.g. already inactive)
         }
     }
 
-    $price_id = '';
-    if ($base_price_cents > 0) {
+    $priceId = '';
+    if ($basePriceCents > 0) {
         $price = $client->prices->create([
-            'product'     => $product_id,
-            'currency'    => $currency,
-            'unit_amount' => $base_price_cents,
-            'nickname'    => $name . ' — Base (' . ($dumpster['rental_days'] ?? 7) . ' day rental)',
-            'metadata'    => [
-                'dumpster_id'   => (string)($dumpster['id'] ?? ''),
-                'rental_days'   => (string)($dumpster['rental_days'] ?? 7),
+            'product' => $productId,
+            'currency' => $currency,
+            'unit_amount' => $basePriceCents,
+            'nickname' => $name . ' - Base (' . ($dumpster['rental_days'] ?? 7) . ' day rental)',
+            'metadata' => [
+                'dumpster_id' => (string)($dumpster['id'] ?? ''),
+                'rental_days' => (string)($dumpster['rental_days'] ?? 7),
             ],
         ]);
-        $price_id = $price->id;
+        $priceId = $price->id;
     }
 
     return [
-        'stripe_product_id' => $product_id,
-        'stripe_price_id'   => $price_id,
+        'stripe_product_id' => $productId,
+        'stripe_price_id' => $priceId,
     ];
 }
 
-/**
- * Create a Stripe Checkout Session payment link for an invoice.
- *
- * Returns the checkout Session object.
- *
- * @param array  $invoice    Row from the invoices table (with at least id, invoice_number, cust_name, cust_email, total)
- * @param string $success_url
- * @param string $cancel_url
- * @return \Stripe\Checkout\Session
- */
-function stripe_create_invoice_checkout(array $invoice, string $success_url, string $cancel_url): \Stripe\Checkout\Session
+function stripe_create_setup_intent(string $stripe_customer_id, array $payment_method_types = ['card', 'us_bank_account']): array
 {
-    $currency     = strtolower(get_setting('currency', 'usd') ?: 'usd');
-    $company      = get_setting('company_name', 'Trash Panda Roll-Offs');
-    $amount_cents = (int)round((float)($invoice['total'] ?? 0) * 100);
+    return billing_payment_method_service()->createSetupIntent($stripe_customer_id, $payment_method_types);
+}
 
-    $session_params = [
-        'payment_method_types' => ['card'],
-        'line_items' => [[
-            'price_data' => [
-                'currency'     => $currency,
-                'product_data' => [
-                    'name'        => $company . ' — Invoice ' . ($invoice['invoice_number'] ?? ''),
-                    'description' => 'Invoice ' . ($invoice['invoice_number'] ?? '') . ' from ' . $company,
-                ],
-                'unit_amount'  => $amount_cents,
-            ],
-            'quantity' => 1,
-        ]],
-        'mode'        => 'payment',
-        'success_url' => $success_url,
-        'cancel_url'  => $cancel_url,
-        'metadata'    => [
-            'invoice_id'     => (string)($invoice['id'] ?? ''),
-            'invoice_number' => $invoice['invoice_number'] ?? '',
-            'customer_name'  => $invoice['cust_name'] ?? '',
-        ],
-        'payment_intent_data' => [
-            'metadata' => [
-                'invoice_id'     => (string)($invoice['id'] ?? ''),
-                'invoice_number' => $invoice['invoice_number'] ?? '',
-            ],
-        ],
-    ];
+function stripe_create_subscription(array $data): int
+{
+    return billing_subscription_service()->create($data);
+}
 
-    if (!empty($invoice['cust_email'])) {
-        $session_params['customer_email'] = $invoice['cust_email'];
-    }
+function stripe_pause_subscription(int $subscription_id): void
+{
+    billing_subscription_service()->pause($subscription_id);
+}
 
-    if ($amount_cents === 0) {
-        $session_params['payment_method_collection'] = 'if_required';
-    }
+function stripe_resume_subscription(int $subscription_id): void
+{
+    billing_subscription_service()->resume($subscription_id);
+}
 
-    return stripe_client()->checkout->sessions->create($session_params);
+function stripe_cancel_subscription(int $subscription_id): void
+{
+    billing_subscription_service()->cancel($subscription_id);
+}
+
+function stripe_retry_subscription_invoice(int $subscription_id): void
+{
+    billing_subscription_service()->retryLatestInvoice($subscription_id);
 }

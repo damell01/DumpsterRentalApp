@@ -17,7 +17,7 @@ function session_init(): void
         'lifetime' => SESSION_LIFETIME,
         'path'     => '/',
         'domain'   => '',
-        'secure'   => true,
+        'secure'   => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
         'httponly' => true,
         'samesite' => 'Lax',
     ]);

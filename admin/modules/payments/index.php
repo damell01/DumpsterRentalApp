@@ -18,8 +18,8 @@ $date_from  = trim($_GET['date_from']  ?? '');
 $date_to    = trim($_GET['date_to']    ?? '');
 $source     = trim($_GET['source']     ?? 'all');   // all|booking|invoice
 
-$valid_methods  = ['all', 'stripe', 'cash', 'check'];
-$valid_statuses = ['all', 'paid', 'pending', 'refunded'];
+$valid_methods  = ['all', 'stripe', 'ach', 'cash', 'check'];
+$valid_statuses = ['all', 'paid', 'pending', 'processing', 'failed', 'refunded'];
 $valid_sources  = ['all', 'booking', 'invoice'];
 
 if (!in_array($pay_method, $valid_methods, true))  $pay_method = 'all';
@@ -29,6 +29,7 @@ if (!in_array($source,     $valid_sources, true))   $source     = 'all';
 // ── All-time totals by method ─────────────────────────────────────────────────
 $db_error = null;
 $alltime_stripe = ['total' => 0, 'cnt' => 0];
+$alltime_ach    = ['total' => 0, 'cnt' => 0];
 $alltime_cash   = ['total' => 0, 'cnt' => 0];
 $alltime_check  = ['total' => 0, 'cnt' => 0];
 $alltime_inv_stripe = ['total' => 0, 'cnt' => 0];
@@ -46,6 +47,14 @@ $alltime_stripe = db_fetch(
      FROM bookings
      WHERE payment_method = 'stripe'
        AND payment_status IN ('paid','refunded')
+       AND booking_status != 'canceled'"
+) ?: ['total' => 0, 'cnt' => 0];
+
+$alltime_ach = db_fetch(
+    "SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*) AS cnt
+     FROM bookings
+     WHERE payment_method = 'ach'
+       AND payment_status IN ('paid','processing','refunded')
        AND booking_status != 'canceled'"
 ) ?: ['total' => 0, 'cnt' => 0];
 
@@ -82,9 +91,10 @@ $alltime_inv_check = db_fetch(
 ) ?: ['total' => 0, 'cnt' => 0];
 
 $alltime_total_stripe = (float)$alltime_stripe['total'] + (float)$alltime_inv_stripe['total'];
+$alltime_total_ach    = (float)$alltime_ach['total'];
 $alltime_total_cash   = (float)$alltime_cash['total']   + (float)$alltime_inv_cash['total'];
 $alltime_total_check  = (float)$alltime_check['total']  + (float)$alltime_inv_check['total'];
-$alltime_grand_total  = $alltime_total_stripe + $alltime_total_cash + $alltime_total_check;
+$alltime_grand_total  = $alltime_total_stripe + $alltime_total_ach + $alltime_total_cash + $alltime_total_check;
 
 // ── Month-to-date totals ──────────────────────────────────────────────────────
 $mtd_booking_rev = db_fetch(
@@ -111,11 +121,13 @@ $mtd_total = (float)$mtd_booking_rev['total'] + (float)$mtd_invoice_rev['total']
 $b_where   = ['b.booking_status != ?'];
 $b_params  = ['canceled'];
 
-if ($pay_method !== 'all') {
+    if ($pay_method !== 'all') {
     if ($pay_method === 'cash') {
         $b_where[] = "b.payment_status IN ('pending_cash','paid_cash')";
     } elseif ($pay_method === 'check') {
         $b_where[] = "b.payment_status IN ('pending_check','paid_check')";
+    } elseif ($pay_method === 'ach') {
+        $b_where[] = "b.payment_method = 'ach'";
     } else {
         $b_where[] = "b.payment_method = ?";
         $b_params[] = $pay_method;
@@ -127,6 +139,10 @@ if ($pay_status !== 'all') {
         $b_where[] = "b.payment_status IN ('paid','paid_cash','paid_check')";
     } elseif ($pay_status === 'pending') {
         $b_where[] = "b.payment_status IN ('pending','pending_cash','pending_check','unpaid')";
+    } elseif ($pay_status === 'processing') {
+        $b_where[] = "b.payment_status = 'processing'";
+    } elseif ($pay_status === 'failed') {
+        $b_where[] = "b.payment_status = 'failed'";
     } elseif ($pay_status === 'refunded') {
         $b_where[] = "b.payment_status = 'refunded'";
     }
@@ -312,6 +328,11 @@ layout_start('Payments', 'payments');
                 <div class="kpi-sub"><?= (int)$alltime_stripe['cnt'] + (int)$alltime_inv_stripe['cnt'] ?> records</div>
             </div>
             <div class="kpi-card">
+                <div class="kpi-label"><i class="fa-solid fa-building-columns me-1" style="color:#14b8a6;"></i> ACH</div>
+                <div class="kpi-value"><?= e(fmt_money($alltime_total_ach)) ?></div>
+                <div class="kpi-sub"><?= (int)$alltime_ach['cnt'] ?> records</div>
+            </div>
+            <div class="kpi-card">
                 <div class="kpi-label"><i class="fa-solid fa-money-bill me-1" style="color:#28a745;"></i> Cash</div>
                 <div class="kpi-value"><?= e(fmt_money($alltime_total_cash)) ?></div>
                 <div class="kpi-sub"><?= (int)$alltime_cash['cnt'] + (int)$alltime_inv_cash['cnt'] ?> records</div>
@@ -406,7 +427,7 @@ layout_start('Payments', 'payments');
         <div class="col-6 col-md-2">
             <label class="form-label" style="font-size:.8rem;">Method</label>
             <select name="pay_method" class="form-select form-select-sm">
-                <?php foreach (['all' => 'All Methods', 'stripe' => 'Stripe', 'cash' => 'Cash', 'check' => 'Check'] as $v => $l): ?>
+                <?php foreach (['all' => 'All Methods', 'stripe' => 'Card', 'ach' => 'ACH', 'cash' => 'Cash', 'check' => 'Check'] as $v => $l): ?>
                 <option value="<?= e($v) ?>" <?= $pay_method === $v ? 'selected' : '' ?>><?= e($l) ?></option>
                 <?php endforeach; ?>
             </select>
@@ -414,7 +435,7 @@ layout_start('Payments', 'payments');
         <div class="col-6 col-md-2">
             <label class="form-label" style="font-size:.8rem;">Status</label>
             <select name="pay_status" class="form-select form-select-sm">
-                <?php foreach (['all' => 'All Statuses', 'paid' => 'Paid', 'pending' => 'Pending', 'refunded' => 'Refunded/Void'] as $v => $l): ?>
+                <?php foreach (['all' => 'All Statuses', 'paid' => 'Paid', 'pending' => 'Pending', 'processing' => 'Processing', 'failed' => 'Failed', 'refunded' => 'Refunded/Void'] as $v => $l): ?>
                 <option value="<?= e($v) ?>" <?= $pay_status === $v ? 'selected' : '' ?>><?= e($l) ?></option>
                 <?php endforeach; ?>
             </select>
@@ -482,6 +503,7 @@ layout_start('Payments', 'payments');
                     $stripe_id  = $row['stripe_payment_id'] ?: $row['stripe_session_id'];
                     $stripe_url = stripe_dashboard_url($stripe_id);
                     $method_icon = match($row['payment_method']) {
+                        'ach'   => '<i class="fa-solid fa-building-columns" title="ACH" style="color:#14b8a6;"></i>',
                         'cash'  => '<i class="fa-solid fa-money-bill" title="Cash" style="color:#28a745;"></i>',
                         'check' => '<i class="fa-solid fa-check-square" title="Check" style="color:#0d6efd;"></i>',
                         default => '<i class="fa-brands fa-stripe" title="Stripe" style="color:#635bff;"></i>',
@@ -509,7 +531,7 @@ layout_start('Payments', 'payments');
                     </td>
                     <td><?= e($row['customer_name']) ?></td>
                     <td class="text-end fw-semibold"><?= e(fmt_money($row['amount'])) ?></td>
-                    <td><?= $method_icon ?> <?= e(ucfirst($row['payment_method'])) ?></td>
+                    <td><?= $method_icon ?> <?= e(payment_method_label($row['payment_method'])) ?></td>
                     <td><?= payment_badge($pay_status_display) ?></td>
                     <td class="text-muted" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
                         title="<?= e($row['payment_notes'] ?? '') ?>">

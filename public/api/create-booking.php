@@ -32,6 +32,7 @@ require_once $_admin_root . '/config/config.php';
 require_once INC_PATH . '/db.php';
 require_once INC_PATH . '/helpers.php';
 require_once INC_PATH . '/mailer.php';
+require_once INC_PATH . '/billing.php';
 
 function api_error(string $message, int $status = 400): void
 {
@@ -102,22 +103,25 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $rental_end) || !strtotime($rental_end)
 if ($rental_end <= $rental_start) {
     api_error('End date must be after start date.');
 }
-if (!in_array($payment_method, ['stripe', 'cash', 'check'], true)) {
+if (!in_array($payment_method, ['stripe', 'ach', 'cash', 'check'], true)) {
     api_error('Invalid payment method.');
+}
+if ($payment_method === 'ach' && get_setting('ach_enabled', '1') !== '1') {
+    api_error('ACH payments are currently unavailable.');
 }
 
 // For Stripe payments, verify the SDK and secret key are available before
 // creating any booking records. This prevents unnecessary DB operations and
 // gives a clearer error when Stripe is not yet configured.
-if ($payment_method === 'stripe') {
+if (in_array($payment_method, ['stripe', 'ach'], true)) {
     $_stripe_autoload = $_admin_root . '/vendor/autoload.php';
     if (!file_exists($_stripe_autoload)) {
-        api_error('Card payment is currently unavailable. Please select a different payment method.', 503);
+        api_error('Online payment is currently unavailable. Please select a different payment method.', 503);
     }
     require_once $_stripe_autoload;
     require_once INC_PATH . '/stripe.php';
     if (empty(get_setting('stripe_secret_key', ''))) {
-        api_error('Card payment is not configured. Please contact us to arrange payment.', 503);
+        api_error('Online payment is not configured. Please contact us to arrange payment.', 503);
     }
     unset($_stripe_autoload);
 }
@@ -130,11 +134,12 @@ $days = max(1, (int)$d1->diff($d2)->days);
 // Payment / booking status maps
 $pay_status_map = [
     'stripe' => 'pending',
+    'ach'    => 'pending',
     'cash'   => 'pending_cash',
     'check'  => 'pending_check',
 ];
 $payment_status = $pay_status_map[$payment_method] ?? 'pending';
-$booking_status = ($payment_method === 'stripe') ? 'pending' : 'confirmed';
+$booking_status = in_array($payment_method, ['stripe', 'ach'], true) ? 'pending' : 'confirmed';
 
 // Validate each unit, check availability, collect booking data
 $units_data = [];   // validated unit rows
@@ -213,6 +218,13 @@ unset($_push_autoload);
 
 // Generate a booking_group_id when multiple units are booked together
 $booking_group_id = count($unit_ids) > 1 ? bin2hex(random_bytes(8)) : null;
+$customer_id = billing_customer_service()->findOrCreateByBooking([
+    'customer_name' => $customer_name,
+    'customer_phone' => $customer_phone,
+    'customer_email' => $customer_email,
+    'customer_address' => $customer_address,
+    'customer_city' => $customer_city,
+]);
 
 // Create one booking record per unit
 $new_ids        = [];
@@ -229,6 +241,7 @@ foreach ($units_data as $ud) {
         'customer_email'   => $customer_email ?: null,
         'customer_address' => $customer_address ?: null,
         'customer_city'    => $customer_city ?: null,
+        'customer_id'      => $customer_id,
         'dumpster_id'      => (int)$unit['id'],
         'unit_code'        => $unit['unit_code'],
         'unit_type'        => $unit['type'],
@@ -300,7 +313,7 @@ if ($push_loaded) {
 // Build token and success URL
 // Use comma-joined IDs as the token base so all bookings are covered
 $ids_str = implode(',', $new_ids);
-$token   = hash_hmac('sha256', $ids_str, get_setting('stripe_secret_key', 'booking-token-secret'));
+$token   = hash_hmac('sha256', $ids_str, defined('PORTAL_SIGNING_KEY') ? PORTAL_SIGNING_KEY : 'booking-token-secret');
 $first_id = $new_ids[0];
 
 // Roll back newly created bookings and restore dumpster status on Stripe failure.
@@ -319,7 +332,7 @@ function rollback_stripe_bookings(array $new_ids): void {
 }
 
 // Stripe checkout
-if ($payment_method === 'stripe') {
+if (in_array($payment_method, ['stripe', 'ach'], true)) {
     // SDK and key were already verified before booking creation; no need to reload.
 
     try {
@@ -342,8 +355,8 @@ if ($payment_method === 'stripe') {
         }
 
         $session = count($booking_rows) === 1
-            ? stripe_create_checkout($booking_rows[0], $success_url, $cancel_url)
-            : stripe_create_multi_checkout($booking_rows, $success_url, $cancel_url);
+            ? stripe_create_checkout($booking_rows[0], $success_url, $cancel_url, $payment_method)
+            : stripe_create_multi_checkout($booking_rows, $success_url, $cancel_url, $payment_method);
 
         // Save session ID to all bookings
         foreach ($new_ids as $bid) {
@@ -360,7 +373,7 @@ if ($payment_method === 'stripe') {
     } catch (\Throwable $e) {
         error_log('[Booking] Stripe Checkout error: ' . $e->getMessage());
         rollback_stripe_bookings($new_ids);
-        api_error('Card payment could not be initiated. Please try again or select a different payment method.', 503);
+        api_error('Online payment could not be initiated. Please try again or select a different payment method.', 503);
     }
 }
 

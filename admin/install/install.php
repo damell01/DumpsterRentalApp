@@ -70,13 +70,13 @@ step('PDO_MySQL driver loaded', $pdoMysqlOk);
 step('config/config.php readable', true);
 
 // DB credentials look customised
-$dbNameOk = defined('DB_NAME') && $dbName !== 'your_db';
+$dbNameOk = defined('DB_NAME') && $dbName !== '' && $dbName !== 'your_db';
 step('DB_NAME is configured (not placeholder)', $dbNameOk,
-    $dbNameOk ? 'DB_NAME = ' . $dbName : 'Still set to "your_db" — please edit config/config.php');
+    $dbNameOk ? 'DB_NAME = ' . $dbName : 'DB_NAME is empty or still using a placeholder — please edit config/config.php');
 
-$dbUserOk = defined('DB_USER') && $dbUser !== 'your_user';
+$dbUserOk = defined('DB_USER') && $dbUser !== '' && $dbUser !== 'your_user';
 step('DB_USER is configured (not placeholder)', $dbUserOk,
-    $dbUserOk ? 'DB_USER = ' . $dbUser : 'Still set to "your_user" — please edit config/config.php');
+    $dbUserOk ? 'DB_USER = ' . $dbUser : 'DB_USER is empty or still using a placeholder — please edit config/config.php');
 
 if ($dbHost !== (string) DB_HOST || $dbName !== (string) DB_NAME || $dbUser !== (string) DB_USER) {
     step(
@@ -181,6 +181,58 @@ step(
 );
 
 if (!$schema_ok) {
+    render_page($steps, false);
+    exit;
+}
+
+$billing_upgrade_file = __DIR__ . '/billing_upgrade.sql';
+if (!is_readable($billing_upgrade_file)) {
+    step('Read billing_upgrade.sql', false, 'File not found: ' . $billing_upgrade_file);
+    render_page($steps, false);
+    exit;
+}
+
+$billing_sql_raw = file_get_contents($billing_upgrade_file);
+$billing_statements = preg_split('/;\s*(?:\r?\n|$)/', (string)$billing_sql_raw);
+$billing_exec_count = 0;
+$billing_ok = true;
+$billing_err = '';
+
+foreach ($billing_statements as $stmt) {
+    $stmt = preg_replace('/--[^\n]*/', '', $stmt);
+    $stmt = preg_replace('/\/\*.*?\*\//s', '', $stmt);
+    $stmt = trim($stmt);
+
+    if ($stmt === '') {
+        continue;
+    }
+
+    try {
+        $pdo->exec($stmt);
+        $billing_exec_count++;
+    } catch (PDOException $e) {
+        $msg = $e->getMessage();
+        if (
+            stripos($msg, 'Duplicate column') !== false ||
+            stripos($msg, 'already exists') !== false ||
+            stripos($msg, 'Duplicate key') !== false ||
+            stripos($msg, 'Duplicate foreign key') !== false
+        ) {
+            continue;
+        }
+        $billing_ok = false;
+        $billing_err = $msg . ' | Statement: ' . substr($stmt, 0, 120) . '...';
+        break;
+    }
+}
+
+step(
+    'Imported billing upgrade (' . $billing_exec_count . ' statement' . ($billing_exec_count !== 1 ? 's' : '') . ')',
+    $billing_ok,
+    $billing_ok ? '' : $billing_err
+);
+
+if (!$billing_ok) {
     render_page($steps, false);
     exit;
 }

@@ -114,7 +114,249 @@ cp -r admin/          /home/youraccount/public_html/admin/
 
 ---
 
-## ③ Configure the Admin
+## ③ VPS Installation (Apache or Nginx)
+
+If you host this on a VPS under a domain such as `bellflowapp.com`, use this section instead of the cPanel-style upload flow.
+
+### Recommended VPS Layout
+
+Clone or upload the project to a dedicated app directory such as:
+
+```bash
+/var/www/bellflowapp
+```
+
+Recommended structure:
+
+```bash
+/var/www/bellflowapp/
+  ├── .htaccess
+  ├── public/
+  ├── admin/
+  ├── .env
+  └── ...
+```
+
+### 1. Install System Packages
+
+Example for Ubuntu/Debian:
+
+```bash
+sudo apt update
+sudo apt install -y apache2 mysql-server unzip git curl software-properties-common
+sudo add-apt-repository ppa:ondrej/php -y
+sudo apt update
+sudo apt install -y php8.3 php8.3-cli php8.3-mysql php8.3-curl php8.3-mbstring php8.3-xml php8.3-zip php8.3-intl composer
+```
+
+If you prefer Nginx with PHP-FPM:
+
+```bash
+sudo apt install -y nginx php8.3-fpm php8.3-mysql php8.3-curl php8.3-mbstring php8.3-xml php8.3-zip php8.3-intl composer
+```
+
+### 2. Upload or Clone the App
+
+```bash
+cd /var/www
+sudo git clone YOUR_REPO_URL bellflowapp
+cd /var/www/bellflowapp
+```
+
+Or upload the project archive and extract it there.
+
+### 3. Set Ownership and Permissions
+
+```bash
+sudo chown -R www-data:www-data /var/www/bellflowapp
+sudo find /var/www/bellflowapp -type d -exec chmod 755 {} \;
+sudo find /var/www/bellflowapp -type f -exec chmod 644 {} \;
+sudo chmod -R 775 /var/www/bellflowapp/admin/uploads
+```
+
+### 4. Create the `.env` File
+
+Because this app now expects real production secrets to come from `.env`, create:
+
+```bash
+sudo nano /var/www/bellflowapp/.env
+```
+
+Example starter config:
+
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_NAME="Trash Panda Roll-Offs"
+APP_VERSION=1.0.0
+
+DB_HOST=127.0.0.1
+DB_NAME=bellflowapp
+DB_USER=bellflowapp
+DB_PASS=CHANGE_THIS_DATABASE_PASSWORD
+DB_CHARSET=utf8mb4
+
+SESSION_LIFETIME=7200
+CRON_KEY=CHANGE_THIS_TO_A_LONG_RANDOM_SECRET
+PORTAL_SIGNING_KEY=CHANGE_THIS_TO_A_LONG_RANDOM_PORTAL_SECRET
+APP_INSTALLED=false
+```
+
+Generate secure random values with:
+
+```bash
+openssl rand -hex 32
+```
+
+### 5. Create the Database
+
+```sql
+CREATE DATABASE bellflowapp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'bellflowapp'@'localhost' IDENTIFIED BY 'CHANGE_THIS_DATABASE_PASSWORD';
+GRANT ALL PRIVILEGES ON bellflowapp.* TO 'bellflowapp'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+### 6. Install Composer Dependencies
+
+```bash
+cd /var/www/bellflowapp/admin
+composer install --no-dev --optimize-autoloader
+```
+
+### 7. Apache Virtual Host Example
+
+Enable rewrite first:
+
+```bash
+sudo a2enmod rewrite
+```
+
+Create `/etc/apache2/sites-available/bellflowapp.com.conf`:
+
+```apache
+<VirtualHost *:80>
+    ServerName bellflowapp.com
+    ServerAlias www.bellflowapp.com
+    DocumentRoot /var/www/bellflowapp
+
+    <Directory /var/www/bellflowapp>
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/bellflowapp-error.log
+    CustomLog ${APACHE_LOG_DIR}/bellflowapp-access.log combined
+</VirtualHost>
+```
+
+Then enable it:
+
+```bash
+sudo a2ensite bellflowapp.com.conf
+sudo systemctl reload apache2
+```
+
+### 8. Nginx Server Block Example
+
+Create `/etc/nginx/sites-available/bellflowapp.com`:
+
+```nginx
+server {
+    listen 80;
+    server_name bellflowapp.com www.bellflowapp.com;
+    root /var/www/bellflowapp;
+    index index.php index.html;
+
+    location / {
+        try_files $uri $uri/ /public/index.html;
+    }
+
+    location /admin/ {
+        try_files $uri $uri/ /admin/index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+}
+```
+
+Then enable it:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/bellflowapp.com /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### 9. Run the Installer
+
+Open:
+
+```text
+https://bellflowapp.com/admin/install/install.php
+```
+
+After install, log in, then run the database upgrade from **Admin → Settings → Run Database Upgrade** so the ACH/subscription tables are applied on the live database too.
+
+### 10. Enable SSL
+
+If using Apache:
+
+```bash
+sudo apt install -y certbot python3-certbot-apache
+sudo certbot --apache -d bellflowapp.com -d www.bellflowapp.com
+```
+
+If using Nginx:
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d bellflowapp.com -d www.bellflowapp.com
+```
+
+### 11. Configure Cron on the VPS
+
+Edit the web server user's crontab:
+
+```bash
+sudo crontab -e
+```
+
+Add:
+
+```bash
+0 8 * * * /usr/bin/php /var/www/bellflowapp/admin/cron/daily.php >> /var/log/bellflowapp-cron.log 2>&1
+```
+
+### 12. Stripe URLs for `bellflowapp.com`
+
+Use these production URLs in Stripe:
+
+- Webhook endpoint: `https://bellflowapp.com/public/api/stripe-webhook.php`
+- Customer portal link request page: `https://bellflowapp.com/public/portal/request-link.php`
+- Booking page: `https://bellflowapp.com/book.php`
+- Admin login: `https://bellflowapp.com/admin/login.php`
+
+### 13. VPS Go-Live Notes
+
+- Keep `.env` outside version control.
+- Confirm the web server can write to `admin/uploads/`.
+- Use the domain name in Stripe webhook configuration, not the server IP.
+- Set `APP_INSTALLED=true` after installation is complete.
+- Test one full booking, one ACH payment, one invoice payment, and one webhook delivery before launch.
+
+---
+
+## ④ Configure the Admin
 
 Edit `admin/config/config.php`:
 
@@ -130,7 +372,7 @@ define('CRON_KEY', 'change-me-to-a-random-secret'); // used to secure the cron U
 
 ---
 
-## ④ Run the Installer
+## ⑤ Run the Installer
 
 Navigate to your site's installer URL, for example:
 
@@ -161,7 +403,7 @@ define('APP_INSTALLED', true);
 
 ---
 
-## ⑤ Set Up the Booking & Payment System
+## ⑥ Set Up the Booking & Payment System
 
 ### Run the Booking Schema Migration
 
@@ -232,7 +474,7 @@ With `stripe_mode = test`:
 
 ---
 
-## ⑥ PHPMailer (Recommended for Reliable Email)
+## ⑦ PHPMailer (Recommended for Reliable Email)
 
 PHPMailer is **not required** — the system falls back to PHP's built-in `mail()` — but SMTP via PHPMailer is strongly recommended for reliable delivery (Gmail, Mailgun, SendGrid, etc.).
 
@@ -265,7 +507,7 @@ Many cPanel/shared hosts also offer Composer under **cPanel → Software → PHP
 
 ---
 
-## ⑦ Set Folder Permissions
+## ⑧ Set Folder Permissions
 
 ```bash
 chmod 755 admin/assets/img/
@@ -279,7 +521,7 @@ chmod 775 admin/assets/img/
 
 ---
 
-## ⑧ Set Up the Daily Cron Job (cPanel)
+## ⑨ Set Up the Daily Cron Job (cPanel)
 
 Go to **cPanel → Cron Jobs** and add:
 
@@ -302,7 +544,7 @@ The cron job:
 
 ---
 
-## ⑨ Enable HTTPS
+## ⑩ Enable HTTPS
 
 In `admin/.htaccess`, uncomment the HTTPS redirect block:
 
@@ -491,11 +733,13 @@ Only users with the `admin` role can delete work orders. Deletion is permanent a
 Complete all items below before going live with real customers.
 
 ### Configuration
-- [ ] Edit `admin/config/config.php`: set `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`
+- [ ] Configure production secrets in `.env` (`DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASS`, `CRON_KEY`, `PORTAL_SIGNING_KEY`)
 - [ ] Change `CRON_KEY` to a long random string (e.g. `openssl rand -hex 32`)
+- [ ] Change `PORTAL_SIGNING_KEY` to a long random string
 - [ ] Set `APP_INSTALLED = true` in `config.php` after running the installer
 - [ ] Run the main installer: `https://yourdomain.com/admin/install/install.php`
 - [ ] Run the booking schema migration (`admin/install/booking_schema.sql`)
+- [ ] Run the ACH/subscription billing upgrade from Admin → Settings → Run Database Upgrade
 
 ### Security
 - [ ] Enable HTTPS — uncomment the redirect block in `admin/.htaccess`
@@ -520,7 +764,7 @@ Complete all items below before going live with real customers.
 - [ ] Set a default Work Order footer in Admin → Settings → Work Order Footer
 
 ### Cron Job
-- [ ] Add the daily cron job in cPanel → Cron Jobs (see **⑧ Set Up the Daily Cron Job** section above)
+- [ ] Add the daily cron job in cPanel or your VPS crontab (see **⑨ Set Up the Daily Cron Job** section above and the VPS section)
 
 ### Final Checks
 - [ ] Visit the public website and confirm all pages load correctly

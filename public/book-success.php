@@ -82,11 +82,11 @@ if ($ids_str === '' || $token === '') {
 }
 
 // Verify token (HMAC of the IDs string)
-$expected = hash_hmac('sha256', $ids_str, get_setting('stripe_secret_key', 'booking-token-secret'));
+$expected = hash_hmac('sha256', $ids_str, defined('PORTAL_SIGNING_KEY') ? PORTAL_SIGNING_KEY : 'booking-token-secret');
 if (!hash_equals($expected, $token)) {
     // Legacy fallback: old single-booking token was HMAC of just the integer ID
     $single_id = (int)$ids_str;
-    $legacy_expected = hash_hmac('sha256', (string)$single_id, get_setting('stripe_secret_key', 'booking-token-secret'));
+    $legacy_expected = hash_hmac('sha256', (string)$single_id, defined('PORTAL_SIGNING_KEY') ? PORTAL_SIGNING_KEY : 'booking-token-secret');
     if ($single_id <= 0 || !hash_equals($legacy_expected, $token)) {
         header('Location: /');
         exit;

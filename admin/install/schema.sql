@@ -451,4 +451,11 @@ INSERT IGNORE INTO `settings` (`key`, `value`) VALUES
   ('invoice_terms',          'Payment is due within 30 days of invoice date. Thank you for your business!'),
   ('vapid_public_key',       ''),
   ('vapid_private_key',      ''),
-  ('vapid_subject',          '');
+  ('vapid_subject',          ''),
+  ('portal_signing_key',     ''),
+  ('portal_link_ttl_minutes','30'),
+  ('stripe_statement_descriptor',''),
+  ('billing_email_enabled',  '1'),
+  ('billing_retry_days',     '[1,3,5]'),
+  ('ach_enabled',            '1'),
+  ('subscription_enabled',   '1');

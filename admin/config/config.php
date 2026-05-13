@@ -44,15 +44,16 @@ $_env = static fn(string $key, string $default): string =>
     isset($_ENV[$key]) && $_ENV[$key] !== '' ? (string)$_ENV[$key] : $default;
 
 // ── Database ─────────────────────────────────────────────────────────────────
-define('DB_HOST',    $_env('DB_HOST',    '193.203.166.222'));
-define('DB_NAME',    $_env('DB_NAME',    'u307979562_trashpanda'));
-define('DB_USER',    $_env('DB_USER',    'u307979562_trashpanda'));
-define('DB_PASS',    $_env('DB_PASS',    'ReallyStrongPassword1!'));
+define('DB_HOST',    $_env('DB_HOST',    'localhost'));
+define('DB_NAME',    $_env('DB_NAME',    ''));
+define('DB_USER',    $_env('DB_USER',    ''));
+define('DB_PASS',    $_env('DB_PASS',    ''));
 define('DB_CHARSET', $_env('DB_CHARSET', 'utf8mb4'));
 
 // ── Application ───────────────────────────────────────────────────────────────
 define('APP_NAME',    $_env('APP_NAME',    'Trash Panda Roll-Offs'));
 define('APP_VERSION', $_env('APP_VERSION', '1.0.0'));
+define('APP_ENV',     $_env('APP_ENV',     'production'));
 
 // Dynamically build APP_URL from the current request so the admin panel
 // works on any domain without manual configuration.
@@ -68,7 +69,7 @@ unset($_app_scheme, $_raw_host, $_app_host);
 // Set to true to display detailed errors and exception traces in the browser.
 // NEVER leave true in production — it exposes sensitive information.
 $_debug_raw = strtolower($_env('APP_DEBUG', 'false'));
-define('APP_DEBUG', in_array($_debug_raw, ['true', '1', 'yes'], true));
+define('APP_DEBUG', APP_ENV !== 'production' && in_array($_debug_raw, ['true', '1', 'yes'], true));
 unset($_debug_raw);
 
 define('SESSION_NAME',      'tp_session');
@@ -86,5 +87,7 @@ unset($_installed_raw);
 
 // ── Cron ──────────────────────────────────────────────────────────────────────
 define('CRON_KEY', $_env('CRON_KEY', 'change-this-to-a-random-secret'));
+define('PORTAL_SIGNING_KEY', $_env('PORTAL_SIGNING_KEY', 'change-this-portal-signing-key'));
+define('APP_LOG_DIR', $_env('APP_LOG_DIR', ROOT_PATH . '/logs'));
 
 unset($_env);

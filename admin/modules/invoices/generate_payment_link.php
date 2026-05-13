@@ -12,6 +12,7 @@ require_role('admin', 'office');
 csrf_check();
 
 $id = (int)($_POST['id'] ?? 0);
+$paymentMethod = trim((string)($_POST['payment_method'] ?? 'stripe'));
 if ($id <= 0) {
     flash_error('Invalid invoice ID.');
     redirect('index.php');
@@ -39,16 +40,17 @@ try {
     $success_url = $base_url . '/modules/invoices/view.php?id=' . $id . '&paid=1';
     $cancel_url  = $base_url . '/modules/invoices/view.php?id=' . $id;
 
-    $session = stripe_create_invoice_checkout($inv, $success_url, $cancel_url);
+    $session = stripe_create_invoice_checkout($inv, $success_url, $cancel_url, $paymentMethod);
 
     db_update('invoices', [
         'stripe_payment_link' => $session->url,
         'stripe_session_id'   => $session->id,
+        'payment_method'      => $paymentMethod,
         'updated_at'          => date('Y-m-d H:i:s'),
     ], 'id', $id);
 
-    log_activity('update', "Generated Stripe payment link for invoice {$inv['invoice_number']} (session: {$session->id})", 'invoice', $id);
-    flash_success("Stripe payment link generated for invoice {$inv['invoice_number']}.");
+    log_activity('update', "Generated Stripe payment link for invoice {$inv['invoice_number']} ({$paymentMethod}, session: {$session->id})", 'invoice', $id);
+    flash_success("Stripe payment link generated for invoice {$inv['invoice_number']} using " . payment_method_label($paymentMethod) . '.');
 } catch (\Throwable $e) {
     flash_error('Stripe error: ' . $e->getMessage());
 }

@@ -100,13 +100,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ],
         'save_stripe' => [
             'stripe_mode', 'stripe_publishable_key', 'stripe_secret_key', 'stripe_webhook_secret',
+            'portal_signing_key', 'portal_link_ttl_minutes', 'stripe_statement_descriptor',
+            'billing_retry_days', 'ach_enabled', 'subscription_enabled',
         ],
     ];
 
     // Fall back to saving all fields if unknown action
     $fields = $section_fields[$action] ?? array_merge(...array_values($section_fields));
 
-    $sensitive_blanks = ['smtp_password', 'stripe_secret_key', 'stripe_webhook_secret'];
+    $sensitive_blanks = ['smtp_password', 'stripe_secret_key', 'stripe_webhook_secret', 'portal_signing_key'];
 
     foreach ($fields as $key) {
         $raw = trim($_POST[$key] ?? '');
@@ -406,6 +408,14 @@ layout_start('Settings', 'settings');
                     Webhook endpoint: <code><?= e(rtrim(preg_replace('#/admin$#', '', APP_URL), '/')) ?>/public/api/stripe-webhook.php</code>
                 </div>
             </div>
+            <div class="col-md-6">
+                <label class="form-label" for="portal_signing_key">Portal Signing Key</label>
+                <input type="password" id="portal_signing_key" name="portal_signing_key"
+                       class="form-control"
+                       placeholder="<?= get_setting('portal_signing_key') ? '••••••••' : 'long-random-secret' ?>"
+                       value="">
+                <div class="form-text" style="color:var(--gy);">Used to sign passwordless customer portal links. Leave blank to keep existing value.</div>
+            </div>
             <div class="col-md-4">
                 <label class="form-label" for="currency">Currency</label>
                 <select id="currency" name="currency" class="form-select">
@@ -415,6 +425,35 @@ layout_start('Settings', 'settings');
                     ?>
                     <option value="<?= e($val) ?>" <?= $cur === $val ? 'selected' : '' ?>><?= e($lbl) ?></option>
                     <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="portal_link_ttl_minutes">Portal Link TTL (minutes)</label>
+                <input type="number" id="portal_link_ttl_minutes" name="portal_link_ttl_minutes" class="form-control"
+                       value="<?= e(get_setting('portal_link_ttl_minutes', '30')) ?>" min="5" step="5">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="stripe_statement_descriptor">Statement Descriptor</label>
+                <input type="text" id="stripe_statement_descriptor" name="stripe_statement_descriptor" class="form-control"
+                       value="<?= e(get_setting('stripe_statement_descriptor', '')) ?>" maxlength="22">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="billing_retry_days">Billing Retry Days (JSON)</label>
+                <input type="text" id="billing_retry_days" name="billing_retry_days" class="form-control"
+                       value="<?= e(get_setting('billing_retry_days', '[1,3,5]')) ?>">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="ach_enabled">ACH Payments</label>
+                <select id="ach_enabled" name="ach_enabled" class="form-select">
+                    <option value="1" <?= get_setting('ach_enabled', '1') === '1' ? 'selected' : '' ?>>Enabled</option>
+                    <option value="0" <?= get_setting('ach_enabled', '1') === '0' ? 'selected' : '' ?>>Disabled</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="subscription_enabled">Subscriptions</label>
+                <select id="subscription_enabled" name="subscription_enabled" class="form-select">
+                    <option value="1" <?= get_setting('subscription_enabled', '1') === '1' ? 'selected' : '' ?>>Enabled</option>
+                    <option value="0" <?= get_setting('subscription_enabled', '1') === '0' ? 'selected' : '' ?>>Disabled</option>
                 </select>
             </div>
             <div class="col-12">

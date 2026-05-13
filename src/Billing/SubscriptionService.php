@@ -1,0 +1,175 @@
+<?php
+
+namespace TrashPanda\Billing;
+
+use TrashPanda\Billing\Exception\BillingException;
+
+class SubscriptionService
+{
+    public function __construct(
+        private readonly StripeClientFactory $factory,
+        private readonly StripeCustomerService $customerService,
+        private readonly AuditLogService $auditLogService,
+    ) {
+    }
+
+    public function create(array $data): int
+    {
+        $customer = $this->customerService->ensureForCustomerId((int)$data['customer_id']);
+        $priceId = $this->ensureRecurringPrice(
+            (string)$data['service_name'],
+            (int)round((float)$data['amount'] * 100),
+            (string)$data['interval_unit'],
+            (int)$data['interval_count']
+        );
+
+        $params = [
+            'customer' => $customer['stripe_customer_id'],
+            'items' => [['price' => $priceId]],
+            'collection_method' => 'charge_automatically',
+            'default_payment_method' => $data['stripe_payment_method_id'] ?: null,
+            'metadata' => [
+                'customer_id' => (string)$data['customer_id'],
+                'service_name' => (string)$data['service_name'],
+            ],
+        ];
+
+        if (!empty($data['billing_anchor'])) {
+            $params['billing_cycle_anchor'] = strtotime((string)$data['billing_anchor']);
+            $params['proration_behavior'] = 'none';
+        }
+
+        $stripeSubscription = $this->factory->requireClient()->subscriptions->create(array_filter($params, static fn($value) => $value !== null && $value !== ''));
+
+        $subscriptionId = (int)\db_insert('subscriptions', [
+            'customer_id' => $data['customer_id'],
+            'service_name' => $data['service_name'],
+            'service_address' => $data['service_address'] ?: null,
+            'amount' => $data['amount'],
+            'interval_unit' => $data['interval_unit'],
+            'interval_count' => $data['interval_count'],
+            'billing_anchor' => $data['billing_anchor'] ?: null,
+            'next_billing_date' => !empty($stripeSubscription->current_period_end) ? date('Y-m-d', (int)$stripeSubscription->current_period_end) : null,
+            'stripe_subscription_id' => $stripeSubscription->id,
+            'stripe_price_id' => $priceId,
+            'stripe_payment_method_id' => $data['stripe_payment_method_id'] ?: null,
+            'status' => $stripeSubscription->status,
+            'stripe_status' => $stripeSubscription->status,
+            'autopay_enabled' => !empty($data['autopay_enabled']) ? 1 : 0,
+            'retry_count' => 0,
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $this->auditLogService->log('subscription_created', 'Created subscription #' . $subscriptionId, 'subscription', $subscriptionId);
+        return $subscriptionId;
+    }
+
+    public function syncFromStripeObject(object $subscription): ?array
+    {
+        $row = \db_fetch('SELECT * FROM subscriptions WHERE stripe_subscription_id = ? LIMIT 1', [$subscription->id]);
+        if (!$row) {
+            return null;
+        }
+
+        \db_update('subscriptions', [
+            'status' => $subscription->status,
+            'stripe_status' => $subscription->status,
+            'cancel_at' => !empty($subscription->cancel_at) ? date('Y-m-d H:i:s', (int)$subscription->cancel_at) : null,
+            'canceled_at' => !empty($subscription->canceled_at) ? date('Y-m-d H:i:s', (int)$subscription->canceled_at) : null,
+            'paused_at' => ($subscription->pause_collection ?? null) ? date('Y-m-d H:i:s') : null,
+            'next_billing_date' => !empty($subscription->current_period_end) ? date('Y-m-d', (int)$subscription->current_period_end) : null,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ], 'id', (int)$row['id']);
+
+        return \db_fetch('SELECT * FROM subscriptions WHERE id = ? LIMIT 1', [(int)$row['id']]) ?: null;
+    }
+
+    public function pause(int $id): void
+    {
+        $subscription = $this->requireLocalSubscription($id);
+        $this->factory->requireClient()->subscriptions->update($subscription['stripe_subscription_id'], [
+            'pause_collection' => ['behavior' => 'mark_uncollectible'],
+        ]);
+        \db_update('subscriptions', [
+            'status' => 'paused',
+            'paused_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ], 'id', $id);
+    }
+
+    public function resume(int $id): void
+    {
+        $subscription = $this->requireLocalSubscription($id);
+        $this->factory->requireClient()->subscriptions->update($subscription['stripe_subscription_id'], [
+            'pause_collection' => '',
+        ]);
+        \db_update('subscriptions', [
+            'status' => 'active',
+            'paused_at' => null,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ], 'id', $id);
+    }
+
+    public function cancel(int $id): void
+    {
+        $subscription = $this->requireLocalSubscription($id);
+        $this->factory->requireClient()->subscriptions->cancel($subscription['stripe_subscription_id'], []);
+        \db_update('subscriptions', [
+            'status' => 'canceled',
+            'canceled_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ], 'id', $id);
+    }
+
+    public function retryLatestInvoice(int $id): void
+    {
+        $subscription = $this->requireLocalSubscription($id);
+        $invoiceId = \db_value(
+            'SELECT stripe_invoice_id FROM recurring_invoice_logs WHERE subscription_id = ? AND stripe_invoice_id IS NOT NULL ORDER BY id DESC LIMIT 1',
+            [$id]
+        );
+        if (!$invoiceId) {
+            throw new BillingException('No retryable invoice was found for this subscription.');
+        }
+        $this->factory->requireClient()->invoices->pay((string)$invoiceId, []);
+        \db_execute('UPDATE subscriptions SET retry_count = retry_count + 1, updated_at = NOW() WHERE id = ?', [$id]);
+    }
+
+    private function requireLocalSubscription(int $id): array
+    {
+        $subscription = \db_fetch('SELECT * FROM subscriptions WHERE id = ? LIMIT 1', [$id]);
+        if (!$subscription) {
+            throw new BillingException('Subscription not found.');
+        }
+        return $subscription;
+    }
+
+    private function ensureRecurringPrice(string $serviceName, int $amountCents, string $intervalUnit, int $intervalCount): string
+    {
+        $lookupKey = 'tp_' . strtolower(preg_replace('/[^a-z0-9]+/i', '_', $serviceName)) . '_' . $intervalUnit . '_' . $intervalCount . '_' . $amountCents;
+        $client = $this->factory->requireClient();
+        $prices = $client->prices->all(['lookup_keys' => [$lookupKey], 'limit' => 1]);
+        if (!empty($prices->data[0])) {
+            return $prices->data[0]->id;
+        }
+
+        $product = $client->products->create([
+            'name' => $serviceName,
+            'metadata' => ['service_name' => $serviceName],
+        ]);
+
+        $price = $client->prices->create([
+            'currency' => strtolower(\get_setting('currency', 'usd') ?: 'usd'),
+            'unit_amount' => $amountCents,
+            'product' => $product->id,
+            'recurring' => [
+                'interval' => $intervalUnit,
+                'interval_count' => max(1, $intervalCount),
+            ],
+            'lookup_key' => $lookupKey,
+        ]);
+
+        return $price->id;
+    }
+}

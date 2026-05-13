@@ -93,8 +93,10 @@ function status_badge(string $status): string
         'lost'             => 'Lost',
         'draft'            => 'Draft',
         'sent'             => 'Sent',
+        'open'             => 'Open',
         'approved'         => 'Approved',
         'rejected'         => 'Rejected',
+        'uncollectible'    => 'Uncollectible',
         'scheduled'        => 'Scheduled',
         'delivered'        => 'Delivered',
         'active'           => 'Active',
@@ -102,6 +104,12 @@ function status_badge(string $status): string
         'picked_up'        => 'Picked Up',
         'completed'        => 'Completed',
         'canceled'         => 'Canceled',
+        'failed'           => 'Failed',
+        'processing'       => 'Processing',
+        'past_due'         => 'Past Due',
+        'paused'           => 'Paused',
+        'trialing'         => 'Trialing',
+        'incomplete'       => 'Incomplete',
         'available'        => 'Available',
         'reserved'         => 'Reserved',
         'in_use'           => 'In Use',
@@ -122,16 +130,48 @@ function payment_badge(string $status): string
     $map = [
         'unpaid'        => 'Unpaid',
         'pending'       => 'Pending',
+        'processing'    => 'Processing',
         'paid'          => 'Paid',
+        'failed'        => 'Failed',
         'refunded'      => 'Refunded',
+        'received'      => 'Received',
+        'processed'     => 'Processed',
+        'duplicate'     => 'Duplicate',
         'pending_cash'  => 'Cash (Pending)',
         'paid_cash'     => 'Cash (Paid)',
         'pending_check' => 'Check (Pending)',
         'paid_check'    => 'Check (Paid)',
+        'canceled'      => 'Canceled',
     ];
     $label   = $map[$status] ?? ucfirst($status);
     $cssSlug = str_replace('_', '-', strtolower($status));
     return '<span class="tp-badge badge-' . e($cssSlug) . '">' . e($label) . '</span>';
+}
+
+/**
+ * Return a styled badge for subscription status values.
+ */
+function subscription_badge(string $status): string
+{
+    $label = match ($status) {
+        'trialing'  => 'Trialing',
+        'active'    => 'Active',
+        'past_due'  => 'Past Due',
+        'paused'    => 'Paused',
+        'canceled'  => 'Canceled',
+        'incomplete' => 'Incomplete',
+        default     => ucwords(str_replace('_', ' ', $status)),
+    };
+    $cssSlug = str_replace('_', '-', strtolower($status));
+    return '<span class="tp-badge badge-' . e($cssSlug) . '">' . e($label) . '</span>';
+}
+
+/**
+ * Alias retained for older views.
+ */
+function flash_display(): void
+{
+    render_flash();
 }
 
 /**
@@ -350,6 +390,28 @@ function set_setting(string $key, string $value): void
 }
 
 /**
+ * Retrieve a JSON setting value, returning the provided default when unset or invalid.
+ */
+function get_setting_json(string $key, array $default = []): array
+{
+    $raw = trim(get_setting($key, ''));
+    if ($raw === '') {
+        return $default;
+    }
+
+    $decoded = json_decode($raw, true);
+    return is_array($decoded) ? $decoded : $default;
+}
+
+/**
+ * Persist a setting as JSON.
+ */
+function set_setting_json(string $key, array $value): void
+{
+    set_setting($key, json_encode($value, JSON_UNESCAPED_SLASHES));
+}
+
+/**
  * Validate that required fields are present and non-empty in $data.
  *
  * @param string[] $fields  list of required field names
@@ -496,6 +558,44 @@ function log_activity(string $action, string $desc, string $type = '', int $id =
         'ip_address'  => $ip,
         'created_at'  => date('Y-m-d H:i:s'),
     ]);
+}
+
+/**
+ * Write a structured log entry to the filesystem.
+ */
+function app_log(string $channel, string $message, array $context = []): void
+{
+    $dir = defined('APP_LOG_DIR') ? APP_LOG_DIR : (ROOT_PATH . '/logs');
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+
+    $line = [
+        'ts' => date('c'),
+        'channel' => $channel,
+        'message' => $message,
+        'context' => $context,
+    ];
+
+    @file_put_contents(
+        $dir . '/' . preg_replace('/[^a-z0-9_\-]/i', '_', $channel) . '.log',
+        json_encode($line, JSON_UNESCAPED_SLASHES) . PHP_EOL,
+        FILE_APPEND
+    );
+}
+
+/**
+ * Map legacy booking/invoice payment methods to friendly labels.
+ */
+function payment_method_label(?string $method): string
+{
+    return match ((string)$method) {
+        'stripe', 'card' => 'Card',
+        'ach' => 'ACH',
+        'cash' => 'Cash',
+        'check' => 'Check',
+        default => ucfirst((string)$method),
+    };
 }
 
 /**

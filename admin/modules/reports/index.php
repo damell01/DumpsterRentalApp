@@ -15,7 +15,7 @@ $pay_method = trim($_GET['pay_method'] ?? 'all');
 $pay_status = trim($_GET['pay_status'] ?? 'all');
 $all_time   = isset($_GET['all_time']) && $_GET['all_time'] === '1';
 
-$valid_methods  = ['all', 'stripe', 'cash', 'check'];
+$valid_methods  = ['all', 'stripe', 'ach', 'cash', 'check'];
 $valid_statuses = ['all', 'paid', 'pending'];
 if (!in_array($pay_method, $valid_methods, true))  $pay_method = 'all';
 if (!in_array($pay_status, $valid_statuses, true)) $pay_status = 'all';
@@ -43,6 +43,11 @@ function booking_status_filter(string $method, string $status): array
         if ($status === 'pending') return ['pending','unpaid'];
         return array_merge(['paid'], ['pending','unpaid']);
     }
+    if ($method === 'ach') {
+        if ($status === 'paid')    return ['paid'];
+        if ($status === 'pending') return ['pending','processing','failed'];
+        return ['paid','pending','processing','failed','refunded'];
+    }
     if ($method === 'cash') {
         if ($status === 'paid')    return ['paid_cash'];
         if ($status === 'pending') return ['pending_cash'];
@@ -64,6 +69,7 @@ $bk_ph       = implode(',', array_fill(0, count($bk_statuses), '?'));
 
 // ── All-time booking totals by payment method ─────────────────────────────────
 $all_time_stripe  = 0.0;
+$all_time_ach     = 0.0;
 $all_time_cash    = 0.0;
 $all_time_check   = 0.0;
 $all_time_pending = 0.0;
@@ -71,12 +77,14 @@ try {
     $r = db_fetch(
         "SELECT
             COALESCE(SUM(CASE WHEN payment_status = 'paid'       THEN total_amount ELSE 0 END),0) AS stripe_total,
+            COALESCE(SUM(CASE WHEN payment_method = 'ach' AND payment_status IN ('paid','processing','refunded') THEN total_amount ELSE 0 END),0) AS ach_total,
             COALESCE(SUM(CASE WHEN payment_status = 'paid_cash'  THEN total_amount ELSE 0 END),0) AS cash_total,
             COALESCE(SUM(CASE WHEN payment_status = 'paid_check' THEN total_amount ELSE 0 END),0) AS check_total,
             COALESCE(SUM(CASE WHEN payment_status IN ('pending','pending_cash','pending_check','unpaid') THEN total_amount ELSE 0 END),0) AS pending_total
          FROM bookings WHERE booking_status != 'canceled'"
     );
     $all_time_stripe  = (float)($r['stripe_total']  ?? 0);
+    $all_time_ach     = (float)($r['ach_total']     ?? 0);
     $all_time_cash    = (float)($r['cash_total']     ?? 0);
     $all_time_check   = (float)($r['check_total']    ?? 0);
     $all_time_pending = (float)($r['pending_total']  ?? 0);
@@ -84,12 +92,14 @@ try {
 
 // ── Period booking revenue by method ─────────────────────────────────────────
 $period_stripe = 0.0;
+$period_ach    = 0.0;
 $period_cash   = 0.0;
 $period_check  = 0.0;
 try {
     $pr = db_fetch(
         "SELECT
             COALESCE(SUM(CASE WHEN payment_status = 'paid'       THEN total_amount ELSE 0 END),0) AS stripe_total,
+            COALESCE(SUM(CASE WHEN payment_method = 'ach' AND payment_status IN ('paid','processing') THEN total_amount ELSE 0 END),0) AS ach_total,
             COALESCE(SUM(CASE WHEN payment_status = 'paid_cash'  THEN total_amount ELSE 0 END),0) AS cash_total,
             COALESCE(SUM(CASE WHEN payment_status = 'paid_check' THEN total_amount ELSE 0 END),0) AS check_total
          FROM bookings
@@ -97,10 +107,11 @@ try {
         [$dt_from, $dt_to]
     );
     $period_stripe = (float)($pr['stripe_total'] ?? 0);
+    $period_ach    = (float)($pr['ach_total']    ?? 0);
     $period_cash   = (float)($pr['cash_total']   ?? 0);
     $period_check  = (float)($pr['check_total']  ?? 0);
 } catch (\Throwable $e) {}
-$period_booking = $period_stripe + $period_cash + $period_check;
+$period_booking = $period_stripe + $period_ach + $period_cash + $period_check;
 
 $inv_period = 0.0;
 try {
@@ -181,7 +192,8 @@ layout_start('Reports', 'reports');
             <label class="form-label mb-1" for="pay_method">Payment Method</label>
             <select id="pay_method" name="pay_method" class="form-select form-select-sm">
                 <option value="all"    <?= $pay_method==='all'    ? 'selected':'' ?>>All Methods</option>
-                <option value="stripe" <?= $pay_method==='stripe' ? 'selected':'' ?>>Stripe (Card)</option>
+                <option value="stripe" <?= $pay_method==='stripe' ? 'selected':'' ?>>Card</option>
+                <option value="ach"    <?= $pay_method==='ach' ? 'selected':'' ?>>ACH</option>
                 <option value="cash"   <?= $pay_method==='cash'   ? 'selected':'' ?>>Cash</option>
                 <option value="check"  <?= $pay_method==='check'  ? 'selected':'' ?>>Check</option>
             </select>
@@ -217,13 +229,18 @@ layout_start('Reports', 'reports');
 <div class="kpi-row mb-4">
     <div class="kpi-card" style="border-left:4px solid #16a34a;">
         <div class="kpi-label">Total All-Time Paid</div>
-        <div class="kpi-value"><?= e(fmt_money($all_time_stripe + $all_time_cash + $all_time_check)) ?></div>
+        <div class="kpi-value"><?= e(fmt_money($all_time_stripe + $all_time_ach + $all_time_cash + $all_time_check)) ?></div>
         <div class="kpi-sub">All paid bookings</div>
     </div>
     <div class="kpi-card" style="border-left:4px solid #6366f1;">
         <div class="kpi-label">Stripe — All Time</div>
         <div class="kpi-value"><?= e(fmt_money($all_time_stripe)) ?></div>
         <div class="kpi-sub">Card payments</div>
+    </div>
+    <div class="kpi-card" style="border-left:4px solid #14b8a6;">
+        <div class="kpi-label">ACH — All Time</div>
+        <div class="kpi-value"><?= e(fmt_money($all_time_ach)) ?></div>
+        <div class="kpi-sub">Bank payments</div>
     </div>
     <div class="kpi-card" style="border-left:4px solid #16a34a;">
         <div class="kpi-label">Cash — All Time</div>
@@ -256,6 +273,10 @@ layout_start('Reports', 'reports');
     <div class="kpi-card" style="border-left:4px solid #6366f1;">
         <div class="kpi-label">Stripe Revenue</div>
         <div class="kpi-value"><?= e(fmt_money($period_stripe)) ?></div>
+    </div>
+    <div class="kpi-card" style="border-left:4px solid #14b8a6;">
+        <div class="kpi-label">ACH Revenue</div>
+        <div class="kpi-value"><?= e(fmt_money($period_ach)) ?></div>
     </div>
     <div class="kpi-card" style="border-left:4px solid #16a34a;">
         <div class="kpi-label">Cash Revenue</div>
@@ -347,6 +368,10 @@ layout_start('Reports', 'reports');
        class="btn-tp-ghost btn-tp-sm <?= ($all_time && $pay_method==='stripe' && $pay_status==='paid') ? 'filter-active' : '' ?>">
         <i class="fa-brands fa-stripe me-1" style="color:#6366f1;"></i>All Stripe Payments
     </a>
+    <a href="?all_time=1&pay_method=ach&pay_status=paid"
+       class="btn-tp-ghost btn-tp-sm <?= ($all_time && $pay_method==='ach' && $pay_status==='paid') ? 'filter-active' : '' ?>">
+        <i class="fa-solid fa-building-columns me-1" style="color:#14b8a6;"></i>All ACH Payments
+    </a>
     <a href="?pay_status=pending"
        class="btn-tp-ghost btn-tp-sm <?= (!$all_time && $pay_status==='pending' && $pay_method==='all') ? 'filter-active' : '' ?>">
         Pending Payments
@@ -379,13 +404,14 @@ layout_start('Reports', 'reports');
                     $filtered_total += (float)$row['total_amount'];
                 }
                 $m_label = match ($row['payment_status']) {
-                    'paid'                    => 'Stripe',
+                    'paid'                    => ($row['payment_method'] ?? '') === 'ach' ? 'ACH' : 'Stripe',
                     'paid_cash','pending_cash' => 'Cash',
                     'paid_check','pending_check' => 'Check',
                     default => ucfirst($row['payment_method'] ?? 'Unknown'),
                 };
                 $m_color = match ($row['payment_status']) {
-                    'paid'                      => '#6366f1',
+                    'paid'                      => ($row['payment_method'] ?? '') === 'ach' ? '#14b8a6' : '#6366f1',
+                    'processing','failed'       => '#14b8a6',
                     'paid_cash','pending_cash'   => '#16a34a',
                     'paid_check','pending_check' => '#d97706',
                     default                      => '#6b7280',

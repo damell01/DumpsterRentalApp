@@ -69,6 +69,22 @@ function layout_start(string $page_title, string $active_nav = ''): void
             'badge' => null,
         ],
         [
+            'key'   => 'subscriptions',
+            'label' => 'Subscriptions',
+            'icon'  => 'fa-arrows-rotate',
+            'href'  => APP_URL . '/modules/subscriptions/index.php',
+            'roles' => ['admin', 'office'],
+            'badge' => null,
+        ],
+        [
+            'key'   => 'payment_methods',
+            'label' => 'Payment Methods',
+            'icon'  => 'fa-wallet',
+            'href'  => APP_URL . '/modules/payment_methods/index.php',
+            'roles' => ['admin', 'office'],
+            'badge' => null,
+        ],
+        [
             'key'   => 'payments',
             'label' => 'Payments',
             'icon'  => 'fa-money-bill-wave',
@@ -86,6 +102,14 @@ function layout_start(string $page_title, string $active_nav = ''): void
         ],
         // ── Tools ────────────────────────────────────────────────────────────
         ['group' => 'Tools'],
+        [
+            'key'   => 'webhooks',
+            'label' => 'Webhook Logs',
+            'icon'  => 'fa-plug-circle-bolt',
+            'href'  => APP_URL . '/modules/webhooks/index.php',
+            'roles' => ['admin'],
+            'badge' => null,
+        ],
         [
             'key'   => 'inventory',
             'label' => 'Inventory',

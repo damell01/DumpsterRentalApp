@@ -8,8 +8,9 @@
 
 // ── Temporary Debug Mode (?debug=1) ─────────────────────────────────────────
 // Use this on a failing admin URL to surface HTTP 500 root-cause details.
-$debugMode = (isset($_GET['debug']) && $_GET['debug'] === '1')
-    || (defined('APP_DEBUG') && APP_DEBUG === true);
+$debugMode = (
+    defined('APP_ENV') && APP_ENV !== 'production' && isset($_GET['debug']) && $_GET['debug'] === '1'
+) || (defined('APP_DEBUG') && APP_DEBUG === true);
 
 if ($debugMode) {
     ini_set('display_errors', '1');
@@ -124,6 +125,8 @@ unset($_composer_autoload);
 require_once INC_PATH . '/db.php';
 require_once INC_PATH . '/auth.php';
 require_once INC_PATH . '/helpers.php';
+require_once INC_PATH . '/mailer.php';
+require_once INC_PATH . '/billing.php';
 
 // ── 3. Start / resume the session ───────────────────────────────────────────
 session_init();
