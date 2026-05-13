@@ -168,7 +168,18 @@ a:hover { color: var(--or-d); }
 
 .sb-item.active .sb-icon { color: var(--or); }
 
-.sb-item .sb-icon { width: 18px; text-align: center; font-size: .9rem; flex-shrink: 0; color: rgba(255,255,255,.55); transition: color .2s; }
+.sb-item .sb-icon {
+    width: 22px;
+    min-width: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+    color: rgba(255,255,255,.78);
+    transition: color .2s;
+}
 .sb-item:hover .sb-icon { color: rgba(255,255,255,.9); }
 .sb-label { flex: 1; }
 
@@ -237,7 +248,47 @@ a:hover { color: var(--or-d); }
     flex: 1;
 }
 
-.hamburger-btn { display: none; }
+.hamburger-btn {
+    display: none !important;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border: 1px solid var(--st2);
+    border-radius: 12px;
+    background: var(--dk1);
+    color: var(--navy);
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+
+.hamburger-btn:hover {
+    border-color: var(--navy);
+    background: rgba(15,42,68,.04);
+}
+
+.hamburger-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(249,115,22,.18);
+    border-color: var(--or);
+}
+
+.hamburger-lines {
+    width: 18px;
+    height: 14px;
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.hamburger-lines span {
+    display: block;
+    width: 100%;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+}
 
 /* --------------------------------------------------------------------------
    Main Layout
@@ -1324,7 +1375,7 @@ hr { border-color: var(--st); opacity: 1; }
     .tp-sidebar.open { transform: translateX(0); }
     .tp-main { margin-left: 0; }
     .tp-topbar { left: 0; }
-    .hamburger-btn { display: inline-flex; }
+    .hamburger-btn { display: inline-flex !important; }
     .tp-form-row, .tp-form-row-3 { grid-template-columns: 1fr; }
     .detail-grid { grid-template-columns: 1fr; }
     .kpi-row { grid-template-columns: repeat(2, 1fr); }

@@ -52,6 +52,8 @@ $tabs = [
     'maintenance' => ['label' => 'Maintenance', 'count' => $status_counts['maintenance'] ?? 0],
 ];
 
+$stripeConfigured = trim(get_setting('stripe_secret_key', '')) !== '';
+
 // ── Layout ────────────────────────────────────────────────────────────────────
 layout_start('Inventory', 'inventory');
 ?>
@@ -60,16 +62,43 @@ layout_start('Inventory', 'inventory');
     <h5 class="mb-0">Dumpster Inventory</h5>
     <?php if (has_role('admin', 'office')): ?>
     <div class="d-flex gap-2 flex-wrap">
-        <?php if (trim(get_setting('stripe_secret_key', '')) !== ''): ?>
-        <form method="POST" action="sync_all_stripe.php" id="syncAllForm">
-            <?= csrf_field() ?>
-            <button type="submit" class="btn-tp-ghost btn-tp-sm"
-                    onclick="return confirm('Sync all dumpsters to Stripe? This will create or update Stripe products and booking/recurring prices for all active dumpsters.')"
-                    id="syncAllBtn">
-                <i class="fa-brands fa-stripe me-1"></i> Sync Inventory to Stripe
+        <div class="dropdown">
+            <button class="btn-tp-ghost btn-tp-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fa-solid fa-sliders me-1"></i> Actions
             </button>
-        </form>
-        <?php endif; ?>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                    <a class="dropdown-item" href="create.php">
+                        <i class="fa-solid fa-plus me-2"></i>Add Dumpster
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <?php if ($stripeConfigured): ?>
+                <li>
+                    <form method="POST" action="sync_all_stripe.php" id="syncAllForm">
+                        <?= csrf_field() ?>
+                        <button type="submit"
+                                class="dropdown-item"
+                                onclick="return confirm('Sync all dumpsters to Stripe? This will create or update Stripe products and booking/recurring prices for all active dumpsters.')"
+                                id="syncAllBtn">
+                            <i class="fa-brands fa-stripe me-2"></i>Sync Inventory to Stripe
+                        </button>
+                    </form>
+                </li>
+                <?php else: ?>
+                <li>
+                    <span class="dropdown-item-text text-muted">
+                        <i class="fa-brands fa-stripe me-2"></i>Stripe sync unavailable
+                    </span>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="<?= e(APP_URL) ?>/modules/settings/index.php">
+                        <i class="fa-solid fa-gear me-2"></i>Add Stripe key in Settings
+                    </a>
+                </li>
+                <?php endif; ?>
+            </ul>
+        </div>
         <a href="create.php" class="btn-tp-primary btn-tp-sm">
             <i class="fa-solid fa-plus"></i> Add Dumpster
         </a>
@@ -77,9 +106,13 @@ layout_start('Inventory', 'inventory');
     <?php endif; ?>
 </div>
 
-<?php if (trim(get_setting('stripe_secret_key', '')) !== ''): ?>
+<?php if ($stripeConfigured): ?>
 <div class="alert alert-info py-2 px-3 mb-3" role="alert">
     <strong>Stripe catalog sync:</strong> this sync pushes each active dumpster to Stripe as a product and keeps booking, weekly, bi-weekly, and monthly prices aligned from your local inventory rates.
+</div>
+<?php elseif (has_role('admin', 'office')): ?>
+<div class="alert alert-warning py-2 px-3 mb-3" role="alert">
+    <strong>Stripe sync is hidden until configured:</strong> add your Stripe secret key in <a href="<?= e(APP_URL) ?>/modules/settings/index.php" class="alert-link">Settings</a>, then use the new <strong>Actions</strong> menu to sync inventory pricing.
 </div>
 <?php endif; ?>
 

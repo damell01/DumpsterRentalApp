@@ -340,9 +340,13 @@ function layout_start(string $page_title, string $active_nav = ''): void
     <!-- Top bar -->
     <div class="tp-topbar">
         <!-- Hamburger (mobile) -->
-        <button class="hamburger-btn btn-tp-ghost btn-tp-sm me-1" id="hamburgerBtn"
+        <button class="hamburger-btn me-1" id="hamburgerBtn"
                 aria-label="Toggle navigation" aria-expanded="false" aria-controls="tpSidebar">
-            <i class="fa-solid fa-bars"></i>
+            <span class="hamburger-lines" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+            </span>
         </button>
 
         <!-- Page title -->
