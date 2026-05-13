@@ -31,6 +31,32 @@ $data   = [
     'notes'            => '',
 ];
 
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    $lead_id = (int)($_GET['lead_id'] ?? 0);
+    if ($lead_id > 0) {
+        $lead = db_fetch('SELECT * FROM leads WHERE id = ? LIMIT 1', [$lead_id]);
+        if ($lead) {
+            $data = [
+                'name'             => trim((string)($lead['name'] ?? '')),
+                'company'          => '',
+                'email'            => trim((string)($lead['email'] ?? '')),
+                'phone'            => trim((string)($lead['phone'] ?? '')),
+                'address'          => trim((string)($lead['address'] ?? '')),
+                'city'             => trim((string)($lead['city'] ?? '')),
+                'state'            => trim((string)($lead['state'] ?? '')),
+                'zip'              => trim((string)($lead['zip'] ?? '')),
+                'billing_address'  => trim((string)($lead['address'] ?? '')),
+                'billing_city'     => trim((string)($lead['city'] ?? '')),
+                'billing_state'    => trim((string)($lead['state'] ?? '')),
+                'billing_zip'      => trim((string)($lead['zip'] ?? '')),
+                'type'             => 'residential',
+                'notes'            => trim((string)($lead['message'] ?? '')),
+            ];
+            $page_title = 'Convert Lead to Customer';
+        }
+    }
+}
+
 
 
 // ── Handle POST ──────────────────────────────────────────────────────────────
@@ -90,6 +116,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $customer_id = (int)db_insert('customers', $insert);
 
+        if ($lead_id > 0) {
+            db_query(
+                "UPDATE leads
+                 SET converted_to = ?, status = 'won', updated_at = NOW()
+                 WHERE id = ?",
+                [$customer_id, $lead_id]
+            );
+        }
+
         log_activity('create', 'Created customer: ' . $data['name'], 'customer', $customer_id);
 
         flash_success('Customer "' . $data['name'] . '" created successfully.');
@@ -97,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$page_title = 'New Customer';
+$page_title = $page_title ?? 'New Customer';
 layout_start($page_title, 'customers');
 ?>
 

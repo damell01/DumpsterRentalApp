@@ -303,7 +303,23 @@ function lookupBookings() {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ identifier: id })
     })
-    .then(function(r) { return r.json(); })
+    .then(function(r) {
+        return r.text().then(function(text) {
+            var data = {};
+            try {
+                data = text ? JSON.parse(text) : {};
+            } catch (e) {
+                data = {};
+            }
+
+            if (!r.ok) {
+                var msg = data.error || ('Lookup failed with HTTP ' + r.status + '.');
+                throw new Error(msg);
+            }
+
+            return data;
+        });
+    })
     .then(function(data) {
         btnEl.disabled = false;
         btnEl.innerHTML = '<i class="fas fa-search"></i> Find Bookings';
@@ -334,10 +350,10 @@ function lookupBookings() {
         var scrollTarget = data.count === 0 ? 'no-results-wrap' : 'results-wrap';
         document.getElementById(scrollTarget).scrollIntoView({ behavior: 'smooth', block: 'start' });
     })
-    .catch(function() {
+    .catch(function(err) {
         btnEl.disabled = false;
         btnEl.innerHTML = '<i class="fas fa-search"></i> Find Bookings';
-        errEl.textContent = 'Network error. Please try again.';
+        errEl.textContent = err && err.message ? err.message : 'Network error. Please try again.';
         errEl.style.display = 'block';
     });
 }

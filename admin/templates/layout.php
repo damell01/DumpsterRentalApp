@@ -58,6 +58,14 @@ function layout_start(string $page_title, string $active_nav = ''): void
             'roles' => null,
             'badge' => null,
         ],
+        [
+            'key'   => 'leads',
+            'label' => 'Leads',
+            'icon'  => 'fa-user-plus',
+            'href'  => APP_URL . '/modules/leads/index.php',
+            'roles' => ['admin', 'office'],
+            'badge' => 'leads',
+        ],
         // ── Finance ─────────────────────────────────────────────────────────
         ['group' => 'Finance'],
         [
@@ -167,6 +175,12 @@ function layout_start(string $page_title, string $active_nav = ''): void
             if ($type === 'bookings') {
                 $row = db_fetch(
                     "SELECT COUNT(*) AS cnt FROM bookings WHERE booking_status IN ('pending','confirmed') AND payment_status IN ('unpaid','pending','pending_cash','pending_check')"
+                );
+                return (int) ($row['cnt'] ?? 0);
+            }
+            if ($type === 'leads') {
+                $row = db_fetch(
+                    "SELECT COUNT(*) AS cnt FROM leads WHERE archived = 0 AND status IN ('new','contacted','quoted')"
                 );
                 return (int) ($row['cnt'] ?? 0);
             }
