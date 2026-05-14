@@ -446,9 +446,9 @@ layout_start('Reports', 'reports');
             <?php endforeach; ?>
             </tbody>
             <tfoot>
-                <tr style="background:#f9fafb;border-top:2px solid #e5e7eb;">
+                <tr style="border-top:2px solid var(--steel);">
                     <td colspan="4" class="fw-semibold text-end pe-3" style="font-size:.85rem;">Filtered Paid Total:</td>
-                    <td class="text-end fw-bold pe-3" style="font-size:1rem;color:#16a34a;"><?= e(fmt_money($filtered_total)) ?></td>
+                    <td class="text-end fw-bold pe-3" style="font-size:1rem;color:#4ade80;"><?= e(fmt_money($filtered_total)) ?></td>
                     <td colspan="3"></td>
                 </tr>
             </tfoot>

@@ -1,6 +1,18 @@
 <?php
 
 $_admin_root = dirname(__DIR__, 2) . '/admin';
+
+spl_autoload_register(static function (string $class): void {
+    $prefix = 'TrashPanda\\';
+    if (strncmp($class, $prefix, strlen($prefix)) !== 0) {
+        return;
+    }
+    $file = dirname(__DIR__, 2) . '/src/' . str_replace('\\', '/', substr($class, strlen($prefix))) . '.php';
+    if (is_file($file)) {
+        require_once $file;
+    }
+});
+
 require_once $_admin_root . '/config/config.php';
 require_once INC_PATH . '/db.php';
 require_once INC_PATH . '/helpers.php';

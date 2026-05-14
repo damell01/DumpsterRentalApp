@@ -255,7 +255,7 @@ document.getElementById('quoteForm')?.addEventListener('submit', async function(
       btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send My Quote Request';
     }
   } catch (err) {
-    errorEl.textContent = 'Network error. Please try again or call us at (251) 333-4444.';
+    errorEl.textContent = 'Network error. Please try again or call us at ' + (window._companyPhone || '(251) 333-4444') + '.';
     errorEl.style.display = 'block';
     btn.disabled = false;
     btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send My Quote Request';

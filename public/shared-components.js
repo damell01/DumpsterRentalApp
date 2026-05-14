@@ -27,7 +27,7 @@ const navHTML = `
       <li><a href="/my-bookings.php">My Bookings</a></li>
       <li><a href="/book.php" class="nav-cta-btn">Book Now</a></li>
     </ul>
-    <a href="tel:+12513334444" class="nav-phone d-none d-xl-flex"><i class="fas fa-phone"></i>(251) 333-4444</a>
+    <a href="tel:+12513334444" id="siteNavPhone" class="nav-phone d-none d-xl-flex"><i class="fas fa-phone"></i><span id="siteNavPhoneText">(251) 333-4444</span></a>
     <button class="nav-hamburger" id="navHamburger" aria-label="Menu">
       <span></span><span></span><span></span>
     </button>
@@ -43,7 +43,7 @@ const navHTML = `
     <li><a href="faq.html">FAQ</a></li>
     <li><a href="/my-bookings.php">My Bookings</a></li>
     <li><a href="/book.php">Book Now</a></li>
-    <li><a href="tel:+12513334444"><i class="fas fa-phone me-2" style="color:var(--orange)"></i>(251) 333-4444</a></li>
+    <li><a href="tel:+12513334444" id="mobNavPhone"><i class="fas fa-phone me-2" style="color:var(--orange)"></i><span id="mobNavPhoneText">(251) 333-4444</span></a></li>
   </ul>
 </div>`;
 
@@ -72,12 +72,12 @@ const footerHTML = `
       <div class="row gy-5">
         <div class="col-lg-4">
           <div class="footer-logo-text">TRASH PANDA <em>ROLL-OFFS</em></div>
-          <p class="footer-tagline">Baldwin County & Mobile's most trusted<br>dumpster rental crew.</p>
+          <p id="footerTagline" class="footer-tagline">Baldwin County & Mobile's most trusted<br>dumpster rental crew.</p>
           <div class="social-row mb-4">
-            <a href="#" class="social-btn"><i class="fab fa-facebook-f"></i></a>
-            <a href="#" class="social-btn"><i class="fab fa-instagram"></i></a>
+            <a href="#" id="footerFacebook" class="social-btn"><i class="fab fa-facebook-f"></i></a>
+            <a href="#" id="footerInstagram" class="social-btn"><i class="fab fa-instagram"></i></a>
           </div>
-          <a href="tel:+12513334444" style="font-family:var(--font-cond);font-weight:900;font-size:1.5rem;color:var(--orange);text-decoration:none;letter-spacing:0.02em;display:flex;align-items:center;gap:8px;"><i class="fas fa-phone" style="font-size:1rem;"></i>(251) 333-4444</a>
+          <a href="tel:+12513334444" id="footerPhone" style="font-family:var(--font-cond);font-weight:900;font-size:1.5rem;color:var(--orange);text-decoration:none;letter-spacing:0.02em;display:flex;align-items:center;gap:8px;"><i class="fas fa-phone" style="font-size:1rem;"></i><span id="footerPhoneText">(251) 333-4444</span></a>
         </div>
         <div class="col-6 col-md-3 col-lg-2">
           <div class="footer-heading">Services</div>
@@ -119,7 +119,7 @@ const footerHTML = `
   </div>
   <div class="footer-bottom">
     <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2" style="max-width:1300px;">
-      <p class="footer-bottom-text mb-0">Copyright 2025 Trash Panda Roll-Offs. All rights reserved. | Baldwin County & Mobile, AL</p>
+      <p id="footerCopyright" class="footer-bottom-text mb-0">Copyright 2025 Trash Panda Roll-Offs. All rights reserved. | Baldwin County & Mobile, AL</p>
       <p class="footer-bottom-text mb-0">Made for the Gulf Coast &nbsp;·&nbsp; <a href="https://www.dbellcreations.com" target="_blank" rel="noopener noreferrer" style="color:var(--orange);text-decoration:none;font-weight:600;">Site by DBell Creations</a></p>
     </div>
   </div>
@@ -377,7 +377,7 @@ function renderQuoteSizeOptions(sizes) {
   }).join('');
 }
 
-function loadLiveDumpsterSizes() {
+async function loadLiveDumpsterSizes() {
   if (!document.getElementById('home-size-preview') &&
       !document.getElementById('dynamic-sizes-list') &&
       !document.getElementById('dynamic-size-comparison') &&
@@ -416,35 +416,95 @@ function loadLiveDumpsterSizes() {
     }
   };
 
-  fetch('/api/available-dumpsters.php', {
-    headers: { 'Accept': 'application/json' },
-  })
-    .then((response) => {
-      return response.text().then((text) => {
-        let payload = {};
-        try {
-          payload = text ? JSON.parse(text) : {};
-        } catch (error) {
-          payload = {};
-        }
-
-        if (!response.ok) {
-          throw new Error(payload.error || `HTTP ${response.status}`);
-        }
-
-        return payload;
-      });
-    })
-    .then((payload) => {
-      const sizes = Array.isArray(payload && payload.sizes) ? payload.sizes : [];
-      renderHomeSizePreview(sizes);
-      renderSizesPage(sizes);
-      renderQuoteSizeOptions(sizes);
-    })
-    .catch((error) => {
-      renderLoadError(error && error.message ? error.message : '');
-      renderQuoteSizeOptions([]);
+  try {
+    const response = await fetch('/api/available-dumpsters.php', {
+      headers: { 'Accept': 'application/json' },
     });
+    const text = await response.text();
+    let payload = {};
+    try {
+      payload = text ? JSON.parse(text) : {};
+    } catch (_) {}
+    if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+    const sizes = Array.isArray(payload && payload.sizes) ? payload.sizes : [];
+    renderHomeSizePreview(sizes);
+    renderSizesPage(sizes);
+    renderQuoteSizeOptions(sizes);
+  } catch (error) {
+    renderLoadError(error && error.message ? error.message : '');
+    renderQuoteSizeOptions([]);
+  }
+}
+
+function _replacePhoneInTextNodes(root, phone) {
+  const phonePattern = /\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}/g;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: function(node) {
+      var tag = node.parentElement && node.parentElement.tagName;
+      if (tag === 'SCRIPT' || tag === 'STYLE') return NodeFilter.FILTER_REJECT;
+      return phonePattern.test(node.textContent) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+    }
+  });
+  var nodes = [];
+  var n;
+  while ((n = walker.nextNode())) nodes.push(n);
+  nodes.forEach(function(node) {
+    node.textContent = node.textContent.replace(/\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}/g, phone);
+  });
+}
+
+function loadSiteConfig() {
+  fetch('/api/site-config.php', { headers: { Accept: 'application/json' } })
+    .then((r) => r.json())
+    .then((cfg) => {
+      if (cfg.phone) {
+        const raw = cfg.phone.replace(/\D/g, '');
+        const tel  = 'tel:+1' + raw;
+
+        // Named nav/footer elements injected by this script
+        ['siteNavPhone', 'mobNavPhone', 'footerPhone'].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.href = tel;
+        });
+        ['siteNavPhoneText', 'mobNavPhoneText', 'footerPhoneText'].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = cfg.phone;
+        });
+
+        // All tel: links anywhere on the page
+        document.querySelectorAll('a[href^="tel:"]').forEach((el) => {
+          el.href = tel;
+          el.childNodes.forEach((node) => {
+            if (node.nodeType === Node.TEXT_NODE && /\d{3}/.test(node.textContent)) {
+              node.textContent = node.textContent.replace(/\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}/g, cfg.phone);
+            }
+          });
+        });
+
+        // Inline text mentions in paragraphs, headings, etc.
+        if (document.body) _replacePhoneInTextNodes(document.body, cfg.phone);
+
+        // Expose for any inline JS that needs it
+        window._companyPhone = cfg.phone;
+      }
+      if (cfg.facebook) {
+        const fb = document.getElementById('footerFacebook');
+        if (fb) fb.href = cfg.facebook;
+      }
+      if (cfg.instagram) {
+        const ig = document.getElementById('footerInstagram');
+        if (ig) ig.href = cfg.instagram;
+      }
+      if (cfg.tagline) {
+        const tl = document.getElementById('footerTagline');
+        if (tl) tl.textContent = cfg.tagline;
+      }
+      if (cfg.name) {
+        const cp = document.getElementById('footerCopyright');
+        if (cp) cp.textContent = 'Copyright ' + new Date().getFullYear() + ' ' + cfg.name + '. All rights reserved.';
+      }
+    })
+    .catch(() => {});
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -456,6 +516,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const footerWrap = document.getElementById('footer-placeholder');
   if (footerWrap) footerWrap.innerHTML = footerHTML;
+
+  loadSiteConfig();
 
   const nav = document.getElementById('siteNav');
   const onScroll = () => {

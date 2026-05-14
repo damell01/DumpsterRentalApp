@@ -9,10 +9,10 @@ require_once INC_PATH . '/db.php';
 require_once INC_PATH . '/helpers.php';
 
 $units = db_fetchall(
-    "SELECT id, unit_code, type, size, daily_rate, image, status
+    "SELECT id, unit_code, type, size, daily_rate, base_price, rental_days, extra_day_price, image, status
      FROM dumpsters
      WHERE active = 1 AND status != 'maintenance'
-     ORDER BY daily_rate ASC, size ASC, unit_code ASC"
+     ORDER BY COALESCE(base_price, daily_rate) ASC, size ASC, unit_code ASC"
 );
 
 // Pre-select a unit from URL param (?unit_id=5 or ?size=20)
@@ -340,6 +340,9 @@ $request_mode = $booking_flow_mode === 'request';
                            class="unit-checkbox"
                            value="<?= (int)$u['id'] ?>"
                            data-rate="<?= htmlspecialchars($u['daily_rate'], ENT_QUOTES, 'UTF-8') ?>"
+                           data-base-price="<?= htmlspecialchars((string)(float)($u['base_price'] ?? 0), ENT_QUOTES, 'UTF-8') ?>"
+                           data-rental-days="<?= (int)($u['rental_days'] ?? 0) ?>"
+                           data-extra-day-price="<?= htmlspecialchars((string)(float)($u['extra_day_price'] ?? 0), ENT_QUOTES, 'UTF-8') ?>"
                            data-code="<?= htmlspecialchars($u['unit_code'], ENT_QUOTES, 'UTF-8') ?>"
                            data-size="<?= htmlspecialchars($u['size'], ENT_QUOTES, 'UTF-8') ?>"
                            data-type="<?= htmlspecialchars($u['type'], ENT_QUOTES, 'UTF-8') ?>"
@@ -353,7 +356,19 @@ $request_mode = $booking_flow_mode === 'request';
                     <?php endif; ?>
                     <div class="unit-size-label"><?= htmlspecialchars($u['size'], ENT_QUOTES, 'UTF-8') ?></div>
                     <div class="unit-code"><?= htmlspecialchars($u['unit_code'], ENT_QUOTES, 'UTF-8') ?></div>
+                    <?php
+                    $bp = (float)($u['base_price'] ?? 0);
+                    $rd = (int)($u['rental_days'] ?? 0);
+                    $ep = (float)($u['extra_day_price'] ?? 0);
+                    if ($bp > 0 && $rd > 0):
+                    ?>
+                    <div class="unit-rate">$<?= number_format($bp, 2) ?> / <?= $rd ?>d</div>
+                    <?php if ($ep > 0): ?>
+                    <div style="font-size:.72rem;color:var(--gray);margin-top:.15rem;">+$<?= number_format($ep, 2) ?>/extra day</div>
+                    <?php endif; ?>
+                    <?php else: ?>
                     <div class="unit-rate">$<?= number_format((float)$u['daily_rate'], 2) ?>/day</div>
+                    <?php endif; ?>
                     <div class="unit-type-badge"><?= htmlspecialchars(ucfirst($u['type']), ENT_QUOTES, 'UTF-8') ?></div>
                     <div class="unit-status-badge <?= $statusClass ?>" data-status-badge="<?= (int)$u['id'] ?>"><?= htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') ?></div>
                 </label>
@@ -543,6 +558,9 @@ document.querySelectorAll('input.unit-checkbox').forEach(function(cb) {
         selectedUnits.push({
             id:   cb.value,
             rate: parseFloat(cb.dataset.rate) || 0,
+            basePrice: parseFloat(cb.dataset.basePrice) || 0,
+            rentalDays: parseInt(cb.dataset.rentalDays, 10) || 0,
+            extraDayPrice: parseFloat(cb.dataset.extraDayPrice) || 0,
             code: cb.dataset.code,
             size: cb.dataset.size,
             type: cb.dataset.type
@@ -569,6 +587,26 @@ document.querySelectorAll('input[name="payment_method"]').forEach(function(radio
     });
 });
 
+function calcUnitTotal(u, days) {
+    if (u.basePrice > 0 && u.rentalDays > 0) {
+        var extra = Math.max(0, days - u.rentalDays);
+        return u.basePrice + extra * u.extraDayPrice;
+    }
+    return u.rate * days;
+}
+
+function unitBreakdown(u, days) {
+    if (u.basePrice > 0 && u.rentalDays > 0) {
+        var extra = Math.max(0, days - u.rentalDays);
+        var t = u.basePrice + extra * u.extraDayPrice;
+        var s = u.size + ' · $' + u.basePrice.toFixed(2) + ' / ' + u.rentalDays + ' day' + (u.rentalDays !== 1 ? 's' : '');
+        if (extra > 0) s += ' + ' + extra + ' extra @ $' + u.extraDayPrice.toFixed(2) + '/day';
+        s += ' = $' + t.toFixed(2);
+        return s;
+    }
+    return u.size + ' · ' + days + ' day' + (days !== 1 ? 's' : '') + ' @ $' + u.rate.toFixed(2) + '/day';
+}
+
 function computeTotal() {
     var start = document.getElementById('rental_start').value;
     var end   = document.getElementById('rental_end').value;
@@ -587,12 +625,12 @@ function computeTotal() {
     if (days <= 0) { disp.style.display = 'none'; return; }
 
     var total = 0;
-    selectedUnits.forEach(function(u) { total += u.rate * days; });
+    selectedUnits.forEach(function(u) { total += calcUnitTotal(u, days); });
     amtEl.textContent = '$' + total.toFixed(2);
     if (selectedUnits.length === 1) {
-        brkEl.textContent = selectedUnits[0].size + ' · ' + days + ' day' + (days !== 1 ? 's' : '') + ' @ $' + selectedUnits[0].rate.toFixed(2) + '/day';
+        brkEl.textContent = unitBreakdown(selectedUnits[0], days);
     } else {
-        brkEl.textContent = selectedUnits.length + ' units · ' + days + ' day' + (days !== 1 ? 's' : '');
+        brkEl.textContent = selectedUnits.length + ' units · ' + days + ' day' + (days !== 1 ? 's' : '') + ' · $' + total.toFixed(2) + ' total';
     }
     disp.style.display = 'block';
 }

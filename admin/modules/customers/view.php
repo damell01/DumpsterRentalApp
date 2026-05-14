@@ -364,6 +364,14 @@ layout_start('Customer: ' . $cust['name'], 'customers');
                    class="btn-tp-ghost w-100 justify-content-start">
                     <i class="fa-solid fa-calendar-check"></i> New Booking
                 </a>
+                <a href="<?= APP_URL ?>/modules/invoices/create.php?customer_id=<?= (int)$cust['id'] ?>"
+                   class="btn-tp-ghost w-100 justify-content-start">
+                    <i class="fa-solid fa-file-invoice-dollar"></i> New Invoice
+                </a>
+                <a href="<?= APP_URL ?>/modules/payment_methods/setup.php?customer_id=<?= (int)$cust['id'] ?>"
+                   class="btn-tp-ghost w-100 justify-content-start">
+                    <i class="fa-solid fa-wallet"></i> Set Up Payment Method
+                </a>
                 <a href="<?= APP_URL ?>/modules/customers/edit.php?id=<?= (int)$cust['id'] ?>"
                    class="btn-tp-ghost w-100 justify-content-start">
                     <i class="fa-solid fa-pencil"></i> Edit Customer

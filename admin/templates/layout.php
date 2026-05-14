@@ -263,7 +263,7 @@ function layout_start(string $page_title, string $active_nav = ''): void
         ],
         [
             'key'   => 'help',
-            'label' => 'Help &amp; Guide',
+            'label' => 'Help & Guide',
             'icon'  => 'fa-circle-question',
             'href'  => APP_URL . '/modules/help/index.php',
             'roles' => null,

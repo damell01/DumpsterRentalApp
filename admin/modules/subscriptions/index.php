@@ -45,7 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $subscriptions = db_fetchall(
-    'SELECT s.*, c.name AS customer_name, c.email AS customer_email
+    'SELECT s.*, c.name AS customer_name, c.email AS customer_email,
+            (SELECT COUNT(*) FROM payment_methods pm WHERE pm.customer_id = s.customer_id AND pm.is_active = 1) AS saved_method_count
      FROM subscriptions s
      INNER JOIN customers c ON c.id = s.customer_id
      ORDER BY s.updated_at DESC, s.id DESC'
@@ -119,6 +120,12 @@ layout_start('Subscriptions', 'subscriptions');
                                 <td><?= e(fmt_date($subscription['next_billing_date'])) ?></td>
                                 <td><?= subscription_badge($subscription['status']) ?></td>
                                 <td class="text-nowrap">
+                                    <?php if ((int)$subscription['saved_method_count'] === 0 && $subscription['status'] !== 'canceled'): ?>
+                                    <a href="../payment_methods/setup.php?customer_id=<?= (int)$subscription['customer_id'] ?>"
+                                       class="btn-tp-danger btn-tp-xs me-1" title="No payment method on file">
+                                        <i class="fa-solid fa-triangle-exclamation me-1"></i>Set Up Payment
+                                    </a>
+                                    <?php endif; ?>
                                     <form method="POST" action="index.php" class="d-inline">
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="id" value="<?= (int)$subscription['id'] ?>">
@@ -156,8 +163,19 @@ layout_start('Subscriptions', 'subscriptions');
     </div>
 
     <div class="col-xl-4">
+        <div class="tp-card mb-4" style="border-left:3px solid #60a5fa;">
+            <div class="tp-card-header">
+                <h5 class="mb-0"><i class="fa-solid fa-wallet me-2" style="color:#60a5fa;"></i>Step 1 — Payment Method</h5>
+            </div>
+            <p style="color:var(--gl);font-size:.88rem;margin-top:.75rem;">
+                The customer needs a saved card or bank account before Stripe can auto-charge them on a recurring basis.
+            </p>
+            <a href="../payment_methods/setup.php" class="btn-tp-primary btn-tp-sm w-100">
+                <i class="fa-solid fa-credit-card me-1"></i> Set Up Payment for Customer
+            </a>
+        </div>
         <div class="tp-card">
-            <div class="tp-card-header"><i class="fa-solid fa-plus me-2 text-muted"></i>Create Subscription</div>
+            <div class="tp-card-header"><i class="fa-solid fa-plus me-2 text-muted"></i>Step 2 — Create Subscription</div>
             <div class="tp-card-body">
                 <form method="POST" action="index.php">
                     <?= csrf_field() ?>

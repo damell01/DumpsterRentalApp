@@ -155,6 +155,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'email_from_name', 'email_from_email', 'notification_emails',
             'smtp_host', 'smtp_port', 'smtp_username', 'smtp_password', 'smtp_encryption',
         ],
+        'save_branding' => [
+            'company_tagline', 'company_website', 'company_facebook', 'company_instagram',
+        ],
         'save_stripe' => [
             'stripe_mode', 'stripe_publishable_key', 'stripe_secret_key', 'stripe_webhook_secret',
             'portal_signing_key', 'portal_link_ttl_minutes', 'stripe_statement_descriptor',
@@ -359,8 +362,8 @@ layout_start('Settings', 'settings');
 
 <!-- ── Branding / Logo ──────────────────────────────────────────────────── -->
 <div id="settings-branding" class="tp-card mt-4 settings-panel" style="max-width:780px;">
-    <h6 class="mb-3" style="font-weight:600;border-bottom:1px solid #e5e7eb;padding-bottom:.5rem;">
-        <i class="fa-solid fa-image" style="color:#f97316;"></i> Branding &amp; Logo
+    <h6 class="mb-3" style="font-weight:600;border-bottom:1px solid var(--st);padding-bottom:.5rem;">
+        <i class="fa-solid fa-image" style="color:#f97316;"></i> Logo
     </h6>
 
     <?php
@@ -393,7 +396,7 @@ layout_start('Settings', 'settings');
     </form>
 
     <!-- Or enter a URL/path manually — uses save_logo_path action to avoid touching other fields -->
-    <form method="POST" action="index.php">
+    <form method="POST" action="index.php" class="mb-5">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="save_logo_path">
         <label class="form-label" for="logo_path">
@@ -409,6 +412,64 @@ layout_start('Settings', 'settings');
                 <i class="fa-solid fa-floppy-disk"></i> Save Path
             </button>
         </div>
+    </form>
+
+    <h6 class="mb-3" style="font-weight:600;border-bottom:1px solid var(--st);padding-bottom:.5rem;">
+        <i class="fa-solid fa-bullhorn" style="color:#f97316;"></i> Website &amp; Social
+        <span style="font-weight:400;font-size:.8rem;color:var(--gy);"> — controls nav, footer, invoices, and email templates</span>
+    </h6>
+
+    <form method="POST" action="index.php">
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="save_branding">
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label class="form-label" for="company_tagline">Tagline</label>
+                <input type="text" id="company_tagline" name="company_tagline" class="form-control"
+                       value="<?= e(get_setting('company_tagline', '')) ?>"
+                       placeholder="Baldwin County &amp; Mobile's most trusted dumpster rental crew.">
+                <div class="form-text" style="color:var(--gy);">Shown in the website footer below the company name.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="company_website">Website URL</label>
+                <input type="url" id="company_website" name="company_website" class="form-control"
+                       value="<?= e(get_setting('company_website', '')) ?>"
+                       placeholder="https://trashpandarolloffs.com">
+                <div class="form-text" style="color:var(--gy);">Used in customer emails and invoices.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="company_facebook">
+                    <i class="fa-brands fa-facebook me-1" style="color:#60a5fa;"></i> Facebook URL
+                </label>
+                <input type="url" id="company_facebook" name="company_facebook" class="form-control"
+                       value="<?= e(get_setting('company_facebook', '')) ?>"
+                       placeholder="https://facebook.com/yourpage">
+                <div class="form-text" style="color:var(--gy);">Leave blank to hide the Facebook icon in the footer.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="company_instagram">
+                    <i class="fa-brands fa-instagram me-1" style="color:#f472b6;"></i> Instagram URL
+                </label>
+                <input type="url" id="company_instagram" name="company_instagram" class="form-control"
+                       value="<?= e(get_setting('company_instagram', '')) ?>"
+                       placeholder="https://instagram.com/yourhandle">
+                <div class="form-text" style="color:var(--gy);">Leave blank to hide the Instagram icon in the footer.</div>
+            </div>
+        </div>
+
+        <div class="alert alert-info d-flex gap-2 align-items-start mb-3" style="font-size:.85rem;">
+            <i class="fa-solid fa-circle-info mt-1 flex-shrink-0"></i>
+            <span>
+                <strong>Company name, phone, email, and address</strong> are set on the <a href="#settings-company" class="alert-link">Company tab</a>.
+                Changes there are reflected on all PHP-rendered pages (invoices, emails, portal, booking success)
+                and on the public website nav &amp; footer automatically via the live config API.
+            </span>
+        </div>
+
+        <button type="submit" class="btn-tp-primary">
+            <i class="fa-solid fa-floppy-disk"></i> Save Branding Settings
+        </button>
     </form>
 </div>
 

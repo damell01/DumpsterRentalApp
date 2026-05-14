@@ -76,6 +76,10 @@ class WebhookService
 
     private function handleCheckoutCompleted(object $session): array
     {
+        if (($session->mode ?? 'payment') === 'setup') {
+            return $this->handleSetupCompleted($session);
+        }
+
         if (!empty($session->metadata->booking_ids)) {
             $bookingIds = array_filter(array_map('intval', explode(',', (string)$session->metadata->booking_ids)));
             foreach ($bookingIds as $bookingId) {
@@ -328,6 +332,49 @@ class WebhookService
         }
 
         return ['entity_type' => 'payment', 'entity_id' => (int)($payment['id'] ?? 0)];
+    }
+
+    private function handleSetupCompleted(object $session): array
+    {
+        $customerId = (int)($session->metadata->customer_id ?? 0);
+        if ($customerId <= 0) {
+            return ['entity_type' => 'webhook', 'entity_id' => 0];
+        }
+
+        $setupIntentId = is_string($session->setup_intent ?? null) ? $session->setup_intent : null;
+        if (!$setupIntentId) {
+            return ['entity_type' => 'customer', 'entity_id' => $customerId];
+        }
+
+        $setupIntent   = $this->factory->requireClient()->setupIntents->retrieve($setupIntentId, []);
+        $paymentMethod = $setupIntent->payment_method ?? null;
+
+        if (!$paymentMethod) {
+            return ['entity_type' => 'customer', 'entity_id' => $customerId];
+        }
+
+        if (is_string($paymentMethod)) {
+            $paymentMethod = $this->factory->requireClient()->paymentMethods->retrieve($paymentMethod, []);
+        }
+
+        $hasDefault   = (bool)\db_value(
+            'SELECT COUNT(*) FROM payment_methods WHERE customer_id = ? AND is_default = 1 AND is_active = 1',
+            [$customerId]
+        );
+        $makeDefault  = !$hasDefault;
+
+        $this->paymentMethodService->syncFromStripeObject($customerId, $paymentMethod, $makeDefault);
+
+        if ($makeDefault) {
+            $stripeCustomer = \db_fetch('SELECT stripe_customer_id FROM customers WHERE id = ? LIMIT 1', [$customerId]);
+            if ($stripeCustomer) {
+                $this->factory->requireClient()->customers->update($stripeCustomer['stripe_customer_id'], [
+                    'invoice_settings' => ['default_payment_method' => $paymentMethod->id],
+                ]);
+            }
+        }
+
+        return ['entity_type' => 'customer', 'entity_id' => $customerId];
     }
 
     private function resolveSessionPaymentMethod(object $session): string

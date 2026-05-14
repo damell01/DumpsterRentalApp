@@ -16,6 +16,18 @@ error_reporting(E_ALL);
 
 $_admin_root = dirname(__DIR__, 2) . '/admin';
 
+spl_autoload_register(static function (string $class): void {
+    $prefix = 'TrashPanda\\';
+    if (strncmp($class, $prefix, strlen($prefix)) !== 0) {
+        return;
+    }
+    $relative = substr($class, strlen($prefix));
+    $file = dirname(__DIR__, 2) . '/src/' . str_replace('\\', '/', $relative) . '.php';
+    if (is_file($file)) {
+        require_once $file;
+    }
+});
+
 // Top-level catch: any uncaught exception returns a clean JSON error
 // instead of an HTML error page (which causes "Network error" on the client).
 set_exception_handler(function (\Throwable $e) {
