@@ -4,6 +4,7 @@
  */
 
 require_once __DIR__ . '/includes/bootstrap.php';
+require_once INC_PATH . '/launch_readiness.php';
 require_once TMPL_PATH . '/layout.php';
 
 require_login();
@@ -64,9 +65,8 @@ try {
 // Revenue from work orders this month (amount field, not payments table)
 $revenue_payments_month = $revenue_month + $booking_revenue_month + $invoice_revenue_month;
 
-$dumpsters_available = (int)(db_fetch(
-    "SELECT COUNT(*) AS cnt FROM dumpsters WHERE status = 'available'"
-)['cnt'] ?? 0);
+$launch_readiness = launch_readiness_data();
+$dumpsters_available = (int)$launch_readiness['dumpsters_available'];
 
 // ── Booking KPIs (wrapped in try/catch in case bookings table not yet installed) ──
 $bookings_total      = 0;
@@ -98,6 +98,14 @@ try {
 }
 
 // ── Recent Work Orders ───────────────────────────────────────────────────────
+$launch_checks = $launch_readiness['checks'];
+$launch_ready_count = (int)$launch_readiness['ready_count'];
+$launch_total_count = (int)$launch_readiness['total_count'];
+$launch_score = (int)$launch_readiness['score'];
+$launch_status = (string)$launch_readiness['status'];
+$launch_status_class = (string)$launch_readiness['status_class'];
+$launch_pending_checks = $launch_readiness['pending_checks'];
+
 $recent_wo = db_fetchall(
     "SELECT wo.id, wo.wo_number, wo.cust_name, wo.status, wo.delivery_date, wo.amount,
             c.name AS customer_name
@@ -219,6 +227,144 @@ layout_start('Dashboard', 'dashboard');
 </div>
 
 <!-- ── KPI Cards ──────────────────────────────────────────────────────────── -->
+<style>
+.tp-launch-card {
+    border: 1px solid rgba(249,115,22,.18);
+    background: linear-gradient(135deg, rgba(15,23,42,.98), rgba(30,41,59,.94));
+}
+.tp-launch-score {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--wh);
+    background: radial-gradient(circle at 30% 30%, rgba(249,115,22,.45), rgba(15,23,42,.95));
+    border: 2px solid rgba(249,115,22,.35);
+    flex-shrink: 0;
+}
+.tp-launch-meta h2 {
+    margin: 0 0 .35rem;
+    font-size: 1.1rem;
+    color: var(--wh);
+}
+.tp-launch-meta p {
+    margin: 0;
+    color: var(--gl);
+    font-size: .9rem;
+}
+.tp-launch-status {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .35rem .65rem;
+    border-radius: 999px;
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+.tp-launch-status-good {
+    background: rgba(34,197,94,.14);
+    color: #86efac;
+    border: 1px solid rgba(34,197,94,.28);
+}
+.tp-launch-status-mid {
+    background: rgba(250,204,21,.14);
+    color: #fde68a;
+    border: 1px solid rgba(250,204,21,.26);
+}
+.tp-launch-status-warn {
+    background: rgba(248,113,113,.14);
+    color: #fca5a5;
+    border: 1px solid rgba(248,113,113,.26);
+}
+.tp-launch-progress {
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(148,163,184,.16);
+    overflow: hidden;
+}
+.tp-launch-progress-bar {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #f97316, #fb923c);
+}
+.tp-launch-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .35rem .65rem;
+    border-radius: 999px;
+    background: rgba(15,23,42,.72);
+    border: 1px solid rgba(148,163,184,.18);
+    color: var(--gl);
+    font-size: .8rem;
+    text-decoration: none;
+}
+.tp-launch-pill:hover {
+    border-color: rgba(249,115,22,.28);
+    color: var(--wh);
+    text-decoration: none;
+}
+</style>
+
+<div class="tp-card tp-launch-card mb-4">
+    <div class="tp-card-body">
+        <div class="d-flex flex-column flex-lg-row gap-3 align-items-start align-items-lg-center justify-content-between">
+            <div class="d-flex gap-3 align-items-center">
+                <a href="<?= e(APP_URL) ?>/modules/help/launch.php" class="tp-launch-score text-decoration-none"><?= $launch_score ?>%</a>
+                <div class="tp-launch-meta">
+                    <div class="mb-2">
+                        <span class="tp-launch-status <?= e($launch_status_class) ?>">
+                            <i class="fa-solid fa-rocket"></i> <?= e($launch_status) ?>
+                        </span>
+                    </div>
+                    <h2><a href="<?= e(APP_URL) ?>/modules/help/launch.php" class="text-reset text-decoration-none">Launch Readiness</a></h2>
+                    <p><?= $launch_ready_count ?> of <?= $launch_total_count ?> setup checks are complete. Finish the remaining items, then run one full booking and payment test.</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="<?= e(APP_URL) ?>/modules/help/launch.php" class="btn-tp-primary btn-tp-sm">
+                    <i class="fa-solid fa-rocket"></i> Open Launch Checklist
+                </a>
+                <a href="<?= e(APP_URL) ?>/modules/help/index.php" class="btn-tp-ghost btn-tp-sm">
+                    <i class="fa-solid fa-list-check"></i> Testing Guide
+                </a>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <div class="tp-launch-progress" aria-hidden="true">
+                <div class="tp-launch-progress-bar" style="width: <?= $launch_score ?>%;"></div>
+            </div>
+        </div>
+
+        <div class="mt-3 d-flex flex-wrap gap-2">
+            <?php foreach ($launch_checks as $check): ?>
+                <a href="<?= e($check['href']) ?>" class="tp-launch-pill">
+                    <i class="fa-solid <?= $check['ready'] ? 'fa-circle-check text-gr' : 'fa-circle text-or' ?>"></i>
+                    <?= e($check['label']) ?>
+                </a>
+            <?php endforeach; ?>
+        </div>
+
+        <?php if (!empty($launch_pending_checks)): ?>
+            <div class="mt-3" style="font-size:.84rem;color:var(--gl);">
+                Next up:
+                <?php foreach (array_slice($launch_pending_checks, 0, 2) as $idx => $check): ?>
+                    <?php if ($idx > 0): ?> and <?php endif; ?>
+                    <a href="<?= e($check['href']) ?>" class="tp-link"><?= e($check['label']) ?></a>
+                <?php endforeach; ?>.
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
+
 <div class="row g-3 mb-4">
 
     <!-- Upcoming Bookings -->

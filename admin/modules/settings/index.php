@@ -196,8 +196,105 @@ layout_start('Settings', 'settings');
     </a>
 </div>
 
+<style>
+.settings-shell { max-width: 980px; }
+.settings-intro {
+    background: linear-gradient(135deg, rgba(249,115,22,.12), rgba(15,23,42,.95));
+    border: 1px solid rgba(249,115,22,.22);
+    border-radius: 14px;
+    padding: 1rem 1.1rem;
+    margin-bottom: 1rem;
+}
+.settings-intro p { margin: 0; color: var(--gl); }
+.settings-checklist {
+    margin-top: .9rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: .75rem;
+}
+.settings-checkitem {
+    display: block;
+    background: rgba(15,23,42,.72);
+    border: 1px solid rgba(148,163,184,.18);
+    border-radius: 12px;
+    padding: .85rem .95rem;
+    text-decoration: none;
+    transition: transform .15s ease, border-color .15s ease, background .15s ease;
+}
+.settings-checkitem:hover,
+.settings-checkitem:focus {
+    transform: translateY(-1px);
+    border-color: rgba(249,115,22,.35);
+    background: rgba(30,41,59,.92);
+    text-decoration: none;
+}
+.settings-checkitem:focus-visible {
+    outline: 2px solid rgba(249,115,22,.55);
+    outline-offset: 2px;
+}
+.settings-checkitem strong {
+    display: block;
+    color: var(--wh);
+    font-size: .9rem;
+    margin-bottom: .3rem;
+}
+.settings-checkitem span {
+    color: var(--gl);
+    font-size: .83rem;
+    line-height: 1.45;
+}
+.settings-tabs {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+.settings-panel { display: none; }
+.settings-panel.active { display: block; }
+</style>
+
+<div class="settings-shell">
+    <div class="settings-intro">
+        <p>Move through setup in order: company details, branding, email delivery, Stripe and booking controls, then database maintenance.</p>
+        <div class="settings-checklist">
+            <a href="#settings-company" class="settings-checkitem">
+                <strong>1. Company Basics</strong>
+                <span>Set the company name, phone, email, address, invoice terms, and footer text.</span>
+            </a>
+            <a href="#settings-branding" class="settings-checkitem">
+                <strong>2. Branding</strong>
+                <span>Upload the real logo so public pages, invoices, and office screens match the client brand.</span>
+            </a>
+            <a href="#settings-email" class="settings-checkitem">
+                <strong>3. Email Delivery</strong>
+                <span>Configure SMTP or confirm mail sending, then use the test email button before launch.</span>
+            </a>
+            <a href="#settings-stripe" class="settings-checkitem">
+                <strong>4. Stripe in Test Mode</strong>
+                <span>Enter test keys first, confirm booking and invoice payments work, then switch to live later.</span>
+            </a>
+            <a href="#settings-stripe" class="settings-checkitem">
+                <strong>5. Portal & Booking Rules</strong>
+                <span>Review booking flow mode, portal link TTL, ACH, subscriptions, and customer-facing booking terms.</span>
+            </a>
+            <a href="#settings-database" class="settings-checkitem">
+                <strong>6. Final Launch Pass</strong>
+                <span>Run the database upgrade if needed, verify live inventory on the public site, and complete one full end-to-end test.</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="settings-tabs" role="tablist" aria-label="Settings Sections">
+        <a href="#settings-company" class="filter-tab settings-tab active" data-settings-tab="company" role="tab" aria-selected="true"><i class="fa-solid fa-building"></i> Company</a>
+        <a href="#settings-branding" class="filter-tab settings-tab" data-settings-tab="branding" role="tab" aria-selected="false"><i class="fa-solid fa-image"></i> Branding</a>
+        <a href="#settings-email" class="filter-tab settings-tab" data-settings-tab="email" role="tab" aria-selected="false"><i class="fa-solid fa-envelope"></i> Email</a>
+        <a href="#settings-stripe" class="filter-tab settings-tab" data-settings-tab="stripe" role="tab" aria-selected="false"><i class="fa-brands fa-stripe"></i> Stripe</a>
+        <a href="#settings-database" class="filter-tab settings-tab" data-settings-tab="database" role="tab" aria-selected="false"><i class="fa-solid fa-database"></i> Database</a>
+    </div>
+
 <!-- ── Company Information ──────────────────────────────────────────────── -->
-<div class="tp-card" style="max-width:780px;">
+<div id="settings-company" class="tp-card settings-panel active" style="max-width:780px;">
     <form method="POST" action="index.php">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="save_company">
@@ -261,7 +358,7 @@ layout_start('Settings', 'settings');
 </div>
 
 <!-- ── Branding / Logo ──────────────────────────────────────────────────── -->
-<div class="tp-card mt-4" style="max-width:780px;">
+<div id="settings-branding" class="tp-card mt-4 settings-panel" style="max-width:780px;">
     <h6 class="mb-3" style="font-weight:600;border-bottom:1px solid #e5e7eb;padding-bottom:.5rem;">
         <i class="fa-solid fa-image" style="color:#f97316;"></i> Branding &amp; Logo
     </h6>
@@ -316,7 +413,7 @@ layout_start('Settings', 'settings');
 </div>
 
 <!-- ── Email Configuration ──────────────────────────────────────────────── -->
-<div class="tp-card mt-4" style="max-width:780px;">
+<div id="settings-email" class="tp-card mt-4 settings-panel" style="max-width:780px;">
     <h6 class="mb-3" style="font-weight:600;border-bottom:1px solid #e5e7eb;padding-bottom:.5rem;">
         <i class="fa-solid fa-envelope" style="color:#f97316;"></i> Email Configuration
     </h6>
@@ -416,10 +513,26 @@ layout_start('Settings', 'settings');
 </div>
 
 <!-- ── Stripe Configuration ──────────────────────────────────────────────── -->
-<div class="tp-card mt-4" style="max-width:780px;">
+<div id="settings-stripe" class="tp-card mt-4 settings-panel" style="max-width:780px;">
     <h6 class="mb-3" style="font-weight:600;border-bottom:1px solid #e5e7eb;padding-bottom:.5rem;">
         <i class="fa-brands fa-stripe" style="color:#6772e5;"></i> Stripe &amp; Booking Configuration
     </h6>
+
+    <div class="alert alert-warning d-flex gap-3 align-items-start" style="background:#fff7ed;border:1px solid #fdba74;color:#9a3412;">
+        <i class="fa-solid fa-triangle-exclamation mt-1"></i>
+        <div>
+            <div style="font-weight:700;">Production setup note</div>
+            <div style="font-size:.92rem;">
+                Stripe keys are managed on this page and stored in the app settings table. Your application environment is separate:
+                <code>APP_ENV</code> comes from the server or <code>.env</code> file and is currently
+                <strong><?= e(APP_ENV) ?></strong>.
+            </div>
+            <div style="font-size:.92rem;margin-top:.35rem;">
+                Recommended workflow: finish QA in <strong>Test</strong> mode first, then switch to
+                <strong>Live</strong> here and paste your live Stripe keys.
+            </div>
+        </div>
+    </div>
 
     <form method="POST" action="index.php">
         <?= csrf_field() ?>
@@ -433,12 +546,18 @@ layout_start('Settings', 'settings');
                     <option value="test" <?= $mode === 'test' ? 'selected' : '' ?>>Test (Sandbox)</option>
                     <option value="live" <?= $mode === 'live' ? 'selected' : '' ?>>Live (Production)</option>
                 </select>
+                <div class="form-text" style="color:var(--gy);">
+                    This controls whether billing uses your test or live Stripe account.
+                </div>
             </div>
             <div class="col-md-8">
                 <label class="form-label" for="stripe_publishable_key">Publishable Key</label>
                 <input type="text" id="stripe_publishable_key" name="stripe_publishable_key"
                        class="form-control" placeholder="pk_test_…"
                        value="<?= e(get_setting('stripe_publishable_key', '')) ?>">
+                <div class="form-text" style="color:var(--gy);">
+                    Use <code>pk_test_...</code> in Test mode and <code>pk_live_...</code> in Live mode.
+                </div>
             </div>
             <div class="col-md-6">
                 <label class="form-label" for="stripe_secret_key">
@@ -451,7 +570,7 @@ layout_start('Settings', 'settings');
                        class="form-control"
                        placeholder="<?= get_setting('stripe_secret_key') ? '••••••••' : 'sk_test_…' ?>"
                        value="">
-                <div class="form-text" style="color:var(--gy);">Leave blank to keep existing key.</div>
+                <div class="form-text" style="color:var(--gy);">Saved in app settings. Leave blank to keep the existing key.</div>
             </div>
             <div class="col-md-6">
                 <label class="form-label" for="stripe_webhook_secret">
@@ -464,6 +583,7 @@ layout_start('Settings', 'settings');
                        class="form-control"
                        placeholder="<?= get_setting('stripe_webhook_secret') ? '••••••••' : 'whsec_…' ?>"
                        value="">
+                <div class="form-text" style="color:var(--gy);">Saved in app settings.</div>
                 <div class="form-text" style="color:var(--gy);">
                     Webhook endpoint: <code><?= e(rtrim(preg_replace('#/admin$#', '', APP_URL), '/')) ?>/public/api/stripe-webhook.php</code>
                 </div>
@@ -550,7 +670,7 @@ layout_start('Settings', 'settings');
 </div>
 
 <!-- ── Database Maintenance ──────────────────────────────────────────────── -->
-<div class="tp-card mt-4" style="max-width:780px;">
+<div id="settings-database" class="tp-card mt-4 settings-panel" style="max-width:780px;">
     <h6 class="mb-2" style="font-weight:600;">
         <i class="fa-solid fa-database" style="color:#f97316;"></i> Database Maintenance
     </h6>
@@ -570,7 +690,45 @@ layout_start('Settings', 'settings');
     </div>
 </div>
 
+</div>
+
 <script>
+function activateSettingsTab(tabName) {
+    var tabs = document.querySelectorAll('.settings-tab');
+    var panels = document.querySelectorAll('.settings-panel');
+
+    tabs.forEach(function(tab) {
+        var isActive = tab.getAttribute('data-settings-tab') === tabName;
+        tab.classList.toggle('active', isActive);
+        tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    panels.forEach(function(panel) {
+        var isActive = panel.id === 'settings-' + tabName;
+        panel.classList.toggle('active', isActive);
+    });
+}
+
+function currentSettingsTabFromHash() {
+    var hash = window.location.hash || '#settings-company';
+    var normalized = hash.replace('#settings-', '');
+    return ['company', 'branding', 'email', 'stripe', 'database'].indexOf(normalized) >= 0
+        ? normalized
+        : 'company';
+}
+
+document.querySelectorAll('.settings-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+        activateSettingsTab(tab.getAttribute('data-settings-tab'));
+    });
+});
+
+window.addEventListener('hashchange', function() {
+    activateSettingsTab(currentSettingsTabFromHash());
+});
+
+activateSettingsTab(currentSettingsTabFromHash());
+
 function toggleField(id) {
     var inp  = document.getElementById(id);
     var icon = document.getElementById(id + '-icon');

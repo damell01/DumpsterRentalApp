@@ -14,6 +14,9 @@ layout_start('Help &amp; Guide', 'help');
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h5 class="mb-0"><i class="fa-solid fa-circle-question me-2" style="color:#f97316;"></i>Help &amp; Guide</h5>
     <div class="d-flex gap-2 flex-wrap">
+        <a href="<?= e(APP_URL) ?>/modules/help/launch.php" class="btn-tp-ghost btn-tp-sm">
+            <i class="fa-solid fa-rocket me-1"></i> Launch Checklist
+        </a>
         <a href="<?= e(APP_URL) ?>/../docs/TESTING_AND_ONBOARDING_GUIDE.md" target="_blank" rel="noopener" class="btn-tp-ghost btn-tp-sm">
             <i class="fa-solid fa-book me-1"></i> Testing Guide
         </a>
@@ -28,6 +31,11 @@ layout_start('Help &amp; Guide', 'help');
     <li class="nav-item">
         <a class="nav-link active" href="#getting-started" onclick="showSection('getting-started',this)">
             <i class="fa-solid fa-rocket me-1"></i> Getting Started
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="<?= e(APP_URL) ?>/modules/help/launch.php">
+            <i class="fa-solid fa-rocket me-1"></i> Launch Checklist
         </a>
     </li>
     <li class="nav-item">
