@@ -13,6 +13,117 @@
  */
 function layout_start(string $page_title, string $active_nav = ''): void
 {
+    $page_guides = [
+        'dashboard' => [
+            'title' => 'Dashboard Guide',
+            'summary' => 'Use the dashboard as your daily command center for what needs attention first.',
+            'tips' => [
+                'Start with anything overdue, pending, or unpaid.',
+                'Use the quick actions when you need to create a booking or work order fast.',
+                'Review recent activity to confirm office actions and payment updates.',
+            ],
+        ],
+        'leads' => [
+            'title' => 'Leads Guide',
+            'summary' => 'Leads are website quote or contact requests that still need follow-up.',
+            'tips' => [
+                'Review new leads first and call or email them quickly.',
+                'Convert good leads into customers once they are ready to book.',
+                'Use status updates to keep the pipeline honest for the office.',
+            ],
+        ],
+        'bookings' => [
+            'title' => 'Bookings Guide',
+            'summary' => 'Bookings track the rental request, scheduling, and payment state for a dumpster job.',
+            'tips' => [
+                'Pending requests should usually be approved, invoiced, or turned into work orders quickly.',
+                'Watch booking status and payment status separately because they solve different questions.',
+                'Create a work order once the job is confirmed for operations.',
+            ],
+        ],
+        'work_orders' => [
+            'title' => 'Work Orders Guide',
+            'summary' => 'Work orders are the operations record for delivery, pickup, notes, and field activity.',
+            'tips' => [
+                'Keep notes updated so office and driver context stays in one place.',
+                'Use work orders for schedule execution, not just customer communication.',
+                'Create the invoice from the work order when the job is ready for billing.',
+            ],
+        ],
+        'invoices' => [
+            'title' => 'Invoices Guide',
+            'summary' => 'Invoices are your billing records for bookings, work orders, and custom charges.',
+            'tips' => [
+                'Check invoice status before chasing payment so you know if it is draft, sent, or paid.',
+                'Use Stripe payment links when the customer should pay online.',
+                'Mark cash and check payments manually so reports stay accurate.',
+            ],
+        ],
+        'customers' => [
+            'title' => 'Customers Guide',
+            'summary' => 'Customers are the long-term record of contact details, jobs, and billing history.',
+            'tips' => [
+                'Use the customer record before creating duplicates.',
+                'Review booking and invoice history when resolving support questions.',
+                'Convert leads into customers once they become real accounts.',
+            ],
+        ],
+        'inventory' => [
+            'title' => 'Inventory Guide',
+            'summary' => 'Inventory controls your dumpsters, pricing, and availability.',
+            'tips' => [
+                'Keep status accurate so the booking flow reflects real availability.',
+                'Update pricing here first, then sync to Stripe when needed.',
+                'Use maintenance and reserved states to prevent bad assignments.',
+            ],
+        ],
+        'payments' => [
+            'title' => 'Payments Guide',
+            'summary' => 'Payments show what has actually been collected across Stripe, cash, and check.',
+            'tips' => [
+                'Use this page to reconcile what was really paid, not what was only invoiced.',
+                'Filter by method and date when closing out a day or week.',
+                'Stripe activity and manual office entries should both land here.',
+            ],
+        ],
+        'subscriptions' => [
+            'title' => 'Subscriptions Guide',
+            'summary' => 'Subscriptions handle recurring billing services and stored payment relationships.',
+            'tips' => [
+                'Pause or cancel carefully because those changes affect future billing automatically.',
+                'Verify the customer and service before changing recurring status.',
+                'Use the billing portal for customer self-service when possible.',
+            ],
+        ],
+        'calendar' => [
+            'title' => 'Calendar Guide',
+            'summary' => 'The calendar helps the office see deliveries and pickups in one visual schedule.',
+            'tips' => [
+                'Use it to spot overloaded days before they become dispatch problems.',
+                'Click through events to review booking or work order details.',
+                'Cross-check calendar density against available dumpsters.',
+            ],
+        ],
+        'settings' => [
+            'title' => 'Settings Guide',
+            'summary' => 'Settings control branding, billing, Stripe, email, and system behavior.',
+            'tips' => [
+                'Change one section at a time and verify the result before moving on.',
+                'Treat Stripe, email, and branding as launch-critical areas.',
+                'Use the Help page and testing guide before making production changes.',
+            ],
+        ],
+        'help' => [
+            'title' => 'Help Guide',
+            'summary' => 'This area is the built-in training and reference center for admins and office staff.',
+            'tips' => [
+                'Use the Testing section before launch or after major changes.',
+                'Use Client Onboarding when training office staff or owners.',
+                'Keep the written guide aligned with real process changes.',
+            ],
+        ],
+    ];
+
     // Sidebar nav item definitions
     // [key, label, icon-class, href, role-gate (null = everyone, array = has_role check)]
     $nav_items = [
@@ -203,6 +314,7 @@ function layout_start(string $page_title, string $active_nav = ''): void
     $app_name      = defined('APP_NAME') ? htmlspecialchars(APP_NAME, ENT_QUOTES, 'UTF-8') : 'Trash Panda Roll-Offs';
     $asset_path    = defined('ASSET_PATH') ? ASSET_PATH : '';
     $app_url       = defined('APP_URL')    ? APP_URL    : '';
+    $page_guide    = $page_guides[$active_nav] ?? null;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -391,6 +503,44 @@ function layout_start(string $page_title, string $active_nav = ''): void
 
         <!-- Page body (opened here, closed by layout_end) -->
         <div class="tp-content-inner">
+        <?php if ($page_guide): ?>
+        <button type="button"
+                class="tp-guide-trigger no-print"
+                id="tpGuideTrigger"
+                aria-expanded="false"
+                aria-controls="tpPageGuide">
+            <i class="fa-solid fa-compass-drafting"></i>
+            <span>Page Guide</span>
+        </button>
+
+        <aside class="tp-page-guide no-print" id="tpPageGuide" aria-hidden="true">
+            <div class="tp-page-guide-head">
+                <div>
+                    <div class="tp-page-guide-kicker">On this page</div>
+                    <h3><?= htmlspecialchars($page_guide['title'], ENT_QUOTES, 'UTF-8') ?></h3>
+                </div>
+                <button type="button" class="tp-page-guide-close" id="tpGuideClose" aria-label="Close page guide">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="tp-page-guide-summary"><?= htmlspecialchars($page_guide['summary'], ENT_QUOTES, 'UTF-8') ?></p>
+            <ul class="tp-page-guide-list">
+                <?php foreach ($page_guide['tips'] as $tip): ?>
+                <li><?= htmlspecialchars($tip, ENT_QUOTES, 'UTF-8') ?></li>
+                <?php endforeach; ?>
+            </ul>
+            <div class="tp-page-guide-actions">
+                <a href="<?= htmlspecialchars($app_url, ENT_QUOTES, 'UTF-8') ?>/modules/help/index.php" class="btn-tp-ghost btn-tp-sm">
+                    <i class="fa-solid fa-circle-question"></i>
+                    Open Help
+                </a>
+                <a href="<?= htmlspecialchars($app_url, ENT_QUOTES, 'UTF-8') ?>/../docs/TESTING_AND_ONBOARDING_GUIDE.md" target="_blank" rel="noopener" class="btn-tp-primary btn-tp-sm">
+                    <i class="fa-solid fa-book"></i>
+                    Testing Guide
+                </a>
+            </div>
+        </aside>
+        <?php endif; ?>
 <?php
 } // end layout_start()
 

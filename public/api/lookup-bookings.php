@@ -5,6 +5,8 @@
  */
 header('Content-Type: application/json');
 header('X-Content-Type-Options: nosniff');
+header('Cache-Control: no-store, no-cache, must-revalidate');
+header('Pragma: no-cache');
 
 $_admin_root = dirname(__DIR__, 2) . '/admin';
 require_once $_admin_root . '/config/config.php';

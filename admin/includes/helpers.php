@@ -437,7 +437,57 @@ function validate_required(array $fields, array $data): array
  */
 function dumpster_sizes(): array
 {
-    return ['10 Yard', '15 Yard', '20 Yard', '30 Yard', '40 Yard'];
+    static $sizes = null;
+
+    if ($sizes !== null) {
+        return $sizes;
+    }
+
+    $fallback = ['10 Yard', '15 Yard', '20 Yard', '30 Yard', '40 Yard'];
+
+    try {
+        $rows = db_fetchall(
+            "SELECT DISTINCT size
+             FROM dumpsters
+             WHERE active = 1
+               AND type = 'dumpster'
+               AND size IS NOT NULL
+               AND TRIM(size) <> ''"
+        );
+    } catch (Throwable $e) {
+        $sizes = $fallback;
+        return $sizes;
+    }
+
+    $found = [];
+    foreach ($rows as $row) {
+        $size = trim((string)($row['size'] ?? ''));
+        if ($size !== '') {
+            $found[] = $size;
+        }
+    }
+
+    $found = array_values(array_unique($found));
+    if (!$found) {
+        $sizes = $fallback;
+        return $sizes;
+    }
+
+    usort($found, static function (string $a, string $b): int {
+        preg_match('/\d+/', $a, $aMatch);
+        preg_match('/\d+/', $b, $bMatch);
+        $aNum = isset($aMatch[0]) ? (int)$aMatch[0] : PHP_INT_MAX;
+        $bNum = isset($bMatch[0]) ? (int)$bMatch[0] : PHP_INT_MAX;
+
+        if ($aNum === $bNum) {
+            return strcasecmp($a, $b);
+        }
+
+        return $aNum <=> $bNum;
+    });
+
+    $sizes = $found;
+    return $sizes;
 }
 
 /**

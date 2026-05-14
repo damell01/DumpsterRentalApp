@@ -346,6 +346,121 @@ a:hover { color: var(--or-d); }
 .tp-page-sub { color: var(--gy); font-size: .9rem; margin-top: .25rem; margin-bottom: 0; }
 
 /* --------------------------------------------------------------------------
+   Page Guide Widget
+   -------------------------------------------------------------------------- */
+.tp-guide-trigger {
+    position: fixed;
+    right: 18px;
+    bottom: 20px;
+    z-index: 96;
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .75rem 1rem;
+    border: 1px solid rgba(249,115,22,.35);
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(249,115,22,.96) 0%, rgba(194,65,12,.96) 100%);
+    color: #fff;
+    box-shadow: var(--shadow-orange);
+    font-family: var(--font-cond);
+    font-size: .85rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+}
+
+.tp-guide-trigger:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 28px rgba(249,115,22,.35);
+}
+
+.tp-page-guide {
+    position: fixed;
+    right: 18px;
+    bottom: 78px;
+    width: min(360px, calc(100vw - 32px));
+    z-index: 97;
+    background: #ffffff;
+    border: 1px solid var(--st);
+    border-radius: 18px;
+    box-shadow: 0 20px 48px rgba(15,42,68,.18);
+    padding: 1rem 1rem 1.05rem;
+    transform: translateY(16px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .18s ease, transform .18s ease;
+}
+
+.tp-page-guide.open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.tp-page-guide-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: .75rem;
+}
+
+.tp-page-guide-kicker {
+    color: var(--or);
+    font-family: var(--font-cond);
+    font-size: .74rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+
+.tp-page-guide-head h3 {
+    margin: .25rem 0 0;
+    color: var(--wh);
+    font-family: var(--font-cond);
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+}
+
+.tp-page-guide-close {
+    border: 1px solid var(--st2);
+    background: var(--dk1);
+    color: var(--gy);
+    border-radius: 10px;
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.tp-page-guide-summary {
+    margin: .8rem 0 .9rem;
+    color: var(--gy);
+    font-size: .9rem;
+    line-height: 1.5;
+}
+
+.tp-page-guide-list {
+    margin: 0 0 1rem 0;
+    padding-left: 1.15rem;
+    color: var(--wh);
+    font-size: .9rem;
+}
+
+.tp-page-guide-list li + li {
+    margin-top: .45rem;
+}
+
+.tp-page-guide-actions {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+}
+
+/* --------------------------------------------------------------------------
    TP KPI Cards
    -------------------------------------------------------------------------- */
 .tp-kpi-card {
@@ -1388,6 +1503,16 @@ hr { border-color: var(--st); opacity: 1; }
     .tp-filter-tabs, .filter-tabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
     .tp-kpi-card .kpi-value { font-size: 1.65rem; }
     .kpi-val { font-size: 1.75rem; }
+    .tp-guide-trigger {
+        right: 12px;
+        bottom: 14px;
+        padding: .7rem .9rem;
+    }
+    .tp-page-guide {
+        right: 12px;
+        bottom: 68px;
+        width: calc(100vw - 24px);
+    }
 }
 
 @media (max-width: 480px) {

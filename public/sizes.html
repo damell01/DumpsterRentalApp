@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dumpster Sizes | Trash Panda Roll-Offs — Baldwin County & Mobile, AL</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dumpster Sizes | Trash Panda Roll-Offs - Baldwin County & Mobile, AL</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <link rel="stylesheet" href="shared.css"/>
-  <!-- PWA -->
   <link rel="manifest" href="/manifest.json"/>
   <meta name="theme-color" content="#f97316"/>
   <meta name="mobile-web-app-capable" content="yes"/>
@@ -20,7 +20,6 @@
     .page-hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);background-size:50px 50px;}
     .breadcrumb-wrap{font-family:var(--font-cond);font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gray);margin-bottom:1.5rem;}
     .breadcrumb-wrap a{color:var(--orange);text-decoration:none;}
-
     .size-full-card{background:var(--dark);border:1px solid var(--steel);border-radius:var(--radius-xl);overflow:hidden;margin-bottom:2rem;transition:var(--transition);}
     .size-full-card:hover{border-color:rgba(249,115,22,.35);box-shadow:var(--shadow-orange);}
     .size-full-card.featured{border-color:var(--orange);}
@@ -32,31 +31,28 @@
     .size-banner.featured-banner .size-banner-label{color:rgba(0,0,0,.6);}
     .size-best-for{font-family:var(--font-cond);font-weight:700;font-size:.75rem;letter-spacing:.2em;text-transform:uppercase;color:var(--orange);margin-bottom:.5rem;}
     .size-banner.featured-banner .size-best-for{color:rgba(0,0,0,.5);}
-    .size-ideal-text{font-family:var(--font-cond);font-weight:600;font-size:1.1rem;color:var(--white);max-width:300px;}
+    .size-ideal-text{font-family:var(--font-cond);font-weight:600;font-size:1.1rem;color:var(--white);max-width:320px;}
     .size-banner.featured-banner .size-ideal-text{color:var(--black);}
     .size-full-body{padding:2.5rem;}
     .size-cols{display:grid;grid-template-columns:1fr 1fr;gap:2rem;}
     @media(max-width:767px){.size-cols{grid-template-columns:1fr;}.size-mega{font-size:5rem;}}
     .size-col-label{font-family:var(--font-cond);font-weight:700;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--orange);margin-bottom:.8rem;}
-    .use-list{list-style:none;}
+    .use-list{list-style:none;padding-left:0;margin:0;}
     .use-list li{display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--steel);font-size:.9rem;color:var(--gray-light);}
     .use-list li:last-child{border-bottom:none;}
     .use-list li i{color:var(--orange);font-size:.75rem;margin-top:3px;flex-shrink:0;}
     .size-specs{background:var(--dark3);border:1px solid var(--steel);border-radius:var(--radius);padding:1.2rem;display:flex;flex-wrap:wrap;gap:1.2rem;}
-    .spec-item{flex:1;min-width:80px;}
+    .spec-item{flex:1;min-width:100px;}
     .spec-val{font-family:var(--font-display);font-size:1.6rem;color:var(--orange);}
     .spec-key{font-family:var(--font-cond);font-weight:700;font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;color:var(--gray);}
     .pop-badge{display:inline-flex;align-items:center;gap:6px;background:var(--blue);color:white;font-family:var(--font-cond);font-weight:800;font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;padding:5px 14px;border-radius:100px;margin-left:1rem;vertical-align:middle;}
-
-    /* Comparison table */
     .compare-table{width:100%;border-collapse:separate;border-spacing:0;}
     .compare-table th{font-family:var(--font-cond);font-weight:700;font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;color:var(--gray);padding:12px 16px;background:var(--dark3);border-bottom:2px solid var(--steel);text-align:left;}
     .compare-table td{padding:14px 16px;font-size:.9rem;color:var(--gray-light);border-bottom:1px solid var(--steel);}
     .compare-table td:first-child{font-family:var(--font-display);font-size:1.4rem;color:var(--orange);}
     .compare-table tr:last-child td{border-bottom:none;}
     .compare-table tr:hover td{background:rgba(249,115,22,.04);}
-    .compare-table td i.fa-check{color:var(--orange);}
-    .compare-table td i.fa-times{color:var(--steel2);}
+    .compare-loading{color:var(--gray-light);}
   </style>
 </head>
 <body>
@@ -70,7 +66,7 @@
     <div class="s-label mb-3"><span class="glow-dot"></span><span>Find Your Size</span></div>
     <h1 class="display-xl mb-3">DUMPSTER <span class="text-orange">SIZES</span></h1>
     <div class="orange-line"></div>
-    <p class="body-lead" style="max-width:580px;">10, 20, 30, and 40 yard roll-off containers for every project size. Not sure which to pick? Call us — we'll size you right in 60 seconds.</p>
+    <p class="body-lead" style="max-width:640px;">See the actual dumpster sizes currently in your live inventory, along with pricing, stock availability, and booking links tied to your real units.</p>
     <div class="d-flex gap-3 mt-4 flex-wrap">
       <a href="/book.php" class="btn-panda"><i class="fas fa-calendar-check"></i> Book Now</a>
       <a href="tel:+12513334444" class="btn-ghost"><i class="fas fa-phone"></i>(251) 333-4444</a>
@@ -80,181 +76,16 @@
 
 <section class="section-pad" style="background:var(--dark);">
   <div class="container" style="max-width:1100px;">
-
-    <!-- 10 Yard -->
-    <div class="size-full-card">
-      <div class="size-banner">
-        <div><div class="size-mega">10</div><div class="size-banner-label">Yard Dumpster</div></div>
-        <div>
-          <div class="size-best-for">Best For</div>
-          <div class="size-ideal-text">Small cleanouts, minor renovations, and single-room projects.</div>
-        </div>
-        <a href="/book.php?size=10" class="btn-panda-outline">Book This Size</a>
-      </div>
-      <div class="size-full-body">
-        <div class="size-specs mb-3">
-          <div class="spec-item"><div class="spec-val">10</div><div class="spec-key">Cubic Yards</div></div>
-          <div class="spec-item"><div class="spec-val">~3</div><div class="spec-key">Pickup Loads</div></div>
-          <div class="spec-item"><div class="spec-val">14ft</div><div class="spec-key">Length</div></div>
-          <div class="spec-item"><div class="spec-val">7.5ft</div><div class="spec-key">Width</div></div>
-          <div class="spec-item"><div class="spec-val">3.5ft</div><div class="spec-key">Height</div></div>
-        </div>
-        <div class="size-cols">
-          <div>
-            <div class="size-col-label">Common Uses</div>
-            <ul class="use-list">
-              <li><i class="fas fa-check-circle"></i>Garage or attic cleanout</li>
-              <li><i class="fas fa-check-circle"></i>Single room renovation</li>
-              <li><i class="fas fa-check-circle"></i>Small bathroom remodel</li>
-              <li><i class="fas fa-check-circle"></i>Yard debris & landscaping</li>
-              <li><i class="fas fa-check-circle"></i>Minor flooring removal</li>
-            </ul>
-          </div>
-          <div>
-            <div class="size-col-label">Not Ideal For</div>
-            <ul class="use-list">
-              <li><i class="fas fa-times-circle" style="color:var(--steel2);"></i>Whole-house cleanouts</li>
-              <li><i class="fas fa-times-circle" style="color:var(--steel2);"></i>Full roofing tear-off</li>
-              <li><i class="fas fa-times-circle" style="color:var(--steel2);"></i>Large construction debris</li>
-              <li><i class="fas fa-times-circle" style="color:var(--steel2);"></i>Multiple rooms</li>
-            </ul>
-          </div>
+    <div id="dynamic-sizes-list">
+      <div class="size-full-card">
+        <div class="size-full-body">
+          <p class="mb-0" style="color:var(--gray-light);">Loading live dumpster sizes and current stock...</p>
         </div>
       </div>
     </div>
-
-    <!-- 20 Yard -->
-    <div class="size-full-card featured">
-      <div class="size-banner featured-banner">
-        <div>
-          <div class="size-mega">20</div>
-          <div class="size-banner-label">Yard Dumpster <span class="pop-badge"><i class="fas fa-star"></i> Most Popular</span></div>
-        </div>
-        <div>
-          <div class="size-best-for">Best For</div>
-          <div class="size-ideal-text">Kitchen & bathroom remodels, roofing, estate cleanouts — the all-around workhorse.</div>
-        </div>
-        <a href="/book.php?size=20" class="btn-panda" style="background:var(--black);color:var(--white);">Book This Size</a>
-      </div>
-      <div class="size-full-body">
-        <div class="size-specs mb-3">
-          <div class="spec-item"><div class="spec-val">20</div><div class="spec-key">Cubic Yards</div></div>
-          <div class="spec-item"><div class="spec-val">~6</div><div class="spec-key">Pickup Loads</div></div>
-          <div class="spec-item"><div class="spec-val">22ft</div><div class="spec-key">Length</div></div>
-          <div class="spec-item"><div class="spec-val">7.5ft</div><div class="spec-key">Width</div></div>
-          <div class="spec-item"><div class="spec-val">4.5ft</div><div class="spec-key">Height</div></div>
-        </div>
-        <div class="size-cols">
-          <div>
-            <div class="size-col-label">Common Uses</div>
-            <ul class="use-list">
-              <li><i class="fas fa-check-circle"></i>Kitchen renovation</li>
-              <li><i class="fas fa-check-circle"></i>Bathroom remodel</li>
-              <li><i class="fas fa-check-circle"></i>Roofing tear-off (up to 1,500 sqft)</li>
-              <li><i class="fas fa-check-circle"></i>Estate & whole-house cleanout</li>
-              <li><i class="fas fa-check-circle"></i>Flooring & carpet removal</li>
-              <li><i class="fas fa-check-circle"></i>Small deck demolition</li>
-            </ul>
-          </div>
-          <div>
-            <div class="size-col-label">Pro Tips</div>
-            <ul class="use-list">
-              <li><i class="fas fa-lightbulb" style="color:var(--amber);"></i>Our most requested size for good reason — fits most driveways</li>
-              <li><i class="fas fa-lightbulb" style="color:var(--amber);"></i>Perfect for roofing contractors — holds a full tear-off</li>
-              <li><i class="fas fa-lightbulb" style="color:var(--amber);"></i>Great value — right-sized for most home projects</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 30 Yard -->
-    <div class="size-full-card">
-      <div class="size-banner">
-        <div><div class="size-mega">30</div><div class="size-banner-label">Yard Dumpster</div></div>
-        <div>
-          <div class="size-best-for">Best For</div>
-          <div class="size-ideal-text">Large renovations, commercial cleanouts, and major new construction.</div>
-        </div>
-        <a href="/book.php?size=30" class="btn-panda-outline">Book This Size</a>
-      </div>
-      <div class="size-full-body">
-        <div class="size-specs mb-3">
-          <div class="spec-item"><div class="spec-val">30</div><div class="spec-key">Cubic Yards</div></div>
-          <div class="spec-item"><div class="spec-val">~9</div><div class="spec-key">Pickup Loads</div></div>
-          <div class="spec-item"><div class="spec-val">22ft</div><div class="spec-key">Length</div></div>
-          <div class="spec-item"><div class="spec-val">7.5ft</div><div class="spec-key">Width</div></div>
-          <div class="spec-item"><div class="spec-val">6ft</div><div class="spec-key">Height</div></div>
-        </div>
-        <div class="size-cols">
-          <div>
-            <div class="size-col-label">Common Uses</div>
-            <ul class="use-list">
-              <li><i class="fas fa-check-circle"></i>Large home renovation</li>
-              <li><i class="fas fa-check-circle"></i>Commercial office cleanout</li>
-              <li><i class="fas fa-check-circle"></i>New residential construction</li>
-              <li><i class="fas fa-check-circle"></i>Siding replacement projects</li>
-              <li><i class="fas fa-check-circle"></i>Large landscaping overhauls</li>
-              <li><i class="fas fa-check-circle"></i>Deck & pool demolition</li>
-            </ul>
-          </div>
-          <div>
-            <div class="size-col-label">Not Ideal For</div>
-            <ul class="use-list">
-              <li><i class="fas fa-times-circle" style="color:var(--steel2);"></i>Tight driveways (needs ~25ft)</li>
-              <li><i class="fas fa-times-circle" style="color:var(--steel2);"></i>Very small residential jobs</li>
-              <li><i class="fas fa-times-circle" style="color:var(--steel2);"></i>Concrete-only loads (weight limits)</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 40 Yard -->
-    <div class="size-full-card">
-      <div class="size-banner">
-        <div><div class="size-mega">40</div><div class="size-banner-label">Yard Dumpster</div></div>
-        <div>
-          <div class="size-best-for">Best For</div>
-          <div class="size-ideal-text">Major demolitions, large commercial projects, and industrial job sites.</div>
-        </div>
-        <a href="/book.php?size=40" class="btn-panda-outline">Book This Size</a>
-      </div>
-      <div class="size-full-body">
-        <div class="size-specs mb-3">
-          <div class="spec-item"><div class="spec-val">40</div><div class="spec-key">Cubic Yards</div></div>
-          <div class="spec-item"><div class="spec-val">~12</div><div class="spec-key">Pickup Loads</div></div>
-          <div class="spec-item"><div class="spec-val">22ft</div><div class="spec-key">Length</div></div>
-          <div class="spec-item"><div class="spec-val">8ft</div><div class="spec-key">Width</div></div>
-          <div class="spec-item"><div class="spec-val">8ft</div><div class="spec-key">Height</div></div>
-        </div>
-        <div class="size-cols">
-          <div>
-            <div class="size-col-label">Common Uses</div>
-            <ul class="use-list">
-              <li><i class="fas fa-check-circle"></i>Full commercial demolition</li>
-              <li><i class="fas fa-check-circle"></i>Large-scale construction sites</li>
-              <li><i class="fas fa-check-circle"></i>Full property cleanout</li>
-              <li><i class="fas fa-check-circle"></i>Industrial & warehouse cleanout</li>
-              <li><i class="fas fa-check-circle"></i>Storm-damaged structure removal</li>
-            </ul>
-          </div>
-          <div>
-            <div class="size-col-label">Need to Know</div>
-            <ul class="use-list">
-              <li><i class="fas fa-info-circle" style="color:var(--blue-light);"></i>Requires adequate driveway or lot space</li>
-              <li><i class="fas fa-info-circle" style="color:var(--blue-light);"></i>Weight limits apply — call for heavy material jobs</li>
-              <li><i class="fas fa-info-circle" style="color:var(--blue-light);"></i>Popular with general contractors</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-
   </div>
 </section>
 
-<!-- Quick Comparison -->
 <section class="section-pad" style="background:var(--black);">
   <div class="container" style="max-width:900px;">
     <div class="text-center mb-5">
@@ -270,56 +101,27 @@
               <th>Size</th>
               <th>Cubic Yards</th>
               <th>Best For</th>
-              <th>Roofing</th>
-              <th>Construction</th>
-              <th>Residential</th>
+              <th>In Stock</th>
+              <th>Multi-Unit</th>
+              <th>Residential Fit</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="dynamic-size-comparison">
             <tr>
-              <td>10 yd</td>
-              <td>10 cu. yd.</td>
-              <td>Small cleanouts</td>
-              <td><i class="fas fa-times"></i></td>
-              <td><i class="fas fa-times"></i></td>
-              <td><i class="fas fa-check" style="color:var(--orange);"></i></td>
-            </tr>
-            <tr>
-              <td>20 yd</td>
-              <td>20 cu. yd.</td>
-              <td>Remodels & roofing</td>
-              <td><i class="fas fa-check" style="color:var(--orange);"></i></td>
-              <td><i class="fas fa-check" style="color:var(--orange);"></i></td>
-              <td><i class="fas fa-check" style="color:var(--orange);"></i></td>
-            </tr>
-            <tr>
-              <td>30 yd</td>
-              <td>30 cu. yd.</td>
-              <td>Large renovations</td>
-              <td><i class="fas fa-check" style="color:var(--orange);"></i></td>
-              <td><i class="fas fa-check" style="color:var(--orange);"></i></td>
-              <td><i class="fas fa-check" style="color:var(--orange);"></i></td>
-            </tr>
-            <tr>
-              <td>40 yd</td>
-              <td>40 cu. yd.</td>
-              <td>Demolition & commercial</td>
-              <td><i class="fas fa-check" style="color:var(--orange);"></i></td>
-              <td><i class="fas fa-check" style="color:var(--orange);"></i></td>
-              <td><i class="fas fa-times"></i></td>
+              <td colspan="6" class="compare-loading">Loading live size comparison...</td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
-    <p class="text-center mt-4" style="color:var(--gray);font-size:.88rem;">Still unsure? <a href="contact.html" style="color:var(--orange);text-decoration:none;font-weight:700;">Call us and we'll recommend the perfect size — free of charge.</a></p>
+    <p class="text-center mt-4" style="color:var(--gray);font-size:.88rem;">Still unsure? <a href="contact.html" style="color:var(--orange);text-decoration:none;font-weight:700;">Call us and we will recommend the best size based on your real job needs.</a></p>
   </div>
 </section>
 
 <section class="section-pad" style="background:linear-gradient(135deg,var(--orange-xd),var(--orange),var(--amber));">
   <div class="container text-center" style="max-width:800px;">
     <h2 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,4rem);color:var(--black);line-height:.95;">NEED HELP CHOOSING?</h2>
-    <p style="font-family:var(--font-cond);font-size:1.1rem;font-weight:600;color:rgba(0,0,0,.65);margin:1rem 0 2rem;">Call us and describe your project. We'll recommend the right size in under a minute.</p>
+    <p style="font-family:var(--font-cond);font-size:1.1rem;font-weight:600;color:rgba(0,0,0,.65);margin:1rem 0 2rem;">Call us and describe your project. We will recommend the right live size in under a minute.</p>
     <div class="d-flex gap-3 justify-content-center flex-wrap">
       <a href="tel:+12513334444" style="display:inline-flex;align-items:center;gap:10px;background:var(--black);color:var(--white);font-family:var(--font-cond);font-weight:900;font-size:1rem;letter-spacing:.1em;text-transform:uppercase;padding:16px 38px;border-radius:var(--radius-sm);text-decoration:none;"><i class="fas fa-phone"></i>(251) 333-4444</a>
       <a href="/book.php" style="display:inline-flex;align-items:center;gap:10px;background:rgba(0,0,0,.2);border:2px solid rgba(0,0,0,.3);color:var(--black);font-family:var(--font-cond);font-weight:900;font-size:1rem;letter-spacing:.1em;text-transform:uppercase;padding:14px 38px;border-radius:var(--radius-sm);text-decoration:none;"><i class="fas fa-calendar-check"></i>Book Now</a>

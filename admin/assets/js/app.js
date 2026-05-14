@@ -43,6 +43,39 @@
     }
 
     /* =========================================================================
+       1b. Page Guide Widget
+       ========================================================================= */
+    function initPageGuide() {
+        var trigger = document.getElementById('tpGuideTrigger');
+        var panel   = document.getElementById('tpPageGuide');
+        var close   = document.getElementById('tpGuideClose');
+
+        if (!trigger || !panel) return;
+
+        function setOpen(open) {
+            panel.classList.toggle('open', open);
+            trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+            panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+        }
+
+        trigger.addEventListener('click', function () {
+            setOpen(!panel.classList.contains('open'));
+        });
+
+        if (close) {
+            close.addEventListener('click', function () {
+                setOpen(false);
+            });
+        }
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && panel.classList.contains('open')) {
+                setOpen(false);
+            }
+        });
+    }
+
+    /* =========================================================================
        2. Auto-Dismiss Alerts
        ========================================================================= */
     function initAutoDismissAlerts() {
@@ -338,6 +371,7 @@
        ========================================================================= */
     function init() {
         initSidebarToggle();
+        initPageGuide();
         initAutoDismissAlerts();
         initConfirmDeletes();
         initQuoteCalculator();

@@ -13,6 +13,14 @@ layout_start('Help &amp; Guide', 'help');
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h5 class="mb-0"><i class="fa-solid fa-circle-question me-2" style="color:#f97316;"></i>Help &amp; Guide</h5>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="<?= e(APP_URL) ?>/../docs/TESTING_AND_ONBOARDING_GUIDE.md" target="_blank" rel="noopener" class="btn-tp-ghost btn-tp-sm">
+            <i class="fa-solid fa-book me-1"></i> Testing Guide
+        </a>
+        <a href="<?= e(APP_URL) ?>/modules/settings/index.php" class="btn-tp-primary btn-tp-sm">
+            <i class="fa-solid fa-gear me-1"></i> Open Settings
+        </a>
+    </div>
 </div>
 
 <!-- Quick nav pills -->
@@ -50,6 +58,16 @@ layout_start('Help &amp; Guide', 'help');
     <li class="nav-item">
         <a class="nav-link" href="#inventory" onclick="showSection('inventory',this)">
             <i class="fa-solid fa-dumpster me-1"></i> Inventory
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#testing" onclick="showSection('testing',this)">
+            <i class="fa-solid fa-vial-circle-check me-1"></i> Testing
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#client-onboarding" onclick="showSection('client-onboarding',this)">
+            <i class="fa-solid fa-person-chalkboard me-1"></i> Client Onboarding
         </a>
     </li>
 </ul>
@@ -94,6 +112,40 @@ layout_start('Help &amp; Guide', 'help');
                 <tr><td><i class="fa-solid fa-user-group me-1"></i><strong>Users</strong></td><td>Manage admin user accounts and roles (admin or office).</td></tr>
             </tbody>
         </table>
+        </div>
+    </div>
+
+    <div class="tp-card mb-4">
+        <h5 class="mb-3"><i class="fa-solid fa-list-check me-2" style="color:#f97316;"></i>Recommended First-Day Tour</h5>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div style="background:var(--dk3);border:1px solid var(--st2);border-radius:8px;padding:1rem;height:100%;">
+                    <h6 class="mb-2">Owner / Admin Tour</h6>
+                    <ol style="font-size:.9rem;line-height:1.8;margin-bottom:0;">
+                        <li>Settings</li>
+                        <li>Inventory</li>
+                        <li>Bookings</li>
+                        <li>Work Orders</li>
+                        <li>Invoices</li>
+                        <li>Payments</li>
+                        <li>Users</li>
+                    </ol>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div style="background:var(--dk3);border:1px solid var(--st2);border-radius:8px;padding:1rem;height:100%;">
+                    <h6 class="mb-2">Office Staff Tour</h6>
+                    <ol style="font-size:.9rem;line-height:1.8;margin-bottom:0;">
+                        <li>Dashboard</li>
+                        <li>Leads</li>
+                        <li>Bookings</li>
+                        <li>Work Orders</li>
+                        <li>Customers</li>
+                        <li>Invoices</li>
+                        <li>Help &amp; Guide</li>
+                    </ol>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -338,6 +390,93 @@ composer install</pre>
 
         <h6 class="mt-3 mb-2">Syncing with Stripe</h6>
         <p style="font-size:.9rem;">Each dumpster can be linked to a Stripe Product and Price for online booking checkout. Use the "Sync to Stripe" button on each dumpster's edit page, or click <strong>"Sync All to Stripe"</strong> on the Inventory list page to update all dumpsters at once.</p>
+    </div>
+</div>
+
+<!-- Testing -->
+<div id="section-testing" class="help-section" style="display:none;">
+    <div class="tp-card mb-4">
+        <h5 class="mb-3"><i class="fa-solid fa-vial-circle-check me-2" style="color:#f97316;"></i>Developer Testing Checklist</h5>
+        <p style="font-size:.9rem;">Use this page for quick validation, then use the full written guide for deeper launch testing.</p>
+
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <div style="background:var(--dk3);border:1px solid var(--st2);border-radius:8px;padding:1rem;height:100%;">
+                    <h6 class="mb-2">Public Site</h6>
+                    <ul style="font-size:.9rem;line-height:1.8;margin-bottom:0;">
+                        <li>Home, FAQ, Contact, Services, Sizes all load</li>
+                        <li>Booking form works for card, cash, and check</li>
+                        <li>Contact form creates a lead</li>
+                        <li>My Bookings lookup works by email and phone</li>
+                        <li>Billing portal request email sends</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div style="background:var(--dk3);border:1px solid var(--st2);border-radius:8px;padding:1rem;height:100%;">
+                    <h6 class="mb-2">Admin</h6>
+                    <ul style="font-size:.9rem;line-height:1.8;margin-bottom:0;">
+                        <li>Create and approve bookings</li>
+                        <li>Create work orders</li>
+                        <li>Create invoices from bookings and work orders</li>
+                        <li>Mark manual payments</li>
+                        <li>Verify email, Stripe, and webhook behavior</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-info mt-3" style="font-size:.88rem;">
+            <i class="fa-solid fa-circle-info me-1"></i>
+            Full written guide: <strong><code>docs/TESTING_AND_ONBOARDING_GUIDE.md</code></strong>
+        </div>
+
+        <h6 class="mt-3 mb-2">Production Readiness Checks</h6>
+        <ul style="font-size:.9rem;line-height:1.9;">
+            <li>Use Stripe test keys until launch day, then switch to live keys.</li>
+            <li>Run a real end-to-end payment test before handing off to the client.</li>
+            <li>Remove or archive demo/mock data before go-live.</li>
+            <li>Verify user roles and admin passwords.</li>
+            <li>Verify portal links expire correctly and cannot be reused indefinitely.</li>
+        </ul>
+    </div>
+</div>
+
+<!-- Client Onboarding -->
+<div id="section-client-onboarding" class="help-section" style="display:none;">
+    <div class="tp-card mb-4">
+        <h5 class="mb-3"><i class="fa-solid fa-person-chalkboard me-2" style="color:#f97316;"></i>Client Onboarding Plan</h5>
+
+        <h6 class="mb-2">Suggested Training Order</h6>
+        <ol style="font-size:.9rem;line-height:1.9;">
+            <li>Show the Dashboard so they understand what the system tracks.</li>
+            <li>Show Leads and how website requests come in.</li>
+            <li>Show Bookings and the request approval flow.</li>
+            <li>Show Work Orders and how drivers / office use them.</li>
+            <li>Show Invoices, payment links, and manual payment handling.</li>
+            <li>Show Customers and history lookups.</li>
+            <li>Show Help &amp; Guide so they know where to self-serve answers.</li>
+        </ol>
+
+        <h6 class="mt-3 mb-2">Recommended Live Practice</h6>
+        <div class="table-responsive">
+            <table class="table tp-table" style="font-size:.88rem;">
+                <thead><tr><th>Exercise</th><th>What the client should do</th></tr></thead>
+                <tbody>
+                    <tr><td>Lead Intake</td><td>Open a new lead, review details, and convert it to a customer.</td></tr>
+                    <tr><td>Booking Flow</td><td>Create a booking, approve it, and verify the invoice/work order path.</td></tr>
+                    <tr><td>Manual Payment</td><td>Mark an invoice paid by cash or check and confirm it appears in Payments.</td></tr>
+                    <tr><td>Customer Support</td><td>Use My Bookings and the Billing Portal as if they were the customer.</td></tr>
+                    <tr><td>Inventory Ops</td><td>Update a dumpster status and confirm availability behavior.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h6 class="mt-3 mb-2">Best Practice</h6>
+        <p style="font-size:.9rem;margin-bottom:0;">
+            If the client gets confused during training, treat that as a software UX signal, not just a training problem.
+            Tighten labels, defaults, and page structure until the common tasks feel obvious.
+        </p>
     </div>
 </div>
 

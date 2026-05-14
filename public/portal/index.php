@@ -4,8 +4,18 @@ $_admin_root = dirname(__DIR__, 2) . '/admin';
 require_once $_admin_root . '/config/config.php';
 require_once INC_PATH . '/db.php';
 require_once INC_PATH . '/helpers.php';
+require_once INC_PATH . '/auth.php';
 require_once INC_PATH . '/billing.php';
 require_once INC_PATH . '/stripe.php';
+
+session_init();
+
+header('X-Frame-Options: SAMEORIGIN');
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: no-referrer');
+header('Cache-Control: no-store, no-cache, must-revalidate');
+header('Pragma: no-cache');
+header("Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com 'unsafe-inline'; style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self';");
 
 $error = '';
 $customer = null;
@@ -20,6 +30,7 @@ try {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $customer) {
+    csrf_check();
     $action = trim((string)($_POST['action'] ?? ''));
     try {
         if ($action === 'pause_subscription') {
@@ -414,6 +425,7 @@ foreach ($payments as $payment) {
             </div>
             <div class="portal-actions">
                 <form method="POST">
+                    <?= csrf_field() ?>
                     <input type="hidden" name="action" value="request_pickup">
                     <button class="btn-panda" type="submit">Request Pickup</button>
                 </form>
@@ -446,12 +458,14 @@ foreach ($payments as $payment) {
                     </div>
                     <div class="portal-actions">
                         <form method="POST">
+                            <?= csrf_field() ?>
                             <input type="hidden" name="subscription_id" value="<?= (int)$subscription['id'] ?>">
                             <input type="hidden" name="action" value="<?= $subscription['status'] === 'paused' ? 'resume_subscription' : 'pause_subscription' ?>">
                             <button class="btn-ghost" type="submit"><?= $subscription['status'] === 'paused' ? 'Resume Service' : 'Pause Service' ?></button>
                         </form>
                         <?php if ($subscription['status'] !== 'canceled'): ?>
                         <form method="POST" onsubmit="return confirm('Cancel this subscription?');">
+                            <?= csrf_field() ?>
                             <input type="hidden" name="subscription_id" value="<?= (int)$subscription['id'] ?>">
                             <input type="hidden" name="action" value="cancel_subscription">
                             <button class="btn-ghost" type="submit">Cancel Subscription</button>
@@ -519,6 +533,7 @@ foreach ($payments as $payment) {
                     </div>
                     <div class="portal-actions">
                         <form method="POST" onsubmit="return confirm('Remove this payment method?');">
+                            <?= csrf_field() ?>
                             <input type="hidden" name="payment_method_id" value="<?= (int)$paymentMethod['id'] ?>">
                             <input type="hidden" name="action" value="detach_payment_method">
                             <button class="btn-ghost" type="submit">Remove Method</button>

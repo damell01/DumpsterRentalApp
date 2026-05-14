@@ -6,6 +6,13 @@ require_once INC_PATH . '/helpers.php';
 
 $company_name = get_setting('company_name', 'Trash Panda Roll-Offs');
 $prefill_email = trim((string)($_GET['email'] ?? ''));
+
+header('X-Frame-Options: SAMEORIGIN');
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: no-referrer');
+header('Cache-Control: no-store, no-cache, must-revalidate');
+header('Pragma: no-cache');
+header("Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self';");
 ?>
 <!DOCTYPE html>
 <html lang="en">
