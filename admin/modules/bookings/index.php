@@ -71,25 +71,36 @@ if ($q !== '') {
 
 $where_sql = implode(' AND ', $where);
 
-// ── Count ─────────────────────────────────────────────────────────────────────
+// ── Count (distinct booking_number = one order per line) ─────────────────────
 $total_row = db_fetch(
-    "SELECT COUNT(*) AS cnt FROM bookings b WHERE $where_sql",
+    "SELECT COUNT(DISTINCT b.booking_number) AS cnt FROM bookings b WHERE $where_sql",
     $params
 );
 $total = (int)($total_row['cnt'] ?? 0);
 $pager = paginate($total, $page, $per_page);
 
-// ── Fetch rows ───────────────────────────────────────────────────────────────────
+// ── Fetch rows (grouped by booking_number so multi-unit orders appear once) ──
+// MIN(b.id) links to the primary row; unit_codes/sizes are comma-joined.
 $bookings = db_fetchall(
-    "SELECT b.id, b.booking_number, b.customer_name, b.customer_email,
-            b.unit_code, b.unit_type, b.unit_size,
+    "SELECT MIN(b.id) AS id,
+            b.booking_number,
+            b.customer_name, b.customer_email,
+            GROUP_CONCAT(b.unit_code ORDER BY b.id SEPARATOR ', ')  AS unit_code,
+            GROUP_CONCAT(b.unit_size ORDER BY b.id SEPARATOR ', ')  AS unit_size,
+            b.unit_type,
             b.rental_start, b.rental_end, b.rental_days,
-            b.total_amount, b.payment_method, b.payment_status, b.booking_status,
+            SUM(b.total_amount) AS total_amount,
+            b.payment_method, b.payment_status, b.booking_status,
             b.stripe_payment_id, b.stripe_session_id,
-            b.created_at
+            MIN(b.created_at) AS created_at,
+            COUNT(*) AS unit_count
      FROM bookings b
      WHERE $where_sql
-     ORDER BY b.created_at DESC
+     GROUP BY b.booking_number, b.customer_name, b.customer_email,
+              b.unit_type, b.rental_start, b.rental_end, b.rental_days,
+              b.payment_method, b.payment_status, b.booking_status,
+              b.stripe_payment_id, b.stripe_session_id
+     ORDER BY MIN(b.created_at) DESC
      LIMIT ? OFFSET ?",
     array_merge($params, [$pager['per_page'], $pager['offset']])
 );
@@ -213,10 +224,15 @@ layout_start('Bookings', 'bookings');
                 </td>
                 <td>
                     <?php if ($b['unit_code']): ?>
-                    <div class="fw-semibold"><?= e($b['unit_code']) ?></div>
+                    <div class="fw-semibold">
+                        <?= e($b['unit_code']) ?>
+                        <?php if ((int)($b['unit_count'] ?? 1) > 1): ?>
+                        <span class="badge" style="background:var(--orange);font-size:.65rem;vertical-align:middle;"><?= (int)$b['unit_count'] ?> units</span>
+                        <?php endif; ?>
+                    </div>
                     <div style="font-size:.8rem;color:var(--gy);">
                         <?= e($b['unit_size'] ?? '') ?>
-                        <?php if ($b['unit_type']): ?> · <?= e(ucfirst($b['unit_type'])) ?><?php endif; ?>
+                        <?php if ($b['unit_type'] && (int)($b['unit_count'] ?? 1) === 1): ?> · <?= e(ucfirst($b['unit_type'])) ?><?php endif; ?>
                     </div>
                     <?php else: ?>
                     <span class="text-muted">—</span>
@@ -253,29 +269,9 @@ layout_start('Bookings', 'bookings');
                         <form method="post" action="approve_request.php" style="display:inline;">
                             <?= csrf_field() ?>
                             <input type="hidden" name="id" value="<?= (int)$b['id'] ?>">
-                            <input type="hidden" name="approval_action" value="approve_only">
-                            <input type="hidden" name="redirect_to" value="index.php<?= e('?' . http_build_query(array_filter(['filter' => $filter, 'q' => $q, 'date_qs' => $date_qs, 'page' => $page]))) ?>">
-                            <button type="submit" class="btn-tp-ghost btn-tp-xs"
-                                    onclick="return confirm('Approve booking <?= e($b['booking_number']) ?>?')">
-                                <i class="fa-solid fa-check"></i> Approve
-                            </button>
-                        </form>
-                        <form method="post" action="approve_request.php" style="display:inline;">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="id" value="<?= (int)$b['id'] ?>">
-                            <input type="hidden" name="approval_action" value="invoice">
                             <button type="submit" class="btn-tp-primary btn-tp-xs"
-                                    onclick="return confirm('Approve booking <?= e($b['booking_number']) ?> and create an invoice?')">
-                                <i class="fa-solid fa-file-invoice-dollar"></i> Invoice
-                            </button>
-                        </form>
-                        <form method="post" action="approve_request.php" style="display:inline;">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="id" value="<?= (int)$b['id'] ?>">
-                            <input type="hidden" name="approval_action" value="work_order">
-                            <button type="submit" class="btn-tp-ghost btn-tp-xs"
-                                    onclick="return confirm('Approve booking <?= e($b['booking_number']) ?> and create a work order?')">
-                                <i class="fa-solid fa-clipboard-list"></i> Work Order
+                                    onclick="return confirm('Approve booking <?= e($b['booking_number']) ?>? A work order and invoice will be created.')">
+                                <i class="fa-solid fa-circle-check"></i> Approve
                             </button>
                         </form>
                         <?php endif; ?>

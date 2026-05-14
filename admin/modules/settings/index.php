@@ -150,6 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'save_company' => [
             'company_name', 'company_phone', 'company_email', 'company_address',
             'quote_terms', 'wo_footer', 'invoice_footer', 'booking_terms', 'currency',
+            'hide_launch_checklist',
         ],
         'save_email' => [
             'email_from_name', 'email_from_email', 'notification_emails',
@@ -162,6 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'stripe_mode', 'stripe_publishable_key', 'stripe_secret_key', 'stripe_webhook_secret',
             'portal_signing_key', 'portal_link_ttl_minutes', 'stripe_statement_descriptor',
             'billing_retry_days', 'booking_flow_mode', 'ach_enabled', 'subscription_enabled',
+            'approval_auto_send_invoice',
         ],
     ];
 
@@ -348,6 +350,18 @@ layout_start('Settings', 'settings');
                 <label class="form-label" for="invoice_footer">Invoice Footer Text</label>
                 <textarea id="invoice_footer" name="invoice_footer" class="form-control" rows="2"
                           placeholder="Footer text to appear on printed invoices (e.g. payment instructions, thank you message)…"><?= e(get_setting('invoice_footer')) ?></textarea>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label class="form-label" for="hide_launch_checklist">Dashboard Launch Checklist</label>
+                <select id="hide_launch_checklist" name="hide_launch_checklist" class="form-select">
+                    <?php $hide_cl = get_setting('hide_launch_checklist', '0'); ?>
+                    <option value="0" <?= $hide_cl === '0' ? 'selected' : '' ?>>Visible on dashboard</option>
+                    <option value="1" <?= $hide_cl === '1' ? 'selected' : '' ?>>Hidden</option>
+                </select>
+                <div class="form-text" style="color:var(--gy);">Auto-hides at 100%. You can also dismiss it from the dashboard.</div>
             </div>
         </div>
 
@@ -687,6 +701,17 @@ layout_start('Settings', 'settings');
                 </select>
                 <div class="form-text" style="color:var(--gy);">
                     Choose whether customers pay right away online, or submit a request for your team to review before sending an invoice or payment link.
+                </div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="approval_auto_send_invoice">Invoice Auto-Send on Approval</label>
+                <select id="approval_auto_send_invoice" name="approval_auto_send_invoice" class="form-select">
+                    <?php $auto_send = get_setting('approval_auto_send_invoice', '1'); ?>
+                    <option value="1" <?= $auto_send === '1' ? 'selected' : '' ?>>Auto-send invoice email to customer</option>
+                    <option value="0" <?= $auto_send === '0' ? 'selected' : '' ?>>Create invoice as draft (send manually)</option>
+                </select>
+                <div class="form-text" style="color:var(--gy);">
+                    When a booking request is approved, the system always creates a work order and an invoice. This controls whether the invoice email goes out immediately.
                 </div>
             </div>
             <div class="col-md-6">

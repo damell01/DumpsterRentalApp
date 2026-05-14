@@ -9,6 +9,18 @@ require_once TMPL_PATH . '/layout.php';
 
 require_login();
 
+// ── Dismiss launch checklist ─────────────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'dismiss_checklist') {
+    csrf_check();
+    set_setting('hide_launch_checklist', '1');
+    redirect('dashboard.php');
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'show_checklist') {
+    csrf_check();
+    set_setting('hide_launch_checklist', '0');
+    redirect('dashboard.php');
+}
+
 // ── KPI Queries ──────────────────────────────────────────────────────────────
 
 $wo_active = (int)(db_fetch(
@@ -313,6 +325,10 @@ layout_start('Dashboard', 'dashboard');
 }
 </style>
 
+<?php
+$checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch_score >= 100;
+?>
+<?php if (!$checklist_hidden): ?>
 <div class="tp-card tp-launch-card mb-4">
     <div class="tp-card-body">
         <div class="d-flex flex-column flex-lg-row gap-3 align-items-start align-items-lg-center justify-content-between">
@@ -328,13 +344,22 @@ layout_start('Dashboard', 'dashboard');
                     <p><?= $launch_ready_count ?> of <?= $launch_total_count ?> setup checks are complete. Finish the remaining items, then run one full booking and payment test.</p>
                 </div>
             </div>
-            <div class="d-flex gap-2 flex-wrap">
+            <div class="d-flex gap-2 flex-wrap align-items-center">
                 <a href="<?= e(APP_URL) ?>/modules/help/launch.php" class="btn-tp-primary btn-tp-sm">
                     <i class="fa-solid fa-rocket"></i> Open Launch Checklist
                 </a>
                 <a href="<?= e(APP_URL) ?>/modules/help/index.php" class="btn-tp-ghost btn-tp-sm">
                     <i class="fa-solid fa-list-check"></i> Testing Guide
                 </a>
+                <form method="POST" action="dashboard.php" style="display:inline;">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="action" value="dismiss_checklist">
+                    <button type="submit" class="btn-tp-ghost btn-tp-sm" title="Hide launch checklist"
+                            style="padding:6px 10px;color:var(--gray);"
+                            onclick="return confirm('Hide the launch checklist? You can re-enable it from Settings.')">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </form>
             </div>
         </div>
 
@@ -364,6 +389,16 @@ layout_start('Dashboard', 'dashboard');
         <?php endif; ?>
     </div>
 </div>
+<?php elseif (has_role('admin')): ?>
+<div class="mb-3" style="font-size:.8rem;color:var(--gray);">
+    Launch checklist is hidden.
+    <form method="POST" action="dashboard.php" style="display:inline;">
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="show_checklist">
+        <button type="submit" class="btn-tp-ghost btn-tp-xs ms-1">Show again</button>
+    </form>
+</div>
+<?php endif; ?>
 
 <div class="row g-3 mb-4">
 

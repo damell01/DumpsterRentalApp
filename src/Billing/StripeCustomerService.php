@@ -49,34 +49,85 @@ class StripeCustomerService
         return $customer;
     }
 
+    /**
+     * Strip non-digits and return the last 10 digits (US numbers).
+     * "(251) 333-4444" → "2513334444"; "+12513334444" → "2513334444"
+     */
+    private function normalizePhone(string $phone): string
+    {
+        $digits = preg_replace('/\D/', '', $phone);
+        return strlen($digits) > 10 ? substr($digits, -10) : $digits;
+    }
+
     public function findOrCreateByBooking(array $booking): int
     {
-        $email = trim((string)($booking['customer_email'] ?? ''));
-        $phone = trim((string)($booking['customer_phone'] ?? ''));
+        $email     = trim((string)($booking['customer_email']   ?? ''));
+        $phone     = trim((string)($booking['customer_phone']   ?? ''));
+        $phoneNorm = $this->normalizePhone($phone);
 
         $customer = null;
+
+        // 1. Match by email (case-insensitive)
         if ($email !== '') {
-            $customer = \db_fetch('SELECT * FROM customers WHERE LOWER(email) = ? LIMIT 1', [strtolower($email)]);
+            $customer = \db_fetch(
+                'SELECT * FROM customers WHERE LOWER(email) = ? LIMIT 1',
+                [strtolower($email)]
+            );
         }
-        if (!$customer && $phone !== '') {
-            $customer = \db_fetch('SELECT * FROM customers WHERE phone = ? LIMIT 1', [$phone]);
+
+        // 2. Match by normalized phone — strip formatting on both sides so
+        //    "(251) 333-4444" matches "2513334444" or "+12513334444".
+        if (!$customer && $phoneNorm !== '') {
+            $customer = \db_fetch(
+                "SELECT * FROM customers
+                 WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone,' ',''),'-',''),'(',''),')',''),'+','') = ?
+                    OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone,' ',''),'-',''),'(',''),')',''),'+','') = ?
+                 LIMIT 1",
+                [$phoneNorm, '1' . $phoneNorm]
+            );
         }
 
         if (!$customer) {
             $customerId = (int)\db_insert('customers', [
-                'name' => $booking['customer_name'],
-                'email' => $email ?: null,
-                'phone' => $phone ?: null,
-                'address' => $booking['customer_address'] ?? null,
-                'city' => $booking['customer_city'] ?? null,
+                'name'       => $booking['customer_name'],
+                'email'      => $email ?: null,
+                'phone'      => $phone ?: null,
+                'address'    => $booking['customer_address'] ?? null,
+                'city'       => $booking['customer_city'] ?? null,
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s'),
             ]);
         } else {
             $customerId = (int)$customer['id'];
+
+            // Fill in any blank fields on the existing customer record
+            // so data gets richer over time without overwriting known values.
+            $updates = [];
+            if (empty($customer['phone']) && $phone !== '') {
+                $updates['phone'] = $phone;
+            }
+            if (empty($customer['email']) && $email !== '') {
+                $updates['email'] = $email;
+            }
+            if (empty($customer['address']) && !empty($booking['customer_address'])) {
+                $updates['address'] = $booking['customer_address'];
+            }
+            if (empty($customer['city']) && !empty($booking['customer_city'])) {
+                $updates['city'] = $booking['customer_city'];
+            }
+            if (!empty($updates)) {
+                $updates['updated_at'] = date('Y-m-d H:i:s');
+                \db_update('customers', $updates, 'id', $customerId);
+            }
         }
 
-        $this->ensureForCustomerId($customerId);
+        // Best-effort Stripe customer sync — skip silently if Stripe is not configured.
+        try {
+            $this->ensureForCustomerId($customerId);
+        } catch (\Throwable $e) {
+            \error_log('[StripeCustomerService] Stripe sync skipped for customer #' . $customerId . ': ' . $e->getMessage());
+        }
+
         return $customerId;
     }
 }

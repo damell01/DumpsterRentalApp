@@ -20,6 +20,17 @@ if (!$booking) {
     redirect('index.php');
 }
 
+// Load all units sharing the same booking number (multi-unit orders).
+$group_bookings = db_fetchall(
+    'SELECT * FROM bookings WHERE booking_number = ? ORDER BY id',
+    [$booking['booking_number']]
+);
+if (empty($group_bookings)) {
+    $group_bookings = [$booking];
+}
+$group_total = round(array_sum(array_column($group_bookings, 'total_amount')), 2);
+$is_multi    = count($group_bookings) > 1;
+
 $stripe_payment_url = stripe_dashboard_url($booking['stripe_payment_id'] ?? '');
 $stripe_session_url = stripe_dashboard_url($booking['stripe_session_id'] ?? '');
 
@@ -43,30 +54,11 @@ layout_start('Booking Detail', 'bookings');
         </a>
         <?php if (has_role('admin', 'office') && ($booking['booking_status'] ?? '') === 'pending'): ?>
         <form method="POST" action="approve_request.php" class="d-inline"
-              onsubmit="return confirm('Approve this booking request?');">
+              onsubmit="return confirm('Approve this booking? A work order and invoice will be created automatically.');">
             <?= csrf_field() ?>
             <input type="hidden" name="id" value="<?= $id ?>">
-            <input type="hidden" name="approval_action" value="approve_only">
-            <button type="submit" class="btn-tp-ghost btn-tp-sm">
-                <i class="fa-solid fa-check"></i> Approve Only
-            </button>
-        </form>
-        <form method="POST" action="approve_request.php" class="d-inline"
-              onsubmit="return confirm('Approve this booking request and create an invoice?');">
-            <?= csrf_field() ?>
-            <input type="hidden" name="id" value="<?= $id ?>">
-            <input type="hidden" name="approval_action" value="invoice">
             <button type="submit" class="btn-tp-primary btn-tp-sm">
-                <i class="fa-solid fa-file-invoice-dollar"></i> Approve + Invoice
-            </button>
-        </form>
-        <form method="POST" action="approve_request.php" class="d-inline"
-              onsubmit="return confirm('Approve this booking request and create a work order?');">
-            <?= csrf_field() ?>
-            <input type="hidden" name="id" value="<?= $id ?>">
-            <input type="hidden" name="approval_action" value="work_order">
-            <button type="submit" class="btn-tp-ghost btn-tp-sm">
-                <i class="fa-solid fa-clipboard-list"></i> Approve + Work Order
+                <i class="fa-solid fa-circle-check"></i> Approve Booking
             </button>
         </form>
         <?php endif; ?>
@@ -142,23 +134,36 @@ layout_start('Booking Detail', 'bookings');
         <!-- Unit Info -->
         <div class="tp-card mb-4">
             <div class="tp-card-header">
-                <i class="fa-solid fa-dumpster me-2 text-muted"></i> Unit Information
+                <i class="fa-solid fa-dumpster me-2 text-muted"></i>
+                <?= $is_multi ? count($group_bookings) . ' Units' : 'Unit Information' ?>
             </div>
-            <div class="tp-card-body">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <div class="text-muted" style="font-size:.8rem;">Unit Code</div>
-                        <div class="fw-semibold"><?= $booking['unit_code'] ? e($booking['unit_code']) : '<span class="text-muted">—</span>' ?></div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="text-muted" style="font-size:.8rem;">Type</div>
-                        <div><?= $booking['unit_type'] ? e(ucfirst($booking['unit_type'])) : '<span class="text-muted">—</span>' ?></div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="text-muted" style="font-size:.8rem;">Size</div>
-                        <div><?= $booking['unit_size'] ? e($booking['unit_size']) : '<span class="text-muted">—</span>' ?></div>
-                    </div>
-                </div>
+            <div class="tp-card-body p-0">
+                <table class="table table-sm mb-0" style="color:var(--gray-light);font-size:.875rem;">
+                    <thead>
+                        <tr style="border-color:var(--steel);">
+                            <th style="padding:.6rem 1rem;font-weight:600;">Unit</th>
+                            <th>Size</th>
+                            <th>Type</th>
+                            <th class="text-end" style="padding-right:1rem;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($group_bookings as $gu): ?>
+                        <tr style="border-color:var(--steel);">
+                            <td style="padding:.6rem 1rem;" class="fw-semibold"><?= e($gu['unit_code'] ?? '—') ?></td>
+                            <td><?= e($gu['unit_size'] ?? '—') ?></td>
+                            <td><?= $gu['unit_type'] ? e(ucfirst($gu['unit_type'])) : '—' ?></td>
+                            <td class="text-end" style="padding-right:1rem;"><?= fmt_currency($gu['total_amount']) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <?php if ($is_multi): ?>
+                        <tr style="border-top:2px solid var(--steel);border-color:var(--steel);">
+                            <td colspan="3" style="padding:.6rem 1rem;" class="fw-bold text-muted">Order Total</td>
+                            <td class="text-end fw-bold" style="padding-right:1rem;color:var(--orange);"><?= fmt_currency($group_total) ?></td>
+                        </tr>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
 

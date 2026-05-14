@@ -92,6 +92,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pay_status_map = ['stripe' => 'pending', 'cash' => 'pending_cash', 'check' => 'pending_check'];
         $payment_status = $pay_status_map[$payment_method] ?? 'pending';
 
+        // Find or create the customer record (deduplicates by email/phone).
+        $customer_id = null;
+        try {
+            $customer_id = billing_customer_service()->findOrCreateByBooking([
+                'customer_name'    => $customer_name,
+                'customer_phone'   => $customer_phone,
+                'customer_email'   => $customer_email,
+                'customer_address' => $customer_address,
+                'customer_city'    => $customer_city,
+            ]);
+        } catch (\Throwable $e) {
+            error_log('[Admin Booking] Customer dedup failed: ' . $e->getMessage());
+        }
+
+        // One booking number shared across all units in this order.
+        $booking_number = next_number('BK', 'bookings', 'booking_number');
+        $booking_group_id = count($validated_units) > 1 ? bin2hex(random_bytes(8)) : null;
+
         $created_booking_ids = [];
         $created_numbers     = [];
         $created_wo_numbers  = [];
@@ -111,15 +129,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $total = round($daily_rate * $days, 2);
             }
 
-            $booking_number = next_number('BK', 'bookings', 'booking_number');
-
             $booking_id = (int)db_insert('bookings', [
                 'booking_number'   => $booking_number,
+                'customer_id'      => $customer_id,
                 'customer_name'    => $customer_name,
                 'customer_phone'   => $customer_phone ?: null,
                 'customer_email'   => $customer_email ?: null,
                 'customer_address' => $customer_address ?: null,
                 'customer_city'    => $customer_city ?: null,
+                'booking_group_id' => $booking_group_id,
                 'dumpster_id'      => (int)$unit['id'],
                 'unit_code'        => $unit['unit_code'],
                 'unit_type'        => $unit['type'],
@@ -147,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $wo_number = next_number('WO', 'work_orders', 'wo_number');
             $wo_id = (int)db_insert('work_orders', [
                 'wo_number'       => $wo_number,
-                'customer_id'     => null,
+                'customer_id'     => $customer_id,
                 'cust_name'       => $customer_name,
                 'cust_phone'      => $customer_phone ?: null,
                 'cust_email'      => $customer_email ?: null,

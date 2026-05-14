@@ -52,16 +52,25 @@ function booking_existing_work_order(array $booking): ?array
     ) ?: null;
 }
 
-function create_invoice_from_booking(array $booking): array
+function create_invoice_from_booking(array $booking, bool $autoSend = true): array
 {
-    $subtotal = round((float)($booking['total_amount'] ?? 0), 2);
+    // Load all units in this booking group (shared booking_number).
+    $group = db_fetchall(
+        'SELECT * FROM bookings WHERE booking_number = ? ORDER BY id',
+        [$booking['booking_number']]
+    );
+    if (empty($group)) {
+        $group = [$booking];
+    }
+
+    $subtotal = round(array_sum(array_column($group, 'total_amount')), 2);
     if ($subtotal <= 0) {
         throw new RuntimeException('Booking total must be greater than $0 to create an invoice.');
     }
 
     $customerId = !empty($booking['customer_id']) ? (int)$booking['customer_id'] : null;
     $paymentMethod = (string)($booking['payment_method'] ?? 'stripe');
-    $invoiceStatus = !empty($booking['customer_email']) ? 'sent' : 'draft';
+    $invoiceStatus = ($autoSend && !empty($booking['customer_email'])) ? 'sent' : 'draft';
     $invoiceId = 0;
     $invoiceNumber = '';
 
@@ -94,20 +103,23 @@ function create_invoice_from_booking(array $booking): array
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
-        $lineDescription = trim(
-            ((string)($booking['unit_size'] ?? '') !== '' ? (string)$booking['unit_size'] : 'Dumpster rental')
-            . (((string)($booking['unit_code'] ?? '') !== '') ? ' - ' . (string)$booking['unit_code'] : '')
-            . ' (' . fmt_date((string)$booking['rental_start']) . ' to ' . fmt_date((string)$booking['rental_end']) . ')'
-        );
-
-        db_insert('invoice_items', [
-            'invoice_id' => $invoiceId,
-            'description' => $lineDescription,
-            'quantity' => 1,
-            'unit_price' => $subtotal,
-            'amount' => $subtotal,
-            'rate_type' => 'fixed',
-        ]);
+        // One line item per unit in the group.
+        foreach ($group as $row) {
+            $lineDescription = trim(
+                ((string)($row['unit_size'] ?? '') !== '' ? (string)$row['unit_size'] : 'Dumpster rental')
+                . (((string)($row['unit_code'] ?? '') !== '') ? ' - ' . (string)$row['unit_code'] : '')
+                . ' (' . fmt_date((string)$row['rental_start']) . ' to ' . fmt_date((string)$row['rental_end']) . ')'
+            );
+            $lineAmount = round((float)($row['total_amount'] ?? 0), 2);
+            db_insert('invoice_items', [
+                'invoice_id' => $invoiceId,
+                'description' => $lineDescription,
+                'quantity' => 1,
+                'unit_price' => $lineAmount,
+                'amount' => $lineAmount,
+                'rate_type' => 'fixed',
+            ]);
+        }
 
         $pdo->commit();
     } catch (\Throwable $e) {
@@ -139,7 +151,7 @@ function create_invoice_from_booking(array $booking): array
 
     $invoice = db_fetch('SELECT * FROM invoices WHERE id = ? LIMIT 1', [$invoiceId]) ?: ['id' => $invoiceId, 'invoice_number' => $invoiceNumber];
     $emailSent = false;
-    if (!empty($invoice['cust_email'])) {
+    if ($autoSend && !empty($invoice['cust_email'])) {
         try {
             $emailSent = send_invoice_email_to_customer($invoice);
         } catch (\Throwable $e) {
@@ -165,8 +177,20 @@ function create_work_order_from_booking(array $booking): array
         ];
     }
 
+    // Load all units in the booking group for the WO summary.
+    $woGroup = db_fetchall(
+        'SELECT * FROM bookings WHERE booking_number = ? ORDER BY id',
+        [$booking['booking_number']]
+    );
+    if (empty($woGroup)) {
+        $woGroup = [$booking];
+    }
+    $woTotal      = round(array_sum(array_column($woGroup, 'total_amount')), 2);
+    $unitCodes    = implode(', ', array_filter(array_column($woGroup, 'unit_code')));
+    $unitSizes    = implode(', ', array_unique(array_filter(array_column($woGroup, 'unit_size'))));
+    $pickupDate   = !empty($booking['rental_end']) ? (string)$booking['rental_end'] : null;
+
     $woNumber = next_number('WO', 'work_orders', 'wo_number');
-    $pickupDate = !empty($booking['rental_end']) ? (string)$booking['rental_end'] : null;
 
     $workOrderId = (int)db_insert('work_orders', [
         'wo_number' => $woNumber,
@@ -178,17 +202,19 @@ function create_work_order_from_booking(array $booking): array
         'service_city' => $booking['customer_city'] ?: null,
         'service_state' => null,
         'service_zip' => null,
-        'size' => $booking['unit_size'] ?: null,
+        'size' => $unitSizes ?: ($booking['unit_size'] ?: null),
         'project_type' => 'Dumpster Rental',
         'dumpster_id' => !empty($booking['dumpster_id']) ? (int)$booking['dumpster_id'] : null,
         'delivery_date' => $booking['rental_start'] ?: null,
         'pickup_date' => $pickupDate,
         'assigned_driver' => null,
-        'amount' => (float)($booking['total_amount'] ?? 0),
+        'amount' => $woTotal,
         'status' => 'scheduled',
         'priority' => 'normal',
         'internal_notes' => trim(
-            'Created from approved booking request ' . ($booking['booking_number'] ?? '') . '.'
+            'Created from approved booking request ' . ($booking['booking_number'] ?? '')
+            . (count($woGroup) > 1 ? ' (' . count($woGroup) . ' units: ' . $unitCodes . ')' : '')
+            . '.'
             . (($booking['notes'] ?? '') !== '' ? "\n\nBooking notes: " . trim((string)$booking['notes']) : '')
         ),
         'footer_notes' => get_setting('wo_footer', ''),
@@ -196,13 +222,6 @@ function create_work_order_from_booking(array $booking): array
         'created_at' => date('Y-m-d H:i:s'),
         'updated_at' => date('Y-m-d H:i:s'),
     ]);
-
-    if (!empty($booking['dumpster_id'])) {
-        db_execute(
-            "UPDATE dumpsters SET status = 'reserved', updated_at = ? WHERE id = ?",
-            [date('Y-m-d H:i:s'), (int)$booking['dumpster_id']]
-        );
-    }
 
     return [
         'work_order_id' => $workOrderId,
@@ -212,15 +231,9 @@ function create_work_order_from_booking(array $booking): array
 }
 
 $id = (int)($_POST['id'] ?? 0);
-$action = trim((string)($_POST['approval_action'] ?? 'invoice'));
 if ($id <= 0) {
     flash_error('Invalid booking ID.');
     redirect('index.php');
-}
-
-$allowedActions = ['approve_only', 'invoice', 'work_order'];
-if (!in_array($action, $allowedActions, true)) {
-    $action = 'invoice';
 }
 
 $booking = db_fetch('SELECT * FROM bookings WHERE id = ? LIMIT 1', [$id]);
@@ -234,6 +247,15 @@ if (($booking['booking_status'] ?? '') !== 'pending') {
     redirect(booking_back_url($id));
 }
 
+// Fetch all bookings sharing the same booking_number (multi-unit groups).
+$sibling_bookings = db_fetchall(
+    'SELECT * FROM bookings WHERE booking_number = ? ORDER BY id',
+    [$booking['booking_number']]
+);
+if (empty($sibling_bookings)) {
+    $sibling_bookings = [$booking];
+}
+
 $paymentMethod = (string)($booking['payment_method'] ?? 'stripe');
 $paymentStatus = match ($paymentMethod) {
     'cash' => 'pending_cash',
@@ -241,69 +263,73 @@ $paymentStatus = match ($paymentMethod) {
     default => 'unpaid',
 };
 
-db_update('bookings', [
-    'booking_status' => 'confirmed',
-    'payment_status' => $paymentStatus,
-    'updated_at' => date('Y-m-d H:i:s'),
-], 'id', $id);
+// Confirm all rows in the group and mark their dumpsters reserved.
+foreach ($sibling_bookings as $sb) {
+    db_update('bookings', [
+        'booking_status' => 'confirmed',
+        'payment_status' => $paymentStatus,
+        'updated_at'     => date('Y-m-d H:i:s'),
+    ], 'id', (int)$sb['id']);
+
+    if (!empty($sb['dumpster_id'])) {
+        db_execute(
+            "UPDATE dumpsters SET status = 'reserved', updated_at = ? WHERE id = ?",
+            [date('Y-m-d H:i:s'), (int)$sb['dumpster_id']]
+        );
+    }
+}
+
+$autoSend = get_setting('approval_auto_send_invoice', '1') === '1';
 
 try {
-    if ($action === 'approve_only') {
-        log_activity(
-            'approve_booking_request',
-            'Approved booking request ' . ($booking['booking_number'] ?? '') . ' without creating follow-up records',
-            'booking',
-            $id
-        );
-        flash_success('Booking request approved.');
-        redirect('view.php?id=' . $id);
-    }
+    // Always create a work order for the booking group.
+    $workOrder = create_work_order_from_booking($booking);
 
-    if ($action === 'work_order') {
-        $workOrder = create_work_order_from_booking($booking);
-        log_activity(
-            'approve_booking_request',
-            'Approved booking request ' . ($booking['booking_number'] ?? '') . ' and created work order ' . $workOrder['wo_number'],
-            'booking',
-            $id
-        );
-
-        if (!empty($workOrder['already_exists'])) {
-            flash_warning('Booking approved. Work order ' . $workOrder['wo_number'] . ' already existed for this request.');
-        } else {
-            flash_success('Booking approved. Work order ' . $workOrder['wo_number'] . ' created successfully.');
-        }
-        redirect('../work_orders/view.php?id=' . $workOrder['work_order_id']);
-    }
-
+    // Always create an invoice (one per booking group, with one line per unit).
     $existingInvoice = booking_existing_invoice($booking);
     if ($existingInvoice) {
-        flash_warning('Booking approved. Invoice ' . $existingInvoice['invoice_number'] . ' already existed for this request.');
-        redirect('../invoices/view.php?id=' . (int)$existingInvoice['id']);
+        $invoice = ['invoice_id' => (int)$existingInvoice['id'], 'invoice_number' => $existingInvoice['invoice_number'], 'email_sent' => false];
+    } else {
+        $invoice = create_invoice_from_booking($booking, $autoSend);
     }
 
-    $invoice = create_invoice_from_booking($booking);
     log_activity(
         'approve_booking_request',
-        'Approved booking request ' . ($booking['booking_number'] ?? '') . ' and created invoice ' . $invoice['invoice_number'],
+        'Approved booking request ' . ($booking['booking_number'] ?? '')
+            . ' — WO ' . $workOrder['wo_number']
+            . ', Invoice ' . $invoice['invoice_number'],
         'booking',
         $id
     );
 
-    if (!empty($invoice['email_sent'])) {
-        flash_success('Booking approved. Invoice ' . $invoice['invoice_number'] . ' was created and emailed to the customer.');
+    $msgs = [];
+    $msgs[] = 'Work order ' . $workOrder['wo_number'] . ($workOrder['already_exists'] ? ' (already existed)' : ' created') . '.';
+    if (!empty($existingInvoice)) {
+        $msgs[] = 'Invoice ' . $invoice['invoice_number'] . ' already existed.';
+    } elseif (!empty($invoice['email_sent'])) {
+        $msgs[] = 'Invoice ' . $invoice['invoice_number'] . ' created and emailed to customer.';
     } else {
-        flash_success('Booking approved. Invoice ' . $invoice['invoice_number'] . ' is ready for review and sending.');
+        $msgs[] = 'Invoice ' . $invoice['invoice_number'] . ' created as draft — send manually when ready.';
     }
+    flash_success('Booking approved. ' . implode(' ', $msgs));
     redirect('../invoices/view.php?id=' . $invoice['invoice_id']);
 } catch (\Throwable $e) {
-    db_update('bookings', [
-        'booking_status' => 'pending',
-        'payment_status' => in_array($paymentMethod, ['cash', 'check'], true)
-            ? ($paymentMethod === 'cash' ? 'pending_cash' : 'pending_check')
-            : 'unpaid',
-        'updated_at' => date('Y-m-d H:i:s'),
-    ], 'id', $id);
+    // Roll back all rows in the group.
+    foreach ($sibling_bookings as $sb) {
+        db_update('bookings', [
+            'booking_status' => 'pending',
+            'payment_status' => in_array($paymentMethod, ['cash', 'check'], true)
+                ? ($paymentMethod === 'cash' ? 'pending_cash' : 'pending_check')
+                : 'unpaid',
+            'updated_at' => date('Y-m-d H:i:s'),
+        ], 'id', (int)$sb['id']);
+        if (!empty($sb['dumpster_id'])) {
+            db_execute(
+                "UPDATE dumpsters SET status = 'available', updated_at = ? WHERE id = ? AND status = 'reserved'",
+                [date('Y-m-d H:i:s'), (int)$sb['dumpster_id']]
+            );
+        }
+    }
 
     flash_error('Could not complete approval action: ' . $e->getMessage());
     redirect(booking_back_url($id));

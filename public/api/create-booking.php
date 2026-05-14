@@ -247,13 +247,15 @@ $customer_id = billing_customer_service()->findOrCreateByBooking([
     'customer_city' => $customer_city,
 ]);
 
+// Generate ONE booking number shared across all units in this order.
+$booking_number  = next_number('BK', 'bookings', 'booking_number');
+
 // Create one booking record per unit
 $new_ids        = [];
 $booking_numbers = [];
 
 foreach ($units_data as $ud) {
-    $unit           = $ud['unit'];
-    $booking_number = next_number('BK', 'bookings', 'booking_number');
+    $unit = $ud['unit'];
 
     $row_data = [
         'booking_number'   => $booking_number,
@@ -289,11 +291,15 @@ foreach ($units_data as $ud) {
         api_error('Failed to create booking for unit ' . $unit['unit_code'] . '. Please try again.', 500);
     }
 
-    // Mark dumpster as reserved immediately (prevents double-booking regardless of payment state)
-    db_update('dumpsters', [
-        'status'     => 'reserved',
-        'updated_at' => date('Y-m-d H:i:s'),
-    ], 'id', (int)$unit['id']);
+    // Only mark the dumpster reserved once the booking is confirmed.
+    // In request/approval flow the booking stays pending, so leave the unit
+    // available until an admin approves it.
+    if (!$requires_approval) {
+        db_update('dumpsters', [
+            'status'     => 'reserved',
+            'updated_at' => date('Y-m-d H:i:s'),
+        ], 'id', (int)$unit['id']);
+    }
 
     $new_ids[]        = (int)$new_id;
     $booking_numbers[] = $booking_number;
