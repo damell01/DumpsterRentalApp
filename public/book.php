@@ -523,7 +523,7 @@ $request_mode = $booking_flow_mode === 'request';
 
 <script>
 // ─── State ───────────────────────────────────────────────────────────────────
-var selectedUnits  = [];   // array of { id, rate, code, size, type }
+var selectedUnits  = [];   // array of { id, rate, basePrice, rentalDays, extraDayPrice, code, size, type }
 var availCheckTimer = null;
 
 // ─── Unit card selection (multi-select checkboxes) ────────────────────────────
@@ -531,11 +531,14 @@ document.querySelectorAll('input.unit-checkbox').forEach(function(cb) {
     cb.addEventListener('change', function() {
         var card = this.closest('.unit-card');
         var unit = {
-            id:   this.value,
-            rate: parseFloat(this.dataset.rate) || 0,
-            code: this.dataset.code,
-            size: this.dataset.size,
-            type: this.dataset.type
+            id:            this.value,
+            rate:          parseFloat(this.dataset.rate) || 0,
+            basePrice:     parseFloat(this.dataset.basePrice) || 0,
+            rentalDays:    parseInt(this.dataset.rentalDays, 10) || 0,
+            extraDayPrice: parseFloat(this.dataset.extraDayPrice) || 0,
+            code:          this.dataset.code,
+            size:          this.dataset.size,
+            type:          this.dataset.type
         };
         if (this.checked) {
             card.classList.add('selected');
@@ -753,7 +756,7 @@ function goStep2() {
     var listHtml = '';
     var grandTotal = 0;
     selectedUnits.forEach(function(u) {
-        var sub = u.rate * days;
+        var sub = calcUnitTotal(u, days);
         grandTotal += sub;
         listHtml += '<div style="display:flex;justify-content:space-between;padding:.25rem 0;border-bottom:1px solid rgba(255,255,255,.06);">'
             + '<span><strong>' + escHtml(u.code) + '</strong> <span style="color:var(--gray);font-size:.85rem;">' + escHtml(u.size) + '</span></span>'

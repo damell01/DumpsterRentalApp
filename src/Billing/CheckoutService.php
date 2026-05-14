@@ -38,7 +38,7 @@ class CheckoutService
                     'currency' => $currency,
                     'product_data' => [
                         'name' => $company . ' - ' . (($booking['unit_code'] ?? '') ?: 'Dumpster Rental'),
-                        'description' => sprintf(
+                        'description' => \sprintf(
                             '%s %s from %s to %s',
                             $booking['unit_size'] ?? '',
                             ucfirst($booking['unit_type'] ?? 'dumpster'),
@@ -54,6 +54,23 @@ class CheckoutService
             $bookingNumbers[] = (string)($booking['booking_number'] ?? '');
         }
 
+        $unitCodes   = array_filter(array_column($bookings, 'unit_code'));
+        $unitSizes   = array_filter(array_column($bookings, 'unit_size'));
+        $startDates  = array_filter(array_column($bookings, 'rental_start'));
+        $endDates    = array_filter(array_column($bookings, 'rental_end'));
+        $rentalStart = !empty($startDates) ? min($startDates) : '';
+        $rentalEnd   = !empty($endDates)   ? max($endDates)   : '';
+
+        $rentalDays = '';
+        if ($rentalStart && $rentalEnd) {
+            $diff = (int)round((strtotime($rentalEnd) - strtotime($rentalStart)) / 86400);
+            $rentalDays = (string)$diff;
+        }
+
+        $piDescription = count($bookings) === 1
+            ? \sprintf('Rental: %s (%s) %s–%s', $bookings[0]['unit_code'] ?? '', $bookings[0]['unit_size'] ?? '', $rentalStart, $rentalEnd)
+            : \sprintf('%d-unit rental %s–%s', count($bookings), $rentalStart, $rentalEnd);
+
         $sessionParams = [
             'mode' => 'payment',
             'customer' => $customer['stripe_customer_id'],
@@ -61,14 +78,24 @@ class CheckoutService
             'success_url' => $successUrl,
             'cancel_url' => $cancelUrl,
             'metadata' => [
-                'booking_ids' => implode(',', $bookingIds),
+                'booking_ids'     => implode(',', $bookingIds),
                 'booking_numbers' => implode(',', $bookingNumbers),
-                'customer_id' => (string)$customerId,
+                'customer_id'     => (string)$customerId,
+                'unit_codes'      => implode(',', $unitCodes),
+                'rental_start'    => $rentalStart,
+                'rental_end'      => $rentalEnd,
             ],
             'payment_intent_data' => [
+                'description' => $piDescription,
                 'metadata' => [
-                    'booking_ids' => implode(',', $bookingIds),
-                    'customer_id' => (string)$customerId,
+                    'booking_ids'     => implode(',', $bookingIds),
+                    'booking_numbers' => implode(',', $bookingNumbers),
+                    'customer_id'     => (string)$customerId,
+                    'unit_codes'      => implode(',', $unitCodes),
+                    'unit_sizes'      => implode(',', $unitSizes),
+                    'rental_start'    => $rentalStart,
+                    'rental_end'      => $rentalEnd,
+                    'rental_days'     => $rentalDays,
                 ],
             ],
         ];

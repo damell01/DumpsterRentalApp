@@ -57,8 +57,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     }
 }
 
-
-
 // ── Handle POST ──────────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
@@ -82,7 +80,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'notes'           => trim($_POST['notes']           ?? ''),
     ];
 
-    // Same-as-service-address checkbox
     if (!empty($_POST['billing_same'])) {
         $data['billing_address'] = $data['address'];
         $data['billing_city']    = $data['city'];
@@ -107,8 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'billing_city'    => $data['billing_city'],
             'billing_state'   => $data['billing_state'],
             'billing_zip'     => $data['billing_zip'],
-            'type'            => in_array($data['type'], $valid_types, true)
-                                    ? $data['type'] : 'residential',
+            'type'            => in_array($data['type'], $valid_types, true) ? $data['type'] : 'residential',
             'notes'           => $data['notes'],
             'created_at'      => date('Y-m-d H:i:s'),
             'updated_at'      => date('Y-m-d H:i:s'),
@@ -118,15 +114,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($lead_id > 0) {
             db_query(
-                "UPDATE leads
-                 SET converted_to = ?, status = 'won', updated_at = NOW()
-                 WHERE id = ?",
+                "UPDATE leads SET converted_to = ?, status = 'won', updated_at = NOW() WHERE id = ?",
                 [$customer_id, $lead_id]
             );
         }
 
         log_activity('create', 'Created customer: ' . $data['name'], 'customer', $customer_id);
-
         flash_success('Customer "' . $data['name'] . '" created successfully.');
         redirect(APP_URL . '/modules/customers/view.php?id=' . $customer_id);
     }
@@ -136,168 +129,214 @@ $page_title = $page_title ?? 'New Customer';
 layout_start($page_title, 'customers');
 ?>
 
-<div class="tp-page-header d-flex align-items-center justify-content-between mb-3">
-    <div>
-        <a href="<?= APP_URL ?>/modules/customers/index.php" class="text-muted small text-decoration-none">
-            <i class="fa-solid fa-arrow-left"></i> Back to Customers
-        </a>
-        <h2 class="tp-page-title mb-0 mt-1"><?= e($page_title) ?></h2></div>
+<form method="post" action="<?= APP_URL ?>/modules/customers/create.php" novalidate id="createCustomerForm">
+<?= csrf_field() ?>
+<?php if ($lead_id > 0): ?>
+    <input type="hidden" name="lead_id" value="<?= (int)$lead_id ?>">
+<?php endif; ?>
+
+<!-- Page heading -->
+<div class="tp-form-heading">
+    <a href="<?= APP_URL ?>/modules/customers/index.php" class="tp-back-link">
+        <i class="fa-solid fa-arrow-left"></i> Back to Customers
+    </a>
+    <h1><?= e($page_title) ?></h1>
+</div>
 
 <?php if (!empty($errors)): ?>
-<div class="alert alert-danger">
+<div class="alert alert-danger mb-4">
     <ul class="mb-0">
-        <?php foreach ($errors as $err): ?>
-            <li><?= e($err) ?></li>
-        <?php endforeach; ?>
+        <?php foreach ($errors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?>
     </ul>
 </div>
 <?php endif; ?>
 
-<div class="tp-card">
-    <form method="post" action="<?= APP_URL ?>/modules/customers/create.php" novalidate>
-        <?= csrf_field() ?>
-        <?php if ($lead_id > 0): ?>
-            <input type="hidden" name="lead_id" value="<?= (int)$lead_id ?>">
-        <?php endif; ?>
+<div class="tp-form-layout">
+
+    <!-- ── Main form column ───────────────────────────────────────────────── -->
+    <div class="tp-form-main">
 
         <!-- Contact Information -->
-        <div class="tp-card-header mb-3">
-            <h5 class="mb-0">Contact Information</h5>
+        <div class="tp-form-section">
+            <div class="tp-form-section-head">
+                <span class="section-icon"><i class="fa-solid fa-user"></i></span>
+                <h6>Contact Information</h6>
+            </div>
+            <div class="tp-form-section-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" id="name" name="name" class="form-control"
+                               value="<?= e($data['name']) ?>" required
+                               placeholder="e.g. Jane Smith">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="company" class="form-label">Company <small class="text-muted">optional</small></label>
+                        <input type="text" id="company" name="company" class="form-control"
+                               value="<?= e($data['company']) ?>"
+                               placeholder="Business name if applicable">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="phone" class="form-label">Phone</label>
+                        <input type="tel" id="phone" name="phone" class="form-control"
+                               value="<?= e($data['phone']) ?>"
+                               placeholder="(555) 000-0000">
+                    </div>
+                    <div class="col-md-5">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" id="email" name="email" class="form-control"
+                               value="<?= e($data['email']) ?>"
+                               placeholder="jane@example.com">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="type" class="form-label">Customer Type</label>
+                        <select id="type" name="type" class="form-select">
+                            <?php foreach (['residential' => 'Residential', 'commercial' => 'Commercial', 'contractor' => 'Contractor'] as $val => $lbl): ?>
+                            <option value="<?= e($val) ?>" <?= $data['type'] === $val ? 'selected' : '' ?>><?= e($lbl) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+            </div>
         </div>
-
-        <div class="row g-3">
-            <div class="col-md-6">
-                <label for="name" class="form-label">
-                    Full Name <span class="text-danger">*</span>
-                </label>
-                <input type="text" id="name" name="name" class="form-control"
-                       value="<?= e($data['name']) ?>" required>
-            </div>
-
-            <div class="col-md-6">
-                <label for="company" class="form-label">Company</label>
-                <input type="text" id="company" name="company" class="form-control"
-                       value="<?= e($data['company']) ?>">
-            </div>
-
-            <div class="col-md-4">
-                <label for="phone" class="form-label">Phone</label>
-                <input type="tel" id="phone" name="phone" class="form-control"
-                       value="<?= e($data['phone']) ?>">
-            </div>
-
-            <div class="col-md-4">
-                <label for="email" class="form-label">Email</label>
-                <input type="email" id="email" name="email" class="form-control"
-                       value="<?= e($data['email']) ?>">
-            </div>
-
-            <div class="col-md-4">
-                <label for="type" class="form-label">Customer Type</label>
-                <select id="type" name="type" class="form-select">
-                    <?php foreach (['residential' => 'Residential', 'commercial' => 'Commercial', 'contractor' => 'Contractor'] as $val => $lbl): ?>
-                        <option value="<?= e($val) ?>" <?= $data['type'] === $val ? 'selected' : '' ?>>
-                            <?= e($lbl) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-        </div>
-
-        <hr class="my-4">
 
         <!-- Service Address -->
-        <div class="tp-card-header mb-3">
-            <h5 class="mb-0">Service Address</h5>
+        <div class="tp-form-section">
+            <div class="tp-form-section-head">
+                <span class="section-icon"><i class="fa-solid fa-location-dot"></i></span>
+                <h6>Service Address <span class="section-hint">— where the dumpster will be delivered</span></h6>
+            </div>
+            <div class="tp-form-section-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label for="address" class="form-label">Street Address</label>
+                        <input type="text" id="address" name="address" class="form-control"
+                               value="<?= e($data['address']) ?>"
+                               placeholder="123 Main St">
+                    </div>
+                    <div class="col-md-5">
+                        <label for="city" class="form-label">City</label>
+                        <input type="text" id="city" name="city" class="form-control"
+                               value="<?= e($data['city']) ?>">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="state" class="form-label">State</label>
+                        <input type="text" id="state" name="state" class="form-control"
+                               value="<?= e($data['state']) ?>" maxlength="2" placeholder="AL">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="zip" class="form-label">ZIP</label>
+                        <input type="text" id="zip" name="zip" class="form-control"
+                               value="<?= e($data['zip']) ?>" maxlength="10" placeholder="36551">
+                    </div>
+                </div>
+            </div>
         </div>
-
-        <div class="row g-3">
-            <div class="col-md-6">
-                <label for="address" class="form-label">Street Address</label>
-                <input type="text" id="address" name="address" class="form-control"
-                       value="<?= e($data['address']) ?>">
-            </div>
-
-            <div class="col-md-3">
-                <label for="city" class="form-label">City</label>
-                <input type="text" id="city" name="city" class="form-control"
-                       value="<?= e($data['city']) ?>">
-            </div>
-
-            <div class="col-md-1">
-                <label for="state" class="form-label">State</label>
-                <input type="text" id="state" name="state" class="form-control"
-                       value="<?= e($data['state']) ?>" maxlength="2">
-            </div>
-
-            <div class="col-md-2">
-                <label for="zip" class="form-label">ZIP</label>
-                <input type="text" id="zip" name="zip" class="form-control"
-                       value="<?= e($data['zip']) ?>" maxlength="10">
-            </div>
-        </div>
-
-        <hr class="my-4">
 
         <!-- Billing Address -->
-        <div class="tp-card-header mb-3 d-flex align-items-center justify-content-between">
-            <h5 class="mb-0">Billing Address</h5>
-            <div class="form-check mb-0">
-                <input class="form-check-input" type="checkbox" id="billing_same"
-                       name="billing_same" value="1"
-                       <?= (!empty($data['billing_address']) && $data['billing_address'] === $data['address']) ? 'checked' : '' ?>>
-                <label class="form-check-label" for="billing_same">
-                    Same as service address
-                </label>
+        <div class="tp-form-section">
+            <div class="tp-form-section-head">
+                <span class="section-icon"><i class="fa-solid fa-file-invoice"></i></span>
+                <h6>Billing Address</h6>
+                <div class="ms-auto form-check mb-0">
+                    <input class="form-check-input" type="checkbox" id="billing_same"
+                           name="billing_same" value="1"
+                           <?= (!empty($data['billing_address']) && $data['billing_address'] === $data['address']) ? 'checked' : '' ?>>
+                    <label class="form-check-label" for="billing_same" style="font-size:.82rem;font-weight:400;text-transform:none;letter-spacing:0;">
+                        Same as service address
+                    </label>
+                </div>
+            </div>
+            <div class="tp-form-section-body" id="billing-fields">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label for="billing_address" class="form-label">Street Address</label>
+                        <input type="text" id="billing_address" name="billing_address" class="form-control"
+                               value="<?= e($data['billing_address']) ?>">
+                    </div>
+                    <div class="col-md-5">
+                        <label for="billing_city" class="form-label">City</label>
+                        <input type="text" id="billing_city" name="billing_city" class="form-control"
+                               value="<?= e($data['billing_city']) ?>">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="billing_state" class="form-label">State</label>
+                        <input type="text" id="billing_state" name="billing_state" class="form-control"
+                               value="<?= e($data['billing_state']) ?>" maxlength="2">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="billing_zip" class="form-label">ZIP</label>
+                        <input type="text" id="billing_zip" name="billing_zip" class="form-control"
+                               value="<?= e($data['billing_zip']) ?>" maxlength="10">
+                    </div>
+                </div>
             </div>
         </div>
-
-        <div class="row g-3" id="billing-fields">
-            <div class="col-md-6">
-                <label for="billing_address" class="form-label">Street Address</label>
-                <input type="text" id="billing_address" name="billing_address" class="form-control"
-                       value="<?= e($data['billing_address']) ?>">
-            </div>
-
-            <div class="col-md-3">
-                <label for="billing_city" class="form-label">City</label>
-                <input type="text" id="billing_city" name="billing_city" class="form-control"
-                       value="<?= e($data['billing_city']) ?>">
-            </div>
-
-            <div class="col-md-1">
-                <label for="billing_state" class="form-label">State</label>
-                <input type="text" id="billing_state" name="billing_state" class="form-control"
-                       value="<?= e($data['billing_state']) ?>" maxlength="2">
-            </div>
-
-            <div class="col-md-2">
-                <label for="billing_zip" class="form-label">ZIP</label>
-                <input type="text" id="billing_zip" name="billing_zip" class="form-control"
-                       value="<?= e($data['billing_zip']) ?>" maxlength="10">
-            </div>
-        </div>
-
-        <hr class="my-4">
 
         <!-- Notes -->
-        <div class="col-12">
-            <label for="notes" class="form-label">Notes</label>
-            <textarea id="notes" name="notes" class="form-control" rows="4"><?= e($data['notes']) ?></textarea>
+        <div class="tp-form-section">
+            <div class="tp-form-section-head">
+                <span class="section-icon"><i class="fa-solid fa-note-sticky"></i></span>
+                <h6>Notes <span class="section-hint">— internal only, not shown to customer</span></h6>
+            </div>
+            <div class="tp-form-section-body">
+                <textarea id="notes" name="notes" class="form-control" rows="3"
+                          placeholder="Anything the office should know about this customer…"><?= e($data['notes']) ?></textarea>
+            </div>
         </div>
 
-        <div class="d-flex gap-2 mt-4">
-            <button type="submit" class="btn-tp-primary">
-                <i class="fa-solid fa-floppy-disk"></i>
-                Create Customer
-            </button>
-            <a href="<?= APP_URL . '/modules/customers/index.php' ?>" class="btn-tp-ghost">
-                Cancel
-            </a>
-        </div>
+    </div><!-- /tp-form-main -->
 
-    </form>
+    <!-- ── Sidebar ────────────────────────────────────────────────────────── -->
+    <div class="tp-form-sidebar">
+        <div class="tp-sidebar-card">
+            <div class="tp-sidebar-card-head">
+                <i class="fa-solid fa-circle-info me-1" style="color:var(--or);"></i> Tips
+            </div>
+            <div class="tp-sidebar-card-body" style="font-size:.85rem;color:var(--gy);line-height:1.55;">
+                <p class="mb-2"><strong style="color:var(--wh);">Full Name</strong> is required and will appear on all work orders and invoices.</p>
+                <p class="mb-2"><strong style="color:var(--wh);">Service Address</strong> is where the dumpster is delivered. Billing address can be different.</p>
+                <p class="mb-2"><strong style="color:var(--wh);">Customer Type</strong> affects the workflow — commercial accounts can have recurring billing set up after creation.</p>
+                <p class="mb-0"><strong style="color:var(--wh);">After saving</strong>, you can immediately create a booking or work order from the customer's profile.</p>
+            </div>
+        </div>
+        <?php if ($lead_id > 0 && $lead): ?>
+        <div class="tp-sidebar-card">
+            <div class="tp-sidebar-card-head">
+                <i class="fa-solid fa-user-plus me-1" style="color:var(--or);"></i> Converting Lead
+            </div>
+            <div class="tp-sidebar-card-body" style="font-size:.85rem;">
+                <p class="mb-1 text-muted">Lead info pre-filled from:</p>
+                <strong><?= e($lead['name'] ?? '') ?></strong>
+                <?php if (!empty($lead['email'])): ?>
+                <div class="text-muted" style="font-size:.8rem;"><?= e($lead['email']) ?></div>
+                <?php endif; ?>
+                <?php if (!empty($lead['message'])): ?>
+                <div class="mt-2 p-2 rounded" style="background:var(--dk2);font-size:.8rem;color:var(--gy);">
+                    "<?= e(mb_strimwidth($lead['message'], 0, 120, '…')) ?>"
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
+    </div>
+
+</div><!-- /tp-form-layout -->
+
+<!-- Sticky save bar -->
+<div class="tp-sticky-bar">
+    <div class="tp-sticky-bar-info">
+        <strong>New Customer</strong> — fill in the required fields above then save.
+    </div>
+    <div class="tp-sticky-bar-actions">
+        <a href="<?= APP_URL ?>/modules/customers/index.php" class="btn-tp-ghost">Cancel</a>
+        <button type="submit" class="btn-tp-primary">
+            <i class="fa-solid fa-floppy-disk"></i> Create Customer
+        </button>
+    </div>
 </div>
+
+</form>
 
 <script>
 (function () {
@@ -305,13 +344,8 @@ layout_start($page_title, 'customers');
     var fields = document.getElementById('billing-fields');
 
     function toggle() {
-        if (chk.checked) {
-            fields.style.opacity   = '0.4';
-            fields.style.pointerEvents = 'none';
-        } else {
-            fields.style.opacity   = '1';
-            fields.style.pointerEvents = '';
-        }
+        fields.style.opacity      = chk.checked ? '0.45' : '1';
+        fields.style.pointerEvents = chk.checked ? 'none'  : '';
     }
 
     chk.addEventListener('change', toggle);

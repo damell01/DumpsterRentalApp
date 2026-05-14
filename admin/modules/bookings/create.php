@@ -1,6 +1,7 @@
 <?php
 /**
  * Bookings – Create (Admin Manual Booking)
+ * Auto-creates a work order for each confirmed booking.
  * Trash Panda Roll-Offs
  */
 
@@ -37,38 +38,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Support both single dumpster_id and multi dumpster_ids[]
     $selected_ids = [];
     if (!empty($_POST['dumpster_ids']) && is_array($_POST['dumpster_ids'])) {
-        $selected_ids = array_map('intval', $_POST['dumpster_ids']);
-        $selected_ids = array_filter($selected_ids, fn($v) => $v > 0);
-        $selected_ids = array_values($selected_ids);
+        $selected_ids = array_values(array_filter(array_map('intval', $_POST['dumpster_ids'])));
     } elseif (!empty($_POST['dumpster_id'])) {
         $single_id = (int)$_POST['dumpster_id'];
-        if ($single_id > 0) {
-            $selected_ids = [$single_id];
-        }
+        if ($single_id > 0) $selected_ids = [$single_id];
     }
 
-    // Required validation
-    if ($customer_name === '') {
-        $errors[] = 'Customer Name is required.';
-    }
-    if (empty($selected_ids)) {
-        $errors[] = 'Please select at least one unit.';
-    }
-    if ($rental_start === '') {
-        $errors[] = 'Start Date is required.';
-    }
-    if ($rental_end === '') {
-        $errors[] = 'End Date is required.';
-    }
-    if (!in_array($payment_method, ['stripe', 'cash', 'check'], true)) {
-        $errors[] = 'Invalid payment method.';
-    }
+    if ($customer_name === '') $errors[] = 'Customer Name is required.';
+    if (empty($selected_ids))  $errors[] = 'Please select at least one unit.';
+    if ($rental_start === '')  $errors[] = 'Start Date is required.';
+    if ($rental_end === '')    $errors[] = 'End Date is required.';
+    if (!in_array($payment_method, ['stripe', 'cash', 'check'], true)) $errors[] = 'Invalid payment method.';
+    if (empty($errors) && $rental_start > $rental_end) $errors[] = 'End Date must be on or after Start Date.';
 
-    if (empty($errors) && $rental_start > $rental_end) {
-        $errors[] = 'End Date must be on or after Start Date.';
-    }
-
-    // Validate each selected unit
     $validated_units = [];
     if (empty($errors)) {
         foreach ($selected_ids as $did) {
@@ -77,35 +59,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  FROM dumpsters WHERE id = ? LIMIT 1",
                 [$did]
             );
-            if (!$unit) {
-                $errors[] = "Unit ID $did not found.";
-                break;
-            }
+            if (!$unit) { $errors[] = "Unit ID $did not found."; break; }
             if (!$unit['active'] || $unit['status'] === 'maintenance') {
-                $errors[] = "Unit {$unit['unit_code']} is not available.";
-                break;
+                $errors[] = "Unit {$unit['unit_code']} is not available."; break;
             }
-            // Overlap check
             $overlap = db_fetch(
                 "SELECT COUNT(*) AS cnt FROM bookings
-                 WHERE dumpster_id = ?
-                   AND booking_status != 'canceled'
+                 WHERE dumpster_id = ? AND booking_status != 'canceled'
                    AND rental_start <= ? AND rental_end >= ?",
                 [$did, $rental_end, $rental_start]
             );
             if ((int)($overlap['cnt'] ?? 0) > 0) {
-                $errors[] = "Unit {$unit['unit_code']} is already booked during the selected dates.";
-                break;
+                $errors[] = "Unit {$unit['unit_code']} is already booked during those dates."; break;
             }
             $block = db_fetch(
                 "SELECT COUNT(*) AS cnt FROM inventory_blocks
-                 WHERE dumpster_id = ?
-                   AND block_start <= ? AND block_end >= ?",
+                 WHERE dumpster_id = ? AND block_start <= ? AND block_end >= ?",
                 [$did, $rental_end, $rental_start]
             );
             if ((int)($block['cnt'] ?? 0) > 0) {
-                $errors[] = "Unit {$unit['unit_code']} has a scheduled block during the selected dates.";
-                break;
+                $errors[] = "Unit {$unit['unit_code']} has a scheduled block during those dates."; break;
             }
             $validated_units[] = $unit;
         }
@@ -116,22 +89,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $d2   = new \DateTime($rental_end);
         $days = max(1, (int)$d1->diff($d2)->days);
 
-        $pay_status_map = [
-            'stripe' => 'pending',
-            'cash'   => 'pending_cash',
-            'check'  => 'pending_check',
-        ];
+        $pay_status_map = ['stripe' => 'pending', 'cash' => 'pending_cash', 'check' => 'pending_check'];
         $payment_status = $pay_status_map[$payment_method] ?? 'pending';
 
-        $created_ids     = [];
-        $created_numbers = [];
+        $created_booking_ids = [];
+        $created_numbers     = [];
+        $created_wo_numbers  = [];
+
+        $wo_footer = get_setting('wo_footer', '');
 
         foreach ($validated_units as $unit) {
             $daily_rate      = (float)$unit['daily_rate'];
             $base_price      = (float)($unit['base_price'] ?? 0);
             $incl_days       = max(1, (int)($unit['rental_days'] ?? 7));
-            $extra_day_price = isset($unit['extra_day_price']) && $unit['extra_day_price'] !== null
-                ? (float)$unit['extra_day_price'] : null;
+            $extra_day_price = ($unit['extra_day_price'] !== null) ? (float)$unit['extra_day_price'] : null;
 
             if ($base_price > 0) {
                 $extra_days = max(0, $days - $incl_days);
@@ -139,9 +110,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $total = round($daily_rate * $days, 2);
             }
+
             $booking_number = next_number('BK', 'bookings', 'booking_number');
 
-            $new_id = db_insert('bookings', [
+            $booking_id = (int)db_insert('bookings', [
                 'booking_number'   => $booking_number,
                 'customer_name'    => $customer_name,
                 'customer_phone'   => $customer_phone ?: null,
@@ -167,30 +139,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'updated_at'       => date('Y-m-d H:i:s'),
             ]);
 
-            log_activity('create', "Created booking $booking_number for $customer_name", 'booking', (int)$new_id);
+            log_activity('create', "Created booking $booking_number for $customer_name", 'booking', $booking_id);
 
-            // Mark dumpster as reserved
-            db_update('dumpsters', [
-                'status'     => 'reserved',
-                'updated_at' => date('Y-m-d H:i:s'),
-            ], 'id', (int)$unit['id']);
+            db_update('dumpsters', ['status' => 'reserved', 'updated_at' => date('Y-m-d H:i:s')], 'id', (int)$unit['id']);
 
-            $created_ids[]     = (int)$new_id;
-            $created_numbers[] = $booking_number;
+            // ── Auto-create work order ────────────────────────────────────────
+            $wo_number = next_number('WO', 'work_orders', 'wo_number');
+            $wo_id = (int)db_insert('work_orders', [
+                'wo_number'       => $wo_number,
+                'customer_id'     => null,
+                'cust_name'       => $customer_name,
+                'cust_phone'      => $customer_phone ?: null,
+                'cust_email'      => $customer_email ?: null,
+                'service_address' => $customer_address ?: null,
+                'service_city'    => $customer_city ?: null,
+                'service_state'   => null,
+                'service_zip'     => null,
+                'size'            => $unit['size'],
+                'project_type'    => null,
+                'dumpster_id'     => (int)$unit['id'],
+                'delivery_date'   => $rental_start,
+                'pickup_date'     => $rental_end,
+                'assigned_driver' => $worker_id,
+                'amount'          => $total,
+                'status'          => 'scheduled',
+                'priority'        => 'normal',
+                'internal_notes'  => "Auto-created from booking $booking_number" . ($notes ? ". Notes: $notes" : ''),
+                'footer_notes'    => $wo_footer ?: null,
+                'created_by'      => (int)($_SESSION['user_id'] ?? 0),
+                'created_at'      => date('Y-m-d H:i:s'),
+                'updated_at'      => date('Y-m-d H:i:s'),
+            ]);
+
+            log_activity('create', "Auto-created work order $wo_number from booking $booking_number", 'work_order', $wo_id);
+
+            $created_booking_ids[] = $booking_id;
+            $created_numbers[]     = $booking_number;
+            $created_wo_numbers[]  = $wo_number;
         }
 
-        $count = count($created_ids);
+        $count = count($created_booking_ids);
         if ($count === 1) {
-            flash_success("Booking {$created_numbers[0]} created successfully.");
-            redirect('view.php?id=' . $created_ids[0]);
+            flash_success("Booking {$created_numbers[0]} confirmed — work order {$created_wo_numbers[0]} auto-created.");
+            redirect('view.php?id=' . $created_booking_ids[0]);
         } else {
-            flash_success("$count bookings created: " . implode(', ', $created_numbers));
+            $bk_list = implode(', ', $created_numbers);
+            $wo_list = implode(', ', $created_wo_numbers);
+            flash_success("$count bookings created ($bk_list) — work orders auto-created ($wo_list).");
             redirect('index.php');
         }
     }
 }
 
-// ── Pre-fill values on validation failure or from customer_id ─────────────────
+// ── Pre-fill from customer if linked ─────────────────────────────────────────
 $prefill_customer = null;
 if (!$_POST && ($cid = (int)($_GET['customer_id'] ?? 0)) > 0) {
     $prefill_customer = db_fetch('SELECT * FROM customers WHERE id = ? LIMIT 1', [$cid]);
@@ -213,224 +214,305 @@ $f = [
 layout_start('New Booking', 'bookings');
 ?>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="mb-0">New Booking</h5>
-    <a href="index.php" class="btn-tp-ghost btn-tp-sm">
+<form method="POST" action="create.php" id="bookingForm">
+<?= csrf_field() ?>
+
+<!-- Page heading -->
+<div class="tp-form-heading">
+    <a href="index.php" class="tp-back-link">
         <i class="fa-solid fa-arrow-left"></i> Back to Bookings
     </a>
+    <h1>New Booking</h1>
 </div>
 
 <?php if (!empty($prefill_customer)): ?>
-<div class="alert alert-info" style="font-size:.875rem;">
+<div class="alert alert-info mb-4" style="font-size:.875rem;">
     <i class="fa-solid fa-circle-info me-1"></i>
-    Customer info pre-filled from <strong><?= e($prefill_customer['name']) ?></strong>.
-    <a href="<?= e(APP_URL) ?>/modules/customers/view.php?id=<?= (int)$prefill_customer['id'] ?>" class="ms-2">View Customer</a>
+    Pre-filled from customer <strong><?= e($prefill_customer['name']) ?></strong>.
+    <a href="<?= e(APP_URL) ?>/modules/customers/view.php?id=<?= (int)$prefill_customer['id'] ?>" class="ms-2">View Profile</a>
 </div>
 <?php endif; ?>
 
 <?php if (!empty($errors)): ?>
-<div class="alert alert-danger">
+<div class="alert alert-danger mb-4">
     <ul class="mb-0">
-        <?php foreach ($errors as $err): ?>
-            <li><?= e($err) ?></li>
-        <?php endforeach; ?>
+        <?php foreach ($errors as $err): ?><li><?= e($err) ?></li><?php endforeach; ?>
     </ul>
 </div>
 <?php endif; ?>
 
-<div class="tp-card" style="max-width:880px;">
-    <form method="POST" action="create.php" id="bookingForm">
-        <?= csrf_field() ?>
+<div class="tp-form-layout">
 
-        <h6 class="mb-3" style="font-weight:600;border-bottom:1px solid var(--st);padding-bottom:.5rem;">
-            Customer Information
-        </h6>
+    <!-- ── Main form column ───────────────────────────────────────────────── -->
+    <div class="tp-form-main">
 
-        <div class="row g-3 mb-4">
-            <div class="col-md-6">
-                <label class="form-label" for="customer_name">
-                    Customer Name <span class="text-danger">*</span>
-                </label>
-                <input type="text" id="customer_name" name="customer_name" class="form-control"
-                       value="<?= e($f['customer_name']) ?>" required>
+        <!-- Customer -->
+        <div class="tp-form-section">
+            <div class="tp-form-section-head">
+                <span class="section-icon"><i class="fa-solid fa-user"></i></span>
+                <h6>Customer Information</h6>
             </div>
-            <div class="col-md-6">
-                <label class="form-label" for="customer_phone">Phone</label>
-                <input type="text" id="customer_phone" name="customer_phone" class="form-control"
-                       value="<?= e($f['customer_phone']) ?>">
-            </div>
-            <div class="col-md-6">
-                <label class="form-label" for="customer_email">Email</label>
-                <input type="email" id="customer_email" name="customer_email" class="form-control"
-                       value="<?= e($f['customer_email']) ?>">
-            </div>
-            <div class="col-md-6">
-                <label class="form-label" for="customer_city">City</label>
-                <input type="text" id="customer_city" name="customer_city" class="form-control"
-                       value="<?= e($f['customer_city']) ?>">
-            </div>
-            <div class="col-12">
-                <label class="form-label" for="customer_address">Address</label>
-                <input type="text" id="customer_address" name="customer_address" class="form-control"
-                       value="<?= e($f['customer_address']) ?>">
+            <div class="tp-form-section-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="customer_name">
+                            Customer Name <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" id="customer_name" name="customer_name" class="form-control"
+                               value="<?= e($f['customer_name']) ?>" required
+                               placeholder="Full name or company name">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="customer_phone">Phone</label>
+                        <input type="text" id="customer_phone" name="customer_phone" class="form-control"
+                               value="<?= e($f['customer_phone']) ?>"
+                               placeholder="(555) 000-0000">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="customer_email">Email</label>
+                        <input type="email" id="customer_email" name="customer_email" class="form-control"
+                               value="<?= e($f['customer_email']) ?>"
+                               placeholder="customer@example.com">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="customer_city">City</label>
+                        <input type="text" id="customer_city" name="customer_city" class="form-control"
+                               value="<?= e($f['customer_city']) ?>">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="customer_address">Service Address</label>
+                        <input type="text" id="customer_address" name="customer_address" class="form-control"
+                               value="<?= e($f['customer_address']) ?>"
+                               placeholder="Where the dumpster will be placed">
+                    </div>
+                </div>
             </div>
         </div>
 
-        <h6 class="mb-3" style="font-weight:600;border-bottom:1px solid var(--st);padding-bottom:.5rem;">
-            Units &amp; Dates
-            <small style="font-size:.75rem;color:var(--gl);font-weight:400;text-transform:none;letter-spacing:0;">
-                (select one or more)
-            </small>
-        </h6>
-
-        <div class="row g-3 mb-4">
-            <!-- Unit selection checkboxes -->
-            <div class="col-12">
-                <label class="form-label">
-                    Unit(s) <span class="text-danger">*</span>
-                </label>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;">
+        <!-- Units -->
+        <div class="tp-form-section">
+            <div class="tp-form-section-head">
+                <span class="section-icon"><i class="fa-solid fa-dumpster"></i></span>
+                <h6>Select Unit(s) <span class="section-hint">— choose one or more</span></h6>
+            </div>
+            <div class="tp-form-section-body">
+                <div class="tp-unit-grid" id="unitGrid">
                     <?php foreach ($units as $u): ?>
                     <?php $checked = in_array((int)$u['id'], $f['selected_ids'], true); ?>
-                    <label class="unit-checkbox-card<?= $checked ? ' selected' : '' ?>"
+                    <label class="tp-unit-card<?= $checked ? ' selected' : '' ?>"
                            data-id="<?= (int)$u['id'] ?>"
                            data-rate="<?= e($u['daily_rate']) ?>"
                            data-base="<?= e($u['base_price'] ?? 0) ?>"
                            data-incl="<?= (int)($u['rental_days'] ?? 7) ?>"
-                           data-extra="<?= e($u['extra_day_price'] ?? '') ?>">
+                           data-extra="<?= e($u['extra_day_price'] ?? '') ?>"
+                           data-code="<?= e($u['unit_code']) ?>"
+                           data-size="<?= e($u['size']) ?>">
                         <input type="checkbox" name="dumpster_ids[]"
                                value="<?= (int)$u['id'] ?>"
                                <?= $checked ? 'checked' : '' ?>
-                               onchange="updateTotal(); toggleCardStyle(this);"
-                               style="margin-right:6px;">
-                        <strong><?= e($u['unit_code']) ?></strong>
-                        — <?= e($u['size']) ?>
-                        <span style="font-size:.78rem;color:var(--gl);display:block;margin-left:20px;">
+                               onchange="refreshSummary(); this.closest('.tp-unit-card').classList.toggle('selected', this.checked);">
+                        <div class="tp-unit-code"><?= e($u['unit_code']) ?></div>
+                        <div class="tp-unit-size"><?= e($u['size']) ?></div>
+                        <div class="tp-unit-price">
                             <?php if ((float)($u['base_price'] ?? 0) > 0): ?>
                                 <?= e(fmt_money($u['base_price'])) ?> / <?= (int)($u['rental_days'] ?? 7) ?> days
                             <?php else: ?>
                                 <?= e(fmt_money($u['daily_rate'])) ?>/day
                             <?php endif; ?>
-                            <?php if ($u['status'] !== 'available'): ?>
-                                · <span style="color:var(--am);"><?= e(ucfirst($u['status'])) ?></span>
-                            <?php endif; ?>
-                        </span>
+                        </div>
+                        <?php if ($u['status'] !== 'available'): ?>
+                        <div class="tp-unit-status"><?= e(ucfirst($u['status'])) ?></div>
+                        <?php endif; ?>
                     </label>
                     <?php endforeach; ?>
                 </div>
-                <div class="mt-2">
-                    <button type="button" class="btn-tp-ghost btn-tp-xs" onclick="selectAllUnits(true)">Select All</button>
-                    <button type="button" class="btn-tp-ghost btn-tp-xs ms-1" onclick="selectAllUnits(false)">Clear All</button>
-                </div>
-            </div>
-
-            <div class="col-md-4">
-                <label class="form-label" for="rental_start">
-                    Start Date <span class="text-danger">*</span>
-                </label>
-                <input type="date" id="rental_start" name="rental_start" class="form-control"
-                       value="<?= e($f['rental_start']) ?>"
-                       min="<?= date('Y-m-d') ?>" required
-                       onchange="updateTotal()">
-            </div>
-            <div class="col-md-4">
-                <label class="form-label" for="rental_end">
-                    End Date <span class="text-danger">*</span>
-                </label>
-                <input type="date" id="rental_end" name="rental_end" class="form-control"
-                       value="<?= e($f['rental_end']) ?>"
-                       min="<?= date('Y-m-d', strtotime('+1 day')) ?>" required
-                       onchange="updateTotal()">
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">Estimated Total</label>
-                <div id="totalDisplay" class="form-control" style="background:var(--dk3);color:var(--or);font-weight:700;">
-                    —
+                <div class="mt-2 d-flex gap-2">
+                    <button type="button" class="btn-tp-ghost btn-tp-xs"
+                            onclick="document.querySelectorAll('input[name=\'dumpster_ids[]\']').forEach(function(c){c.checked=true;c.closest('.tp-unit-card').classList.add('selected');}); refreshSummary();">
+                        Select All
+                    </button>
+                    <button type="button" class="btn-tp-ghost btn-tp-xs"
+                            onclick="document.querySelectorAll('input[name=\'dumpster_ids[]\']').forEach(function(c){c.checked=false;c.closest('.tp-unit-card').classList.remove('selected');}); refreshSummary();">
+                        Clear All
+                    </button>
                 </div>
             </div>
         </div>
 
-        <h6 class="mb-3" style="font-weight:600;border-bottom:1px solid var(--st);padding-bottom:.5rem;">
-            Payment &amp; Notes
-        </h6>
-
-        <div class="row g-3">
-            <div class="col-md-6">
-                <label class="form-label" for="payment_method">Payment Method</label>
-                <select id="payment_method" name="payment_method" class="form-select">
-                    <option value="stripe"  <?= $f['payment_method'] === 'stripe'  ? 'selected' : '' ?>>Stripe (Online)</option>
-                    <option value="cash"    <?= $f['payment_method'] === 'cash'    ? 'selected' : '' ?>>Cash</option>
-                    <option value="check"   <?= $f['payment_method'] === 'check'   ? 'selected' : '' ?>>Check</option>
-                </select>
+        <!-- Dates & Pricing -->
+        <div class="tp-form-section">
+            <div class="tp-form-section-head">
+                <span class="section-icon"><i class="fa-solid fa-calendar-days"></i></span>
+                <h6>Rental Dates</h6>
             </div>
-
-            <div class="col-12">
-                <label class="form-label" for="notes">Notes</label>
-                <textarea id="notes" name="notes" class="form-control" rows="3"
-                          placeholder="Internal notes about this booking…"><?= e($f['notes']) ?></textarea>
-            </div>
-            <div class="col-12 d-flex gap-2">
-                <button type="submit" class="btn-tp-primary">
-                    <i class="fa-solid fa-calendar-check"></i> Create Booking
-                </button>
-                <a href="index.php" class="btn-tp-ghost">Cancel</a>
+            <div class="tp-form-section-body">
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <label class="form-label" for="rental_start">
+                            Start Date <span class="text-danger">*</span>
+                        </label>
+                        <input type="date" id="rental_start" name="rental_start" class="form-control"
+                               value="<?= e($f['rental_start']) ?>"
+                               min="<?= date('Y-m-d') ?>" required onchange="refreshSummary()">
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label" for="rental_end">
+                            End Date <span class="text-danger">*</span>
+                        </label>
+                        <input type="date" id="rental_end" name="rental_end" class="form-control"
+                               value="<?= e($f['rental_end']) ?>"
+                               min="<?= date('Y-m-d', strtotime('+1 day')) ?>" required onchange="refreshSummary()">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end pb-1">
+                        <div id="daysDisplay" class="text-muted" style="font-size:.85rem;"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
-    </form>
+        <!-- Payment & Notes -->
+        <div class="tp-form-section">
+            <div class="tp-form-section-head">
+                <span class="section-icon"><i class="fa-solid fa-credit-card"></i></span>
+                <h6>Payment &amp; Notes</h6>
+            </div>
+            <div class="tp-form-section-body">
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <label class="form-label" for="payment_method">Payment Method</label>
+                        <select id="payment_method" name="payment_method" class="form-select">
+                            <option value="stripe" <?= $f['payment_method'] === 'stripe' ? 'selected' : '' ?>>Stripe (Online)</option>
+                            <option value="cash"   <?= $f['payment_method'] === 'cash'   ? 'selected' : '' ?>>Cash</option>
+                            <option value="check"  <?= $f['payment_method'] === 'check'  ? 'selected' : '' ?>>Check</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="notes">Internal Notes</label>
+                        <textarea id="notes" name="notes" class="form-control" rows="3"
+                                  placeholder="Delivery instructions, access info, anything relevant…"><?= e($f['notes']) ?></textarea>
+                    </div>
+                </div>
+                <div class="mt-3 p-2 rounded" style="background:var(--dk2);border:1px solid var(--st);font-size:.8rem;color:var(--gy);">
+                    <i class="fa-solid fa-circle-check me-1" style="color:var(--gr);"></i>
+                    A <strong>work order</strong> will be automatically scheduled when this booking is confirmed.
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /tp-form-main -->
+
+    <!-- ── Live Order Summary Sidebar ────────────────────────────────────── -->
+    <div class="tp-form-sidebar">
+        <div class="tp-sidebar-card">
+            <div class="tp-sidebar-card-head">
+                <i class="fa-solid fa-receipt me-1" style="color:var(--or);"></i> Order Summary
+            </div>
+            <div class="tp-sidebar-card-body" id="orderSummaryBody">
+                <div class="tp-summary-empty">
+                    <i class="fa-solid fa-dumpster"></i>
+                    Select units and dates to see your order summary.
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /tp-form-layout -->
+
+<!-- Sticky save bar -->
+<div class="tp-sticky-bar">
+    <div class="tp-sticky-bar-info">
+        <strong id="stickyTotal">Select units &amp; dates</strong>
+        <span id="stickySub" style="color:var(--gy);margin-left:.5rem;"></span>
+    </div>
+    <div class="tp-sticky-bar-actions">
+        <a href="index.php" class="btn-tp-ghost">Cancel</a>
+        <button type="submit" class="btn-tp-primary">
+            <i class="fa-solid fa-calendar-check"></i> Create Booking
+        </button>
+    </div>
 </div>
+
+</form>
 
 <script>
 function calcDays() {
+    var s = document.getElementById('rental_start').value;
+    var e = document.getElementById('rental_end').value;
+    if (!s || !e) return 0;
+    var st = Date.UTC.apply(null, s.split('-').map(function(v,i){ return i===1?+v-1:+v; }));
+    var en = Date.UTC.apply(null, e.split('-').map(function(v,i){ return i===1?+v-1:+v; }));
+    return Math.max(0, Math.round((en - st) / 86400000));
+}
+
+function calcUnitTotal(card, days) {
+    var base  = parseFloat(card.dataset.base)  || 0;
+    var incl  = parseInt(card.dataset.incl, 10) || 7;
+    var extra = card.dataset.extra !== '' ? parseFloat(card.dataset.extra) : 0;
+    var rate  = parseFloat(card.dataset.rate)  || 0;
+    if (base > 0) {
+        return base + Math.max(0, days - incl) * extra;
+    }
+    return rate * days;
+}
+
+function fmtMoney(n) {
+    return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function refreshSummary() {
+    var days = calcDays();
+    var daysEl = document.getElementById('daysDisplay');
+    daysEl.textContent = days > 0 ? days + ' day' + (days !== 1 ? 's' : '') : '';
+
+    var checked = document.querySelectorAll('input[name="dumpster_ids[]"]:checked');
+    var body    = document.getElementById('orderSummaryBody');
+    var stickyTotal = document.getElementById('stickyTotal');
+    var stickySub   = document.getElementById('stickySub');
+
+    if (checked.length === 0 || days <= 0) {
+        body.innerHTML = '<div class="tp-summary-empty"><i class="fa-solid fa-dumpster"></i>Select units and dates to see your order summary.</div>';
+        stickyTotal.innerHTML = 'Select units &amp; dates';
+        stickySub.textContent = '';
+        return;
+    }
+
+    var html = '<div class="tp-order-summary">';
     var start = document.getElementById('rental_start').value;
     var end   = document.getElementById('rental_end').value;
-    if (!start || !end) return 0;
-    var s = Date.UTC.apply(null, start.split('-').map(function(v,i){ return i===1?parseInt(v,10)-1:parseInt(v,10); }));
-    var e2 = Date.UTC.apply(null, end.split('-').map(function(v,i){ return i===1?parseInt(v,10)-1:parseInt(v,10); }));
-    return Math.max(0, Math.round((e2 - s) / 86400000));
-}
 
-function updateTotal() {
-    var disp  = document.getElementById('totalDisplay');
-    var days  = calcDays();
-    if (days <= 0) { disp.textContent = 'Invalid dates'; return; }
+    if (start && end) {
+        html += '<div class="tp-order-summary-line">'
+             + '<span class="tp-order-summary-label">Dates</span>'
+             + '<span class="tp-order-summary-val">' + start + ' – ' + end + '</span>'
+             + '</div>';
+        html += '<div class="tp-order-summary-line">'
+             + '<span class="tp-order-summary-label">Duration</span>'
+             + '<span class="tp-order-summary-val">' + days + ' day' + (days !== 1 ? 's' : '') + '</span>'
+             + '</div>';
+    }
 
-    var boxes = document.querySelectorAll('input[name="dumpster_ids[]"]:checked');
-    if (boxes.length === 0) { disp.textContent = '—'; return; }
-
-    var totalAmt = 0;
-    boxes.forEach(function(cb) {
-        var card  = cb.closest('.unit-checkbox-card');
+    var grandTotal = 0;
+    checked.forEach(function(cb) {
+        var card = cb.closest('.tp-unit-card');
         if (!card) return;
-        var base  = parseFloat(card.dataset.base)  || 0;
-        var incl  = parseInt(card.dataset.incl, 10) || 7;
-        var extra = card.dataset.extra !== '' ? parseFloat(card.dataset.extra) : 0;
-        var rate  = parseFloat(card.dataset.rate)  || 0;
-        if (base > 0) {
-            var extraDays = Math.max(0, days - incl);
-            totalAmt += base + (extraDays * extra);
-        } else {
-            totalAmt += rate * days;
-        }
+        var sub = calcUnitTotal(card, days);
+        grandTotal += sub;
+        html += '<div class="tp-order-summary-line">'
+             + '<span class="tp-order-summary-label">' + card.dataset.code + ' <span style="color:var(--gl);font-size:.78rem;">' + card.dataset.size + '</span></span>'
+             + '<span class="tp-order-summary-val">' + fmtMoney(sub) + '</span>'
+             + '</div>';
     });
 
-    var unitWord = boxes.length > 1 ? ' (' + boxes.length + ' units)' : '';
-    disp.textContent = days + ' day' + (days !== 1 ? 's' : '') + unitWord + ' — $' + totalAmt.toFixed(2);
+    html += '</div>';
+    html += '<div class="tp-order-total"><span>Estimated Total</span><span class="tp-order-total-val">' + fmtMoney(grandTotal) + '</span></div>';
+
+    body.innerHTML = html;
+    stickyTotal.textContent = fmtMoney(grandTotal);
+    stickySub.textContent   = checked.length + ' unit' + (checked.length !== 1 ? 's' : '') + ' · ' + days + ' days';
 }
 
-function toggleCardStyle(cb) {
-    var card = cb.closest('.unit-checkbox-card');
-    if (card) card.classList.toggle('selected', cb.checked);
-}
-
-function selectAllUnits(selectAll) {
-    document.querySelectorAll('input[name="dumpster_ids[]"]').forEach(function(cb) {
-        cb.checked = selectAll;
-        toggleCardStyle(cb);
-    });
-    updateTotal();
-}
+// Init on load in case form is pre-filled
+refreshSummary();
 </script>
 
-<?php
-layout_end();
+<?php layout_end(); ?>

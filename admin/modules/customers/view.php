@@ -43,6 +43,8 @@ try {
 
 // Payment history summary
 $payment_summary = ['stripe' => 0.0, 'cash' => 0.0, 'check' => 0.0, 'pending' => 0.0];
+$total_collected = 0.0;
+$total_pending   = 0.0;
 try {
     $pay_rows = db_fetchall(
         "SELECT payment_status, COALESCE(SUM(total_amount),0) AS total FROM bookings
@@ -51,12 +53,28 @@ try {
     );
     foreach ($pay_rows as $pr) {
         $ps = $pr['payment_status'];
-        if ($ps === 'paid')           $payment_summary['stripe']  += (float)$pr['total'];
-        elseif ($ps === 'paid_cash')  $payment_summary['cash']    += (float)$pr['total'];
-        elseif ($ps === 'paid_check') $payment_summary['check']   += (float)$pr['total'];
-        else                          $payment_summary['pending']  += (float)$pr['total'];
+        if ($ps === 'paid')           { $payment_summary['stripe']  += (float)$pr['total']; $total_collected += (float)$pr['total']; }
+        elseif ($ps === 'paid_cash')  { $payment_summary['cash']    += (float)$pr['total']; $total_collected += (float)$pr['total']; }
+        elseif ($ps === 'paid_check') { $payment_summary['check']   += (float)$pr['total']; $total_collected += (float)$pr['total']; }
+        else                          { $payment_summary['pending']  += (float)$pr['total']; $total_pending   += (float)$pr['total']; }
     }
 } catch (\Throwable $e) {}
+
+// Invoice totals
+$total_invoiced = 0.0;
+try {
+    $inv_sum = db_fetch("SELECT COALESCE(SUM(total),0) AS s FROM invoices WHERE customer_id = ? AND status != 'void'", [$id]);
+    $total_invoiced = (float)($inv_sum['s'] ?? 0);
+} catch (\Throwable $e) {}
+
+// Customer initials
+function customer_initials(string $name): string {
+    $parts = preg_split('/\s+/', trim($name));
+    if (count($parts) >= 2) {
+        return strtoupper(mb_substr($parts[0], 0, 1) . mb_substr($parts[count($parts)-1], 0, 1));
+    }
+    return strtoupper(mb_substr($name, 0, 2));
+}
 
 // ── Type badge helper ─────────────────────────────────────────────────────────
 function cust_type_badge(string $type): string
@@ -74,19 +92,73 @@ function cust_type_badge(string $type): string
 layout_start('Customer: ' . $cust['name'], 'customers');
 ?>
 
-<!-- Page header -->
-<div class="tp-page-header d-flex align-items-center justify-content-between mb-3">
-    <div>
-        <a href="<?= APP_URL ?>/modules/customers/index.php" class="text-muted small text-decoration-none">
-            <i class="fa-solid fa-arrow-left"></i> Back to Customers
-        </a>
-        <h2 class="tp-page-title mb-0 mt-1">
+<!-- Back link -->
+<a href="<?= APP_URL ?>/modules/customers/index.php" class="tp-back-link d-inline-flex align-items-center gap-1 mb-3"
+   style="font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--gy);font-family:var(--font-cond);">
+    <i class="fa-solid fa-arrow-left"></i> Back to Customers
+</a>
+
+<!-- Hero header -->
+<div class="tp-customer-hero">
+    <div class="tp-customer-avatar"><?= customer_initials($cust['name']) ?></div>
+
+    <div class="tp-customer-hero-info">
+        <div class="tp-customer-hero-name">
             <?= e($cust['name']) ?>
             <?= cust_type_badge($cust['type'] ?? 'residential') ?>
-        </h2>
+        </div>
         <?php if (!empty($cust['company'])): ?>
-            <p class="text-muted mb-0"><?= e($cust['company']) ?></p>
+        <div class="tp-customer-hero-sub"><?= e($cust['company']) ?></div>
         <?php endif; ?>
+        <div class="tp-customer-hero-contacts">
+            <?php if (!empty($cust['phone'])): ?>
+            <a href="tel:<?= e(preg_replace('/\D/', '', $cust['phone'])) ?>" class="tp-contact-pill">
+                <i class="fa-solid fa-phone"></i> <?= e(fmt_phone($cust['phone'])) ?>
+            </a>
+            <?php endif; ?>
+            <?php if (!empty($cust['email'])): ?>
+            <a href="mailto:<?= e($cust['email']) ?>" class="tp-contact-pill">
+                <i class="fa-solid fa-envelope"></i> <?= e($cust['email']) ?>
+            </a>
+            <?php endif; ?>
+            <?php
+            $addr_parts = array_filter([$cust['city'] ?? '', $cust['state'] ?? '']);
+            if ($addr_parts):
+            ?>
+            <span class="tp-contact-pill">
+                <i class="fa-solid fa-location-dot"></i> <?= e(implode(', ', $addr_parts)) ?>
+            </span>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <div class="tp-customer-hero-stats">
+        <div class="tp-hero-stat">
+            <div class="tp-hero-stat-val"><?= count($bookings_list) ?></div>
+            <div class="tp-hero-stat-label">Bookings</div>
+        </div>
+        <div class="tp-hero-stat-divider"></div>
+        <div class="tp-hero-stat">
+            <div class="tp-hero-stat-val"><?= count($work_orders) ?></div>
+            <div class="tp-hero-stat-label">Work Orders</div>
+        </div>
+        <div class="tp-hero-stat-divider"></div>
+        <div class="tp-hero-stat">
+            <div class="tp-hero-stat-val accent"><?= fmt_money($total_collected) ?></div>
+            <div class="tp-hero-stat-label">Collected</div>
+        </div>
+        <?php if ($total_pending > 0): ?>
+        <div class="tp-hero-stat-divider"></div>
+        <div class="tp-hero-stat">
+            <div class="tp-hero-stat-val" style="color:var(--am);"><?= fmt_money($total_pending) ?></div>
+            <div class="tp-hero-stat-label">Pending</div>
+        </div>
+        <?php endif; ?>
+        <div class="tp-hero-stat-divider"></div>
+        <div class="tp-hero-stat">
+            <div class="tp-hero-stat-val" style="color:var(--gy);font-size:1.1rem;"><?= e(fmt_date($cust['created_at'])) ?></div>
+            <div class="tp-hero-stat-label">Customer Since</div>
+        </div>
     </div>
 </div>
 
