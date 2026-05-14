@@ -104,6 +104,7 @@ define('ROOT_PATH',  dirname(__DIR__));  // points to /admin/
 define('INC_PATH',   ROOT_PATH . '/includes');
 define('TMPL_PATH',  ROOT_PATH . '/templates');
 define('ASSET_PATH', APP_URL  . '/assets');
+define('APP_CSS_VER', '20260514-2');  // bump this string after any CSS/JS deploy
 
 // set APP_INSTALLED=true in .env (or here) after running the installer.
 $_installed_raw = strtolower($_env('APP_INSTALLED', 'false'));

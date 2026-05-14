@@ -345,7 +345,9 @@ function layout_start(string $page_title, string $active_nav = ''): void
     <!-- App styles (cache-busted by file mtime) -->
     <?php
     $css_file = defined('ROOT_PATH') ? ROOT_PATH . '/assets/css/app.css' : '';
-    $css_ver  = ($css_file && file_exists($css_file)) ? filemtime($css_file) : (defined('APP_VERSION') ? APP_VERSION : '1');
+    $css_ver  = ($css_file && file_exists($css_file))
+                    ? filemtime($css_file)
+                    : (defined('APP_CSS_VER') ? APP_CSS_VER : (defined('APP_VERSION') ? APP_VERSION : '1'));
     ?>
     <link rel="stylesheet" href="<?= htmlspecialchars($asset_path, ENT_QUOTES, 'UTF-8') ?>/css/app.css?v=<?= $css_ver ?>">
 
@@ -565,7 +567,9 @@ function layout_end(): void
 <!-- App scripts (cache-busted by file mtime) -->
 <?php
 $js_file = defined('ROOT_PATH') ? ROOT_PATH . '/assets/js/app.js' : '';
-$js_ver  = ($js_file && file_exists($js_file)) ? filemtime($js_file) : (defined('APP_VERSION') ? APP_VERSION : '1');
+$js_ver  = ($js_file && file_exists($js_file))
+               ? filemtime($js_file)
+               : (defined('APP_CSS_VER') ? APP_CSS_VER : (defined('APP_VERSION') ? APP_VERSION : '1'));
 ?>
 <script src="<?= htmlspecialchars($asset_path, ENT_QUOTES, 'UTF-8') ?>/js/app.js?v=<?= $js_ver ?>"></script>
 
