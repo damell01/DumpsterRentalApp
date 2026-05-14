@@ -332,7 +332,6 @@ function layout_start(string $page_title, string $active_nav = ''): void
     <!-- Font Awesome 6 -->
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
-          integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLzsA=="
           crossorigin="anonymous"
           referrerpolicy="no-referrer">
 
@@ -351,14 +350,7 @@ function layout_start(string $page_title, string $active_nav = ''): void
     ?>
     <link rel="stylesheet" href="<?= htmlspecialchars($asset_path, ENT_QUOTES, 'UTF-8') ?>/css/app.css?v=<?= $css_ver ?>">
 
-    <!-- PWA -->
-    <link rel="manifest" href="<?= htmlspecialchars($app_url, ENT_QUOTES, 'UTF-8') ?>/manifest.json">
     <meta name="theme-color" content="#f97316">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="TP Admin">
-    <link rel="apple-touch-icon" href="<?= htmlspecialchars($asset_path, ENT_QUOTES, 'UTF-8') ?>/img/icon-192.png">
 </head>
 <body>
 
