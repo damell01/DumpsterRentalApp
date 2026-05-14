@@ -83,8 +83,9 @@ class WebhookService
                 if (!$booking) {
                     continue;
                 }
-                $paymentMethod = $this->mapStripeMethodToLocal($session->payment_method_types[0] ?? ($session->payment_method_types ?? [])[0] ?? 'card');
-                $paymentStatus = $paymentMethod === 'ach' ? 'processing' : 'paid';
+                $isAsync = ($session->payment_status ?? 'paid') === 'unpaid';
+                $paymentMethod = $this->resolveSessionPaymentMethod($session);
+                $paymentStatus = $isAsync ? 'processing' : 'paid';
                 \db_update('bookings', [
                     'payment_method' => $paymentMethod,
                     'payment_status' => $paymentStatus,
@@ -119,8 +120,9 @@ class WebhookService
             $invoiceId = (int)$session->metadata->invoice_id;
             $invoice = \db_fetch('SELECT * FROM invoices WHERE id = ? LIMIT 1', [$invoiceId]);
             if ($invoice) {
-                $paymentMethod = $this->mapStripeMethodToLocal($session->payment_method_types[0] ?? 'card');
-                $paymentStatus = $paymentMethod === 'ach' ? 'processing' : 'paid';
+                $isAsync = ($session->payment_status ?? 'paid') === 'unpaid';
+                $paymentMethod = $this->resolveSessionPaymentMethod($session);
+                $paymentStatus = $isAsync ? 'processing' : 'paid';
                 \db_update('invoices', [
                     'payment_method' => $paymentMethod,
                     'status' => $paymentMethod === 'ach' ? 'open' : 'paid',
@@ -328,9 +330,16 @@ class WebhookService
         return ['entity_type' => 'payment', 'entity_id' => (int)($payment['id'] ?? 0)];
     }
 
-    private function mapStripeMethodToLocal(string $stripeMethod): string
+    private function resolveSessionPaymentMethod(object $session): string
     {
-        return $stripeMethod === 'us_bank_account' ? 'ach' : 'stripe';
+        // With automatic_payment_methods, payment_method_types is empty.
+        // Use payment_status to detect async (ACH) vs instant (card/wallet).
+        if (($session->payment_status ?? 'paid') === 'unpaid') {
+            return 'ach';
+        }
+        $types = $session->payment_method_types ?? [];
+        $first = is_array($types) && count($types) > 0 ? $types[0] : 'card';
+        return $first === 'us_bank_account' ? 'ach' : 'stripe';
     }
 
     private function recordPayment(array $data): void

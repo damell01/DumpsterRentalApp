@@ -54,12 +54,10 @@ class CheckoutService
             $bookingNumbers[] = (string)($booking['booking_number'] ?? '');
         }
 
-        return $this->factory->requireClient()->checkout->sessions->create([
+        $sessionParams = [
             'mode' => 'payment',
             'customer' => $customer['stripe_customer_id'],
             'line_items' => $lineItems,
-            'payment_method_types' => $this->resolvePaymentMethodTypes($paymentMethod),
-            'payment_method_options' => $this->buildPaymentMethodOptions($paymentMethod),
             'success_url' => $successUrl,
             'cancel_url' => $cancelUrl,
             'metadata' => [
@@ -73,7 +71,19 @@ class CheckoutService
                     'customer_id' => (string)$customerId,
                 ],
             ],
-        ]);
+        ];
+
+        if ($paymentMethod === 'card') {
+            $sessionParams['payment_method_types'] = ['card'];
+        } elseif ($paymentMethod === 'ach') {
+            $sessionParams['payment_method_types'] = ['us_bank_account'];
+            $sessionParams['payment_method_options'] = $this->buildAchOptions();
+        } else {
+            // Let Stripe show all enabled methods (card, ACH, Apple Pay, etc.)
+            $sessionParams['automatic_payment_methods'] = ['enabled' => true];
+        }
+
+        return $this->factory->requireClient()->checkout->sessions->create($sessionParams);
     }
 
     public function createInvoiceCheckout(array $invoice, string $successUrl, string $cancelUrl, string $paymentMethod): object
@@ -96,7 +106,7 @@ class CheckoutService
         $company = \get_setting('company_name', 'Trash Panda Roll-Offs');
         $amountCents = (int)round((float)$invoice['total'] * 100);
 
-        return $this->factory->requireClient()->checkout->sessions->create([
+        $sessionParams = [
             'mode' => 'payment',
             'customer' => $customer['stripe_customer_id'],
             'line_items' => [[
@@ -110,8 +120,6 @@ class CheckoutService
                 ],
                 'quantity' => 1,
             ]],
-            'payment_method_types' => $this->resolvePaymentMethodTypes($paymentMethod),
-            'payment_method_options' => $this->buildPaymentMethodOptions($paymentMethod),
             'success_url' => $successUrl,
             'cancel_url' => $cancelUrl,
             'metadata' => [
@@ -125,24 +133,22 @@ class CheckoutService
                     'customer_id' => (string)$customerId,
                 ],
             ],
-        ]);
-    }
+        ];
 
-    private function resolvePaymentMethodTypes(string $paymentMethod): array
-    {
-        return match ($paymentMethod) {
-            'ach' => ['us_bank_account'],
-            'card' => ['card'],
-            default => ['card', 'us_bank_account'],
-        };
-    }
-
-    private function buildPaymentMethodOptions(string $paymentMethod): array
-    {
         if ($paymentMethod === 'card') {
-            return [];
+            $sessionParams['payment_method_types'] = ['card'];
+        } elseif ($paymentMethod === 'ach') {
+            $sessionParams['payment_method_types'] = ['us_bank_account'];
+            $sessionParams['payment_method_options'] = $this->buildAchOptions();
+        } else {
+            $sessionParams['automatic_payment_methods'] = ['enabled' => true];
         }
 
+        return $this->factory->requireClient()->checkout->sessions->create($sessionParams);
+    }
+
+    private function buildAchOptions(): array
+    {
         return [
             'us_bank_account' => [
                 'verification_method' => 'automatic',
