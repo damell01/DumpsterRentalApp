@@ -318,7 +318,7 @@ layout_start('Invoice ' . $inv['invoice_number'], 'invoices');
     <div class="col-lg-4">
 
         <!-- Payment Link card -->
-        <div class="tp-card mb-4">
+        <div class="tp-card mb-4" id="stripe-payment-card">
             <div class="tp-card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fab fa-stripe me-2" style="color:#635bff;"></i>Stripe Payment Link</h5>
                 <?php
@@ -357,7 +357,7 @@ function copyPayLink(btn) {
                 <form method="POST" action="generate_payment_link.php" class="mt-2">
                     <?= csrf_field() ?>
                     <input type="hidden" name="id" value="<?= $id ?>">
-                    <input type="hidden" name="payment_method" value="<?= e($inv['payment_method'] === 'ach' ? 'ach' : 'stripe') ?>">
+                    <input type="hidden" name="payment_method" value="<?= e(in_array($inv['payment_method'] ?? '', ['card','ach'], true) ? $inv['payment_method'] : 'stripe') ?>">
                     <button type="submit" class="btn-tp-ghost btn-tp-xs w-100"
                             onclick="return confirm('Regenerate Stripe payment link? The old link may still work.')">
                         <i class="fa-solid fa-arrows-rotate me-1"></i> Regenerate Link
@@ -375,8 +375,9 @@ function copyPayLink(btn) {
                     <div class="mb-2">
                         <label class="form-label" style="font-size:.82rem;">Online Payment Method</label>
                         <select name="payment_method" class="form-select form-select-sm">
-                            <option value="stripe" <?= ($inv['payment_method'] ?? 'stripe') !== 'ach' ? 'selected' : '' ?>>Card Checkout</option>
-                            <option value="ach" <?= ($inv['payment_method'] ?? '') === 'ach' ? 'selected' : '' ?>>ACH Checkout</option>
+                            <option value="stripe" <?= !in_array($inv['payment_method'] ?? '', ['card','ach'], true) ? 'selected' : '' ?>>Card or ACH (Customer Chooses)</option>
+                            <option value="card" <?= ($inv['payment_method'] ?? '') === 'card' ? 'selected' : '' ?>>Card Only</option>
+                            <option value="ach" <?= ($inv['payment_method'] ?? '') === 'ach' ? 'selected' : '' ?>>ACH Bank Transfer Only</option>
                         </select>
                     </div>
                     <button type="submit" class="btn-tp-primary btn-tp-sm w-100">
@@ -389,6 +390,51 @@ function copyPayLink(btn) {
             <?php endif; ?>
             <?php endif; ?>
         </div>
+
+        <!-- Send Invoice Email -->
+        <?php if (has_role('admin', 'office')): ?>
+        <div class="tp-card mb-4">
+            <div class="tp-card-header">
+                <h5 class="mb-0"><i class="fa-solid fa-paper-plane me-2"></i>Send Invoice to Customer</h5>
+            </div>
+            <div class="mt-3">
+                <form method="POST" action="send_invoice.php">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="id" value="<?= $id ?>">
+                    <div class="mb-2">
+                        <label class="form-label" style="font-size:.82rem;">Send To</label>
+                        <input type="email" name="send_to" class="form-control form-control-sm"
+                               value="<?= e($inv['cust_email'] ?? '') ?>"
+                               placeholder="customer@email.com" required>
+                        <?php if (!empty($inv['cust_email'])): ?>
+                        <div style="font-size:.78rem;color:var(--gl);margin-top:.3rem;">
+                            Email on file: <?= e($inv['cust_email']) ?>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    <?php if (!empty($inv['stripe_payment_link'])): ?>
+                    <div class="mb-2 mt-1">
+                        <div class="form-check" style="font-size:.88rem;">
+                            <input class="form-check-input" type="checkbox" name="include_payment_link"
+                                   id="include_payment_link" value="1" checked>
+                            <label class="form-check-label" for="include_payment_link" style="color:var(--gl);">
+                                Include online payment link
+                            </label>
+                        </div>
+                    </div>
+                    <?php else: ?>
+                    <p style="font-size:.78rem;color:#f59e0b;margin:0 0 .6rem;text-align:center;">
+                        No payment link — invoice only will be sent.
+                        <a href="#stripe-payment-card" style="color:#f97316;">Generate one?</a>
+                    </p>
+                    <?php endif; ?>
+                    <button type="submit" class="btn-tp-primary btn-tp-sm w-100">
+                        <i class="fa-solid fa-paper-plane me-1"></i> Send Invoice Email
+                    </button>
+                </form>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- Quick status update / cash-check actions -->
         <?php if (has_role('admin', 'office') && !in_array($inv['status'], ['void','canceled'], true)): ?>

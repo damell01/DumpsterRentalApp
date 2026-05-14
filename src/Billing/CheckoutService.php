@@ -132,20 +132,21 @@ class CheckoutService
     {
         return match ($paymentMethod) {
             'ach' => ['us_bank_account'],
-            'stripe', 'card' => ['card'],
-            default => ['card'],
+            'card' => ['card'],
+            default => ['card', 'us_bank_account'],
         };
     }
 
     private function buildPaymentMethodOptions(string $paymentMethod): array
     {
-        if ($paymentMethod !== 'ach') {
+        if ($paymentMethod === 'card') {
             return [];
         }
 
         return [
             'us_bank_account' => [
                 'verification_method' => 'automatic',
+                'financial_connections' => ['permissions' => ['payment_method']],
             ],
         ];
     }
