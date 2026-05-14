@@ -7,7 +7,7 @@
  *   - API requests: network-only (never cache booking/contact data).
  */
 
-const CACHE_VERSION = 'tp-public-v3';
+const CACHE_VERSION = 'tp-public-v4';
 
 const PRECACHE_URLS = [
   '/',
@@ -22,7 +22,7 @@ const PRECACHE_URLS = [
   '/my-bookings.php',
   '/home.css',
   '/shared.css',
-  '/shared-components.js',
+  '/shared-components.js?v=4',
   '/assets/logo.jpeg',
   '/assets/icon-192.png',
   '/assets/icon-512.png',

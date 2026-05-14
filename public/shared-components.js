@@ -380,7 +380,8 @@ function renderQuoteSizeOptions(sizes) {
 function loadLiveDumpsterSizes() {
   if (!document.getElementById('home-size-preview') &&
       !document.getElementById('dynamic-sizes-list') &&
-      !document.getElementById('dynamic-size-comparison')) {
+      !document.getElementById('dynamic-size-comparison') &&
+      !document.getElementById('quote-size-selector')) {
     return;
   }
 
@@ -477,7 +478,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
     anchor.addEventListener('click', (event) => {
-      const target = document.querySelector(anchor.getAttribute('href'));
+      const href = anchor.getAttribute('href');
+      if (!href || href === '#') {
+        event.preventDefault();
+        return;
+      }
+
+      let target = null;
+      try {
+        target = document.querySelector(href);
+      } catch (error) {
+        target = null;
+      }
+
       if (target) {
         event.preventDefault();
         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
