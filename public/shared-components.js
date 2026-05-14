@@ -120,7 +120,7 @@ const footerHTML = `
   <div class="footer-bottom">
     <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2" style="max-width:1300px;">
       <p class="footer-bottom-text mb-0">Copyright 2025 Trash Panda Roll-Offs. All rights reserved. | Baldwin County & Mobile, AL</p>
-      <p class="footer-bottom-text mb-0">Made for the Gulf Coast</p>
+      <p class="footer-bottom-text mb-0">Made for the Gulf Coast &nbsp;·&nbsp; <a href="https://www.dbellcreations.com" target="_blank" rel="noopener noreferrer" style="color:var(--orange);text-decoration:none;font-weight:600;">Site by DBell Creations</a></p>
     </div>
   </div>
 </footer>`;

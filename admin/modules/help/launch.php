@@ -497,4 +497,35 @@ layout_start('Launch Checklist', 'help');
     </div>
 </div>
 
+<!-- Agency credit -->
+<div class="lc-agency-credit">
+    <span><i class="fa-solid fa-code"></i> Designed &amp; built by</span>
+    <a href="https://www.dbellcreations.com" target="_blank" rel="noopener noreferrer">DBell Creations</a>
+    <span class="lc-agency-sep">·</span>
+    <span>www.dbellcreations.com</span>
+</div>
+
+<style>
+.lc-agency-credit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: .45rem;
+    margin-top: 2rem;
+    padding: .9rem;
+    border-top: 1px solid var(--st);
+    font-size: .8rem;
+    color: var(--gl);
+}
+.lc-agency-credit a {
+    color: var(--or);
+    font-weight: 700;
+    text-decoration: none;
+    transition: color .15s;
+}
+.lc-agency-credit a:hover { color: var(--or-d); text-decoration: underline; }
+.lc-agency-sep { opacity: .4; }
+</style>
+
 <?php layout_end(); ?>

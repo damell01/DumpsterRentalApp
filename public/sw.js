@@ -7,7 +7,7 @@
  *   - API requests: network-only (never cache booking/contact data).
  */
 
-const CACHE_VERSION = 'tp-public-v4';
+const CACHE_VERSION = 'tp-public-v5';
 
 const PRECACHE_URLS = [
   '/',
