@@ -20,13 +20,29 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 try {
+    $columns = ['id', 'unit_code', 'size', 'status'];
+    foreach ([
+        'product_name', 'type', 'description', 'base_price', 'rental_days',
+        'extra_day_price', 'daily_rate', 'delivery_fee', 'pickup_fee', 'image', 'active'
+    ] as $optionalColumn) {
+        if (db_column_exists('dumpsters', $optionalColumn)) {
+            $columns[] = $optionalColumn;
+        }
+    }
+
+    $where = [];
+    if (db_column_exists('dumpsters', 'active')) {
+        $where[] = 'active = 1';
+    }
+    if (db_column_exists('dumpsters', 'type')) {
+        $where[] = "type = 'dumpster'";
+    }
+    $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
+
     $rows = db_fetchall(
-        "SELECT id, unit_code, product_name, type, size, description,
-                base_price, rental_days, extra_day_price, daily_rate,
-                delivery_fee, pickup_fee, image, status, active
+        "SELECT " . implode(', ', $columns) . "
          FROM dumpsters
-         WHERE active = 1
-           AND type = 'dumpster'
+         {$whereSql}
          ORDER BY size ASC, unit_code ASC"
     );
 } catch (Throwable $e) {

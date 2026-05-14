@@ -1,4 +1,20 @@
 <?php
+$manual_config = [
+    'DB_HOST' => '',
+    'DB_NAME' => '',
+    'DB_USER' => '',
+    'DB_PASS' => '',
+    'DB_CHARSET' => 'utf8mb4',
+    'APP_NAME' => 'Trash Panda Roll-Offs',
+    'APP_VERSION' => '1.0.0',
+    'APP_ENV' => 'production',
+    'APP_DEBUG' => 'false',
+    'APP_INSTALLED' => 'false',
+    'SESSION_LIFETIME' => '7200',
+    'CRON_KEY' => '',
+    'PORTAL_SIGNING_KEY' => '',
+    'APP_LOG_DIR' => '',
+];
 // ── .env loader ───────────────────────────────────────────────────────────────
 // Loads key=value pairs from a .env file in the project root (one level above
 // the /admin/ directory). Lines starting with # are treated as comments.
@@ -40,8 +56,17 @@
 
 // Helper: read from .env (via $_ENV) with a hardcoded default fallback.
 // Only used in this file; not exposed globally.
-$_env = static fn(string $key, string $default): string =>
-    isset($_ENV[$key]) && $_ENV[$key] !== '' ? (string)$_ENV[$key] : $default;
+$_env = static function (string $key, string $default) use ($manual_config): string {
+    if (isset($_ENV[$key]) && $_ENV[$key] !== '') {
+        return (string)$_ENV[$key];
+    }
+
+    if (array_key_exists($key, $manual_config) && (string)$manual_config[$key] !== '') {
+        return (string)$manual_config[$key];
+    }
+
+    return $default;
+};
 
 // ── Database ─────────────────────────────────────────────────────────────────
 define('DB_HOST',    $_env('DB_HOST',    'localhost'));
@@ -91,3 +116,4 @@ define('PORTAL_SIGNING_KEY', $_env('PORTAL_SIGNING_KEY', 'change-this-portal-sig
 define('APP_LOG_DIR', $_env('APP_LOG_DIR', ROOT_PATH . '/logs'));
 
 unset($_env);
+unset($manual_config);

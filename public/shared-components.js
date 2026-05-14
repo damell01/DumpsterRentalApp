@@ -355,23 +355,63 @@ function loadLiveDumpsterSizes() {
     return;
   }
 
+  const renderLoadError = (message) => {
+    const errorText = escapeHtml(message || 'Live dumpster inventory is temporarily unavailable.');
+    const preview = document.getElementById('home-size-preview');
+    const list = document.getElementById('dynamic-sizes-list');
+    const compare = document.getElementById('dynamic-size-comparison');
+
+    if (preview) {
+      preview.innerHTML = `
+        <div class="col-12">
+          <div class="size-preview-card">
+            <div class="size-body">
+              <p class="mb-0" style="color:var(--gray-light);">${errorText}</p>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    if (list) {
+      list.innerHTML = `
+        <div class="size-full-card">
+          <div class="size-full-body">
+            <p class="mb-0" style="color:var(--gray-light);">${errorText}</p>
+          </div>
+        </div>`;
+    }
+
+    if (compare) {
+      compare.innerHTML = `<tr><td colspan="6" class="compare-loading">${errorText}</td></tr>`;
+    }
+  };
+
   fetch('/api/available-dumpsters.php', {
     headers: { 'Accept': 'application/json' },
   })
     .then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      return response.json();
+      return response.text().then((text) => {
+        let payload = {};
+        try {
+          payload = text ? JSON.parse(text) : {};
+        } catch (error) {
+          payload = {};
+        }
+
+        if (!response.ok) {
+          throw new Error(payload.error || `HTTP ${response.status}`);
+        }
+
+        return payload;
+      });
     })
     .then((payload) => {
       const sizes = Array.isArray(payload && payload.sizes) ? payload.sizes : [];
       renderHomeSizePreview(sizes);
       renderSizesPage(sizes);
     })
-    .catch(() => {
-      renderHomeSizePreview([]);
-      renderSizesPage([]);
+    .catch((error) => {
+      renderLoadError(error && error.message ? error.message : '');
     });
 }
 

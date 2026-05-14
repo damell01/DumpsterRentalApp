@@ -57,6 +57,55 @@ try {
 $is_email = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false;
 $digits   = preg_replace('/\D/', '', $identifier);
 
+$invoiceColumnsAvailable = db_table_exists('invoices');
+$invoiceSelect = '';
+if ($invoiceColumnsAvailable) {
+    $invoiceNumberColumn = db_column_exists('invoices', 'invoice_number') ? 'i.invoice_number' : 'CAST(i.id AS CHAR)';
+    $invoiceStatusColumn = db_column_exists('invoices', 'status') ? 'i.status' : "'sent'";
+    $invoiceTotalColumn = db_column_exists('invoices', 'total') ? 'i.total' : '0';
+    $invoicePaymentLinkColumn = db_column_exists('invoices', 'stripe_payment_link') ? 'i.stripe_payment_link' : "''";
+    $invoiceNotesCondition = db_column_exists('invoices', 'notes')
+        ? "i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')"
+        : "1 = 0";
+
+    $invoiceSelect = ",
+                    (
+                        SELECT i.id
+                        FROM invoices i
+                        WHERE {$invoiceNotesCondition}
+                        ORDER BY i.id DESC
+                        LIMIT 1
+                    ) AS invoice_id,
+                    (
+                        SELECT {$invoiceNumberColumn}
+                        FROM invoices i
+                        WHERE {$invoiceNotesCondition}
+                        ORDER BY i.id DESC
+                        LIMIT 1
+                    ) AS invoice_number,
+                    (
+                        SELECT {$invoiceStatusColumn}
+                        FROM invoices i
+                        WHERE {$invoiceNotesCondition}
+                        ORDER BY i.id DESC
+                        LIMIT 1
+                    ) AS invoice_status,
+                    (
+                        SELECT {$invoiceTotalColumn}
+                        FROM invoices i
+                        WHERE {$invoiceNotesCondition}
+                        ORDER BY i.id DESC
+                        LIMIT 1
+                    ) AS invoice_total,
+                    (
+                        SELECT {$invoicePaymentLinkColumn}
+                        FROM invoices i
+                        WHERE {$invoiceNotesCondition}
+                        ORDER BY i.id DESC
+                        LIMIT 1
+                    ) AS invoice_payment_link";
+}
+
 if (!$is_email && strlen($digits) < 7) {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Please enter a valid email address or phone number.']);
@@ -70,42 +119,8 @@ try {
                     b.unit_code, b.unit_size, b.rental_start, b.rental_end, b.rental_days,
                     b.total_amount, b.payment_method, b.payment_status, b.booking_status,
                     b.customer_address, b.customer_city, b.notes, b.created_at,
-                    b.booking_group_id,
-                    (
-                        SELECT i.id
-                        FROM invoices i
-                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
-                        ORDER BY i.id DESC
-                        LIMIT 1
-                    ) AS invoice_id,
-                    (
-                        SELECT i.invoice_number
-                        FROM invoices i
-                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
-                        ORDER BY i.id DESC
-                        LIMIT 1
-                    ) AS invoice_number,
-                    (
-                        SELECT i.status
-                        FROM invoices i
-                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
-                        ORDER BY i.id DESC
-                        LIMIT 1
-                    ) AS invoice_status,
-                    (
-                        SELECT i.total
-                        FROM invoices i
-                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
-                        ORDER BY i.id DESC
-                        LIMIT 1
-                    ) AS invoice_total,
-                    (
-                        SELECT i.stripe_payment_link
-                        FROM invoices i
-                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
-                        ORDER BY i.id DESC
-                        LIMIT 1
-                    ) AS invoice_payment_link
+                    b.booking_group_id
+                    {$invoiceSelect}
                FROM bookings b
               WHERE LOWER(TRIM(b.customer_email)) = ?
               ORDER BY b.rental_start DESC
@@ -119,44 +134,10 @@ try {
                     b.unit_code, b.unit_size, b.rental_start, b.rental_end, b.rental_days,
                     b.total_amount, b.payment_method, b.payment_status, b.booking_status,
                     b.customer_address, b.customer_city, b.notes, b.created_at,
-                    b.booking_group_id,
-                    (
-                        SELECT i.id
-                        FROM invoices i
-                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
-                        ORDER BY i.id DESC
-                        LIMIT 1
-                    ) AS invoice_id,
-                    (
-                        SELECT i.invoice_number
-                        FROM invoices i
-                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
-                        ORDER BY i.id DESC
-                        LIMIT 1
-                    ) AS invoice_number,
-                    (
-                        SELECT i.status
-                        FROM invoices i
-                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
-                        ORDER BY i.id DESC
-                        LIMIT 1
-                    ) AS invoice_status,
-                    (
-                        SELECT i.total
-                        FROM invoices i
-                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
-                        ORDER BY i.id DESC
-                        LIMIT 1
-                    ) AS invoice_total,
-                    (
-                        SELECT i.stripe_payment_link
-                        FROM invoices i
-                        WHERE i.notes LIKE CONCAT('%Booking ', b.booking_number, '%')
-                        ORDER BY i.id DESC
-                        LIMIT 1
-                    ) AS invoice_payment_link
+                    b.booking_group_id
+                    {$invoiceSelect}
                FROM bookings b
-              WHERE REGEXP_REPLACE(b.customer_phone, '[^0-9]', '') LIKE ?
+              WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(b.customer_phone, '-', ''), '(', ''), ')', ''), ' ', ''), '.', ''), '+', ''), '/', '') LIKE ?
               ORDER BY b.rental_start DESC
               LIMIT 50",
             ['%' . $digits . '%']

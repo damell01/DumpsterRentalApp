@@ -36,23 +36,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email']    ?? '');
     $password = trim($_POST['password'] ?? '');
 
-    // Rate limit check before processing
-    check_rate_limit($ip);
+    // Rate limit check before processing. Older installs may not have these tables yet.
+    try {
+        check_rate_limit($ip);
+    } catch (\Throwable $e) {
+        error_log('[TP Login] Rate limit check skipped: ' . $e->getMessage());
+    }
 
-    $user = db_fetch(
-        'SELECT * FROM users WHERE email = ? AND active = 1 LIMIT 1',
-        [$email]
-    );
+    $userSql = 'SELECT * FROM users WHERE email = ?';
+    if (db_column_exists('users', 'active')) {
+        $userSql .= ' AND active = 1';
+    }
+    $userSql .= ' LIMIT 1';
+    $user = db_fetch($userSql, [$email]);
 
     if ($user && password_verify($password, $user['password'])) {
         // Successful password verification — clear failed attempts
-        clear_attempts($ip);
+        try {
+            clear_attempts($ip);
+        } catch (\Throwable $e) {
+            error_log('[TP Login] Clear attempts skipped: ' . $e->getMessage());
+        }
 
         // Check if 2FA is enabled for this user
-        $tfs = db_fetch(
-            'SELECT * FROM two_factor_secrets WHERE user_id = ? AND enabled = 1 LIMIT 1',
-            [$user['id']]
-        );
+        $tfs = null;
+        if (db_table_exists('two_factor_secrets')) {
+            $twoFactorSql = 'SELECT * FROM two_factor_secrets WHERE user_id = ?';
+            if (db_column_exists('two_factor_secrets', 'enabled')) {
+                $twoFactorSql .= ' AND enabled = 1';
+            }
+            $twoFactorSql .= ' LIMIT 1';
+            $tfs = db_fetch($twoFactorSql, [$user['id']]);
+        }
 
         if ($tfs) {
             // Store pending user id, redirect to 2FA verify
@@ -73,9 +88,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Failed login
     sleep(1);
-    record_failed_attempt($ip, $email);
+    try {
+        record_failed_attempt($ip, $email);
+    } catch (\Throwable $e) {
+        error_log('[TP Login] Failed attempt logging skipped: ' . $e->getMessage());
+    }
 
-    $recent_count = count_recent_attempts($ip);
+    try {
+        $recent_count = count_recent_attempts($ip);
+    } catch (\Throwable $e) {
+        $recent_count = 0;
+    }
     if ($recent_count >= 5 && $recent_count < RATE_LIMIT_MAX_ATTEMPTS) {
         $remaining = RATE_LIMIT_MAX_ATTEMPTS - $recent_count;
         flash_error('Invalid credentials. Warning: ' . $remaining . ' attempt' . ($remaining === 1 ? '' : 's') . ' remaining before lockout.');

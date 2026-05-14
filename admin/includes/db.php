@@ -188,3 +188,23 @@ function db_value(string $sql, array $params = []): mixed
     $value = db_query($sql, $params)->fetchColumn();
     return $value === false ? null : $value;
 }
+
+/**
+ * Check whether a table exists in the current database.
+ */
+function db_table_exists(string $table): bool
+{
+    $sql = "SELECT COUNT(*) FROM information_schema.TABLES
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?";
+    return (int)(db_value($sql, [$table]) ?? 0) > 0;
+}
+
+/**
+ * Check whether a column exists in a table in the current database.
+ */
+function db_column_exists(string $table, string $column): bool
+{
+    $sql = "SELECT COUNT(*) FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?";
+    return (int)(db_value($sql, [$table, $column]) ?? 0) > 0;
+}
