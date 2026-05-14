@@ -276,6 +276,7 @@ CREATE TABLE IF NOT EXISTS `notifications` (
   `subject`      varchar(255)          DEFAULT NULL,
   `body`         text                  DEFAULT NULL,
   `status`       ENUM('queued','sent','failed') NOT NULL DEFAULT 'queued',
+  `seen_at`      datetime              DEFAULT NULL,
   `related_type` varchar(50)           DEFAULT NULL,
   `related_id`   int(11)               DEFAULT NULL,
   `sent_at`      datetime              DEFAULT NULL,
@@ -442,6 +443,20 @@ CREATE TABLE IF NOT EXISTS `rate_limit_locks` (
   `locked_until` datetime             DEFAULT NULL,
   `updated_at`   datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`ip_address`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
+-- email_templates
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `email_templates` (
+  `id`         INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `slug`       VARCHAR(80)      NOT NULL,
+  `name`       VARCHAR(120)     NOT NULL,
+  `subject`    VARCHAR(255)     NOT NULL,
+  `body_html`  MEDIUMTEXT       NOT NULL,
+  `updated_at` DATETIME         NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_email_templates_slug` (`slug`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

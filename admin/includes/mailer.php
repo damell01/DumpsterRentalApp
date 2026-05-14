@@ -157,6 +157,41 @@ function _log_notification(
 }
 
 /**
+ * Load an email template from DB; fall back to $defaults if not found.
+ *
+ * @param string $slug
+ * @param array{subject:string,body_html:string} $defaults
+ * @return array{subject:string,body_html:string}
+ */
+function get_email_template(string $slug, array $defaults): array
+{
+    try {
+        $row = db_fetch('SELECT subject, body_html FROM email_templates WHERE slug = ?', [$slug]);
+        if ($row && !empty($row['subject']) && !empty($row['body_html'])) {
+            return ['subject' => (string)$row['subject'], 'body_html' => (string)$row['body_html']];
+        }
+    } catch (\Throwable $e) {
+        // fall through to defaults
+    }
+    return $defaults;
+}
+
+/**
+ * Replace {{variable}} placeholders in a template string.
+ *
+ * @param string $template
+ * @param array<string,string> $vars
+ * @return string
+ */
+function render_email_vars(string $template, array $vars): string
+{
+    foreach ($vars as $key => $val) {
+        $template = str_replace('{{' . $key . '}}', (string)$val, $template);
+    }
+    return $template;
+}
+
+/**
  * Generate a full HTML email template.
  *
  * @param string $title
@@ -261,16 +296,28 @@ function notify_delivery_tomorrow(): void
         $name    = $wo['cust_name'] ?: ($wo['cust_name_db'] ?? 'Valued Customer');
         $address = $wo['service_address'] . ($wo['service_city'] ? ', ' . $wo['service_city'] : '');
 
-        $body = '<p>Hello ' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . ',</p>
-<p>This is a reminder that your dumpster delivery is scheduled for <strong>tomorrow, '
-. date('l, F j, Y', strtotime($tomorrow)) . '</strong>.</p>
-<p><strong>Delivery Address:</strong> ' . htmlspecialchars($address, ENT_QUOTES, 'UTF-8') . '</p>
-<p><strong>Dumpster Size:</strong> ' . htmlspecialchars($wo['size'] ?? 'N/A', ENT_QUOTES, 'UTF-8') . '</p>
+        $vars = [
+            'customer_name'    => htmlspecialchars($name, ENT_QUOTES, 'UTF-8'),
+            'delivery_date'    => date('l, F j, Y', strtotime($tomorrow)),
+            'delivery_address' => htmlspecialchars($address, ENT_QUOTES, 'UTF-8'),
+            'unit_size'        => htmlspecialchars($wo['size'] ?? 'N/A', ENT_QUOTES, 'UTF-8'),
+        ];
+
+        $tpl = get_email_template('delivery_tomorrow', [
+            'subject'  => 'Your Dumpster Delivery Is Tomorrow!',
+            'body_html' => '<p>Hello {{customer_name}},</p>
+<p>This is a reminder that your dumpster delivery is scheduled for <strong>tomorrow, {{delivery_date}}</strong>.</p>
+<p><strong>Delivery Address:</strong> {{delivery_address}}</p>
+<p><strong>Dumpster Size:</strong> {{unit_size}}</p>
 <p>Please ensure the area is accessible for our driver. If you need to reschedule, contact us as soon as possible.</p>
-<p>Thank you for choosing us!</p>';
+<p>Thank you for choosing us!</p>',
+        ]);
+
+        $subject = render_email_vars($tpl['subject'], $vars);
+        $body    = render_email_vars($tpl['body_html'], $vars);
 
         $html = email_template('Delivery Reminder', $body);
-        send_email($email, 'Your Dumpster Delivery Is Tomorrow!', $html);
+        send_email($email, $subject, $html);
 
         // Push notification to customer
         if (function_exists('push_notify_customer')) {
@@ -354,44 +401,62 @@ function notify_booking_confirmed(array $booking): void
         return;
     }
 
-    $name      = htmlspecialchars($booking['customer_name'] ?? 'Customer',  ENT_QUOTES, 'UTF-8');
-    $bk_num    = htmlspecialchars($booking['booking_number'] ?? '',          ENT_QUOTES, 'UTF-8');
-    $unit      = htmlspecialchars(($booking['unit_code'] ?? '') . ' — ' . ($booking['unit_size'] ?? ''), ENT_QUOTES, 'UTF-8');
-    $start     = !empty($booking['rental_start']) ? date('l, F j, Y', strtotime($booking['rental_start'])) : '—';
-    $end       = !empty($booking['rental_end'])   ? date('l, F j, Y', strtotime($booking['rental_end']))   : '—';
-    $days      = (int)($booking['rental_days'] ?? 0);
-    $total     = fmt_money($booking['total_amount'] ?? 0);
-    $method    = htmlspecialchars(ucfirst($booking['payment_method'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $name   = htmlspecialchars($booking['customer_name'] ?? 'Customer',  ENT_QUOTES, 'UTF-8');
+    $bk_num = htmlspecialchars($booking['booking_number'] ?? '',          ENT_QUOTES, 'UTF-8');
+    $unit   = htmlspecialchars(($booking['unit_code'] ?? '') . ' — ' . ($booking['unit_size'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $start  = !empty($booking['rental_start']) ? date('l, F j, Y', strtotime($booking['rental_start'])) : '—';
+    $end    = !empty($booking['rental_end'])   ? date('l, F j, Y', strtotime($booking['rental_end']))   : '—';
+    $days   = (int)($booking['rental_days'] ?? 0);
+    $total  = fmt_money($booking['total_amount'] ?? 0);
+    $method = htmlspecialchars(ucfirst($booking['payment_method'] ?? ''), ENT_QUOTES, 'UTF-8');
 
-    $body = '<p>Hello ' . $name . ',</p>
+    $vars = [
+        'customer_name'  => $name,
+        'booking_number' => $bk_num,
+        'unit'           => $unit,
+        'rental_start'   => $start,
+        'rental_end'     => $end,
+        'rental_days'    => (string)$days,
+        'rental_days_s'  => $days !== 1 ? 's' : '',
+        'total'          => $total,
+        'payment_method' => $method,
+    ];
+
+    $tpl = get_email_template('booking_confirmed', [
+        'subject'  => 'Booking Confirmed — {{booking_number}}',
+        'body_html' => '<p>Hello {{customer_name}},</p>
 <p>Your dumpster rental booking has been <strong>confirmed</strong>. Here are your details:</p>
 <table width="100%" style="border-collapse:collapse;font-size:.95rem;margin:16px 0;">
   <tr style="background:#f9fafb;">
     <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;width:40%;">Booking #</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">' . $bk_num . '</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{booking_number}}</td>
   </tr>
   <tr>
     <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Unit</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;">' . $unit . '</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;">{{unit}}</td>
   </tr>
   <tr style="background:#f9fafb;">
     <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Rental Period</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;">' . $start . ' → ' . $end . ' (' . $days . ' day' . ($days !== 1 ? 's' : '') . ')</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;">{{rental_start}} → {{rental_end}} ({{rental_days}} day{{rental_days_s}})</td>
   </tr>
   <tr>
     <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Total</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">' . $total . '</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{total}}</td>
   </tr>
   <tr style="background:#f9fafb;">
     <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Payment Method</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;">' . $method . '</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;">{{payment_method}}</td>
   </tr>
 </table>
 <p>If you have any questions or need to make changes, please contact us.</p>
-<p>Thank you for choosing us!</p>';
+<p>Thank you for choosing us!</p>',
+    ]);
+
+    $subject = render_email_vars($tpl['subject'], $vars);
+    $body    = render_email_vars($tpl['body_html'], $vars);
 
     $html = email_template('Booking Confirmation — ' . $bk_num, $body);
-    send_email($email, 'Booking Confirmed — ' . $bk_num, $html);
+    send_email($email, $subject, $html);
 
     // Also notify the company
     notify_admins(
@@ -424,48 +489,64 @@ function notify_booking_confirmed(array $booking): void
  */
 function notify_booking_request_received(array $booking): void
 {
-    $email = trim($booking['customer_email'] ?? '');
+    $email  = trim($booking['customer_email'] ?? '');
     $bk_num = htmlspecialchars($booking['booking_number'] ?? '', ENT_QUOTES, 'UTF-8');
-    $name = htmlspecialchars($booking['customer_name'] ?? 'Customer', ENT_QUOTES, 'UTF-8');
-    $unit = htmlspecialchars(($booking['unit_code'] ?? '') . ' - ' . ($booking['unit_size'] ?? ''), ENT_QUOTES, 'UTF-8');
-    $start = !empty($booking['rental_start']) ? date('l, F j, Y', strtotime($booking['rental_start'])) : '-';
-    $end = !empty($booking['rental_end']) ? date('l, F j, Y', strtotime($booking['rental_end'])) : '-';
-    $total = fmt_money($booking['total_amount'] ?? 0);
+    $name   = htmlspecialchars($booking['customer_name'] ?? 'Customer', ENT_QUOTES, 'UTF-8');
+    $unit   = htmlspecialchars(($booking['unit_code'] ?? '') . ' — ' . ($booking['unit_size'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $start  = !empty($booking['rental_start']) ? date('l, F j, Y', strtotime($booking['rental_start'])) : '—';
+    $end    = !empty($booking['rental_end'])   ? date('l, F j, Y', strtotime($booking['rental_end']))   : '—';
+    $total  = fmt_money($booking['total_amount'] ?? 0);
     $method = htmlspecialchars(payment_method_label($booking['payment_method'] ?? ''), ENT_QUOTES, 'UTF-8');
 
-    $body = '<p>Hello ' . $name . ',</p>
+    $vars = [
+        'customer_name'  => $name,
+        'booking_number' => $bk_num,
+        'unit'           => $unit,
+        'rental_start'   => $start,
+        'rental_end'     => $end,
+        'total'          => $total,
+        'payment_method' => $method,
+    ];
+
+    $tpl = get_email_template('booking_request_received', [
+        'subject'  => 'Booking Request Received — {{booking_number}}',
+        'body_html' => '<p>Hello {{customer_name}},</p>
 <p>We received your dumpster rental request and it is now <strong>awaiting review</strong>.</p>
 <table width="100%" style="border-collapse:collapse;font-size:.95rem;margin:16px 0;">
   <tr style="background:#f9fafb;">
     <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;width:40%;">Request #</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">' . $bk_num . '</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{booking_number}}</td>
   </tr>
   <tr>
     <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Unit</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;">' . $unit . '</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;">{{unit}}</td>
   </tr>
   <tr style="background:#f9fafb;">
     <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Rental Period</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;">' . $start . ' -> ' . $end . '</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;">{{rental_start}} → {{rental_end}}</td>
   </tr>
   <tr>
     <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Estimated Total</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">' . $total . '</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{total}}</td>
   </tr>
   <tr style="background:#f9fafb;">
     <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Preferred Payment</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;">' . $method . '</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;">{{payment_method}}</td>
   </tr>
 </table>
-<p>Our team will review availability and follow up with approval details and payment instructions if needed.</p>';
+<p>Our team will review availability and follow up with approval details and payment instructions if needed.</p>',
+    ]);
+
+    $subject = render_email_vars($tpl['subject'], $vars);
+    $body    = render_email_vars($tpl['body_html'], $vars);
 
     if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $html = email_template('Booking Request Received - ' . $bk_num, $body);
-        send_email($email, 'Booking Request Received - ' . $bk_num, $html);
+        $html = email_template('Booking Request Received — ' . $bk_num, $body);
+        send_email($email, $subject, $html);
     }
 
     notify_admins(
-        'New Booking Request - ' . $bk_num . ' (' . ($booking['customer_name'] ?? '') . ')',
+        'New Booking Request — ' . $bk_num . ' (' . ($booking['customer_name'] ?? '') . ')',
         $body
     );
 }
@@ -487,28 +568,42 @@ function send_invoice_email_to_customer(array $invoice): bool
     $paymentLink = trim((string)($invoice['stripe_payment_link'] ?? ''));
     $notes = trim((string)($invoice['notes'] ?? ''));
 
-    $body = '<p>Hello ' . $customerName . ',</p>
-<p>Your invoice <strong>' . $invoiceNumber . '</strong> is ready.</p>
+    $notesBlock = $notes !== ''
+        ? '<p><strong>Notes:</strong><br>' . nl2br(htmlspecialchars($notes, ENT_QUOTES, 'UTF-8')) . '</p>'
+        : '';
+
+    $vars = [
+        'customer_name'  => $customerName,
+        'invoice_number' => $invoiceNumber,
+        'amount'         => htmlspecialchars($amount, ENT_QUOTES, 'UTF-8'),
+        'due_date'       => htmlspecialchars($dueDate, ENT_QUOTES, 'UTF-8'),
+        'notes_block'    => $notesBlock,
+    ];
+
+    $tpl = get_email_template('invoice_ready', [
+        'subject'  => 'Invoice {{invoice_number}} from ' . get_setting('company_name', 'Trash Panda Roll-Offs'),
+        'body_html' => '<p>Hello {{customer_name}},</p>
+<p>Your invoice <strong>{{invoice_number}}</strong> is ready.</p>
 <table width="100%" style="border-collapse:collapse;font-size:.95rem;margin:16px 0;">
   <tr style="background:#f9fafb;">
     <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;width:40%;">Invoice #</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">' . $invoiceNumber . '</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{invoice_number}}</td>
   </tr>
   <tr>
     <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Amount Due</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">' . htmlspecialchars($amount, ENT_QUOTES, 'UTF-8') . '</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{amount}}</td>
   </tr>
   <tr style="background:#f9fafb;">
     <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Due Date</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;">' . htmlspecialchars($dueDate, ENT_QUOTES, 'UTF-8') . '</td>
+    <td style="padding:10px 14px;border:1px solid #e5e7eb;">{{due_date}}</td>
   </tr>
-</table>';
+</table>
+{{notes_block}}
+<p>You can review and pay this invoice using the link below.</p>',
+    ]);
 
-    if ($notes !== '') {
-        $body .= '<p><strong>Notes:</strong><br>' . nl2br(htmlspecialchars($notes, ENT_QUOTES, 'UTF-8')) . '</p>';
-    }
-
-    $body .= '<p>You can review and pay this invoice using the link below.</p>';
+    $subject = render_email_vars($tpl['subject'], $vars);
+    $body    = render_email_vars($tpl['body_html'], $vars);
 
     $html = email_template(
         'Invoice ' . (string)($invoice['invoice_number'] ?? ''),
@@ -517,7 +612,7 @@ function send_invoice_email_to_customer(array $invoice): bool
         $paymentLink !== '' ? $paymentLink : ''
     );
 
-    $sent = send_email($email, 'Invoice ' . (string)($invoice['invoice_number'] ?? '') . ' from ' . get_setting('company_name', 'Trash Panda Roll-Offs'), $html);
+    $sent = send_email($email, $subject, $html);
 
     if ($sent) {
         notify_admins(
@@ -545,20 +640,33 @@ function notify_booking_expiry_reminder(array $booking): void
     $end    = !empty($booking['rental_end']) ? date('l, F j, Y', strtotime($booking['rental_end'])) : '—';
 
     $company_phone = get_setting('company_phone', '');
-    $phone_note = $company_phone
-        ? '<p>To schedule a pickup or extend your rental, please call us at <strong>'
-            . htmlspecialchars($company_phone, ENT_QUOTES, 'UTF-8') . '</strong>.</p>'
+    $phone_html = $company_phone !== ''
+        ? '<p>To schedule a pickup or extend your rental, please call us at <strong>' . htmlspecialchars($company_phone, ENT_QUOTES, 'UTF-8') . '</strong>.</p>'
         : '<p>Please contact us to schedule a pickup or extend your rental.</p>';
 
-    $body = '<p>Hello ' . $name . ',</p>
-<p>This is a friendly reminder that your dumpster rental (<strong>' . $bk_num . '</strong>) is scheduled to end on <strong>' . $end . '</strong>.</p>
-<p><strong>Unit:</strong> ' . $unit . '</p>
-' . $phone_note . '
+    $vars = [
+        'customer_name'  => $name,
+        'booking_number' => $bk_num,
+        'unit'           => $unit,
+        'rental_end'     => $end,
+        'phone_block'    => $phone_html,
+    ];
+
+    $tpl = get_email_template('rental_ending_soon', [
+        'subject'  => 'Your Dumpster Rental Ends on {{rental_end}} — {{booking_number}}',
+        'body_html' => '<p>Hello {{customer_name}},</p>
+<p>This is a friendly reminder that your dumpster rental (<strong>{{booking_number}}</strong>) is scheduled to end on <strong>{{rental_end}}</strong>.</p>
+<p><strong>Unit:</strong> {{unit}}</p>
+{{phone_block}}
 <p>If you do not need to extend, please ensure the dumpster is ready for pickup by the end date.</p>
-<p>Thank you!</p>';
+<p>Thank you!</p>',
+    ]);
+
+    $subject = render_email_vars($tpl['subject'], $vars);
+    $body    = render_email_vars($tpl['body_html'], $vars);
 
     $html = email_template('Rental Ending Soon — ' . $bk_num, $body);
-    send_email($email, 'Your Dumpster Rental Ends on ' . $end . ' — ' . $bk_num, $html);
+    send_email($email, $subject, $html);
 
     // ── Push notifications ────────────────────────────────────────────────────
     if (function_exists('push_notify_customer')) {
@@ -585,13 +693,24 @@ function notify_booking_cancelled(array $booking): void
     $name   = htmlspecialchars($booking['customer_name'] ?? 'Customer', ENT_QUOTES, 'UTF-8');
     $bk_num = htmlspecialchars($booking['booking_number'] ?? '',         ENT_QUOTES, 'UTF-8');
 
-    $body = '<p>Hello ' . $name . ',</p>
-<p>Your booking <strong>' . $bk_num . '</strong> has been <strong>cancelled</strong>.</p>
+    $vars = [
+        'customer_name'  => $name,
+        'booking_number' => $bk_num,
+    ];
+
+    $tpl = get_email_template('booking_cancelled', [
+        'subject'  => 'Booking Cancelled — {{booking_number}}',
+        'body_html' => '<p>Hello {{customer_name}},</p>
+<p>Your booking <strong>{{booking_number}}</strong> has been <strong>cancelled</strong>.</p>
 <p>If you believe this was done in error or have questions, please contact us.</p>
-<p>Thank you for your business.</p>';
+<p>Thank you for your business.</p>',
+    ]);
+
+    $subject = render_email_vars($tpl['subject'], $vars);
+    $body    = render_email_vars($tpl['body_html'], $vars);
 
     $html = email_template('Booking Cancelled — ' . $bk_num, $body);
-    send_email($email, 'Booking Cancelled — ' . $bk_num, $html);
+    send_email($email, $subject, $html);
 
     // ── Push notifications ────────────────────────────────────────────────────
     if (function_exists('push_notify_customer')) {

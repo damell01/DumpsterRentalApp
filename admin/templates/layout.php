@@ -113,6 +113,15 @@ function layout_start(string $page_title, string $active_nav = ''): void
                 'Use the Help page and testing guide before making production changes.',
             ],
         ],
+        'email_templates' => [
+            'title' => 'Email Templates Guide',
+            'summary' => 'Customize the emails sent to customers for bookings, invoices, and reminders.',
+            'tips' => [
+                'Use {{variable}} placeholders to insert booking/customer data dynamically.',
+                'Click a variable chip to insert it at the cursor in the body editor.',
+                'Reset to default if a template ever breaks to get back the working original.',
+            ],
+        ],
         'help' => [
             'title' => 'Help Guide',
             'summary' => 'This area is the built-in training and reference center for admins and office staff.',
@@ -243,6 +252,14 @@ function layout_start(string $page_title, string $active_nav = ''): void
             'icon'  => 'fa-bell',
             'href'  => APP_URL . '/modules/notifications/index.php',
             'roles' => ['admin', 'office'],
+            'badge' => 'notifications',
+        ],
+        [
+            'key'   => 'email_templates',
+            'label' => 'Email Templates',
+            'icon'  => 'fa-envelope-open-text',
+            'href'  => APP_URL . '/modules/email_templates/index.php',
+            'roles' => ['admin'],
             'badge' => null,
         ],
         [
@@ -292,6 +309,12 @@ function layout_start(string $page_title, string $active_nav = ''): void
             if ($type === 'leads') {
                 $row = db_fetch(
                     "SELECT COUNT(*) AS cnt FROM leads WHERE archived = 0 AND status IN ('new','contacted','quoted')"
+                );
+                return (int) ($row['cnt'] ?? 0);
+            }
+            if ($type === 'notifications') {
+                $row = db_fetch(
+                    "SELECT COUNT(*) AS cnt FROM notifications WHERE seen_at IS NULL"
                 );
                 return (int) ($row['cnt'] ?? 0);
             }

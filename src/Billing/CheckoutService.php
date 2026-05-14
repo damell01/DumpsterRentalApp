@@ -106,8 +106,7 @@ class CheckoutService
             $sessionParams['payment_method_types'] = ['us_bank_account'];
             $sessionParams['payment_method_options'] = $this->buildAchOptions();
         } else {
-            // Let Stripe show all enabled methods (card, ACH, Apple Pay, etc.)
-            $sessionParams['automatic_payment_methods'] = ['enabled' => true];
+            $sessionParams['payment_method_types'] = ['card'];
         }
 
         return $this->factory->requireClient()->checkout->sessions->create($sessionParams);
@@ -168,7 +167,7 @@ class CheckoutService
             $sessionParams['payment_method_types'] = ['us_bank_account'];
             $sessionParams['payment_method_options'] = $this->buildAchOptions();
         } else {
-            $sessionParams['automatic_payment_methods'] = ['enabled' => true];
+            $sessionParams['payment_method_types'] = ['card'];
         }
 
         return $this->factory->requireClient()->checkout->sessions->create($sessionParams);

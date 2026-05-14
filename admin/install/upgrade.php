@@ -744,6 +744,39 @@ if (table_exists($pdo, 'bookings') && !column_exists($pdo, 'bookings', 'customer
 }
 
 // =============================================================================
+// UPGRADE 28 — notifications: add seen_at for unread badge tracking
+// =============================================================================
+echo "\n--- Upgrade 28: notifications.seen_at ---\n";
+
+if (table_exists($pdo, 'notifications') && !column_exists($pdo, 'notifications', 'seen_at')) {
+    run_step($pdo, 'notifications.seen_at',
+        "ALTER TABLE `notifications` ADD COLUMN `seen_at` DATETIME DEFAULT NULL AFTER `status`");
+} else {
+    $log[] = '[SKIP] notifications.seen_at (already exists or table missing)';
+}
+
+// =============================================================================
+// UPGRADE 29 — email_templates table for admin-editable notification templates
+// =============================================================================
+echo "\n--- Upgrade 29: email_templates table ---\n";
+
+if (!table_exists($pdo, 'email_templates')) {
+    run_step($pdo, 'email_templates CREATE',
+        "CREATE TABLE `email_templates` (
+          `id`         INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+          `slug`       VARCHAR(80)      NOT NULL,
+          `name`       VARCHAR(120)     NOT NULL,
+          `subject`    VARCHAR(255)     NOT NULL,
+          `body_html`  MEDIUMTEXT       NOT NULL,
+          `updated_at` DATETIME         NOT NULL,
+          PRIMARY KEY (`id`),
+          UNIQUE KEY `uq_email_templates_slug` (`slug`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+} else {
+    $log[] = '[SKIP] email_templates (already exists)';
+}
+
+// =============================================================================
 // Summary
 // =============================================================================
 echo "\n" . str_repeat('=', 60) . "\n";

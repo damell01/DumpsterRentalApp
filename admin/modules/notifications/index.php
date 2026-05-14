@@ -8,6 +8,13 @@ require_once dirname(__DIR__, 2) . '/includes/bootstrap.php';
 require_once TMPL_PATH . '/layout.php';
 require_login();
 
+// Mark all unseen notifications as seen when this page is visited
+try {
+    db_execute("UPDATE notifications SET seen_at = ? WHERE seen_at IS NULL", [date('Y-m-d H:i:s')]);
+} catch (\Throwable $e) {
+    // Non-fatal — badge is cosmetic
+}
+
 // ── Filters ───────────────────────────────────────────────────────────────────
 $filter_type   = trim($_GET['type']   ?? '');
 $filter_status = trim($_GET['status'] ?? '');

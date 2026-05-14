@@ -58,7 +58,7 @@ const tickerHTML = `
         Live Dumpster Inventory <span class="ticker-sep"></span>
         Residential & Commercial <span class="ticker-sep"></span>
         Licensed & Insured <span class="ticker-sep"></span>
-        Call (251) 333-4444 <span class="ticker-sep"></span>
+        Call <span class="ticker-phone">(251) 333-4444</span> <span class="ticker-sep"></span>
         Eco-Responsible Disposal <span class="ticker-sep"></span>
       </div>
     `).join('')}
@@ -437,7 +437,7 @@ async function loadLiveDumpsterSizes() {
 }
 
 function _replacePhoneInTextNodes(root, phone) {
-  const phonePattern = /\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}/g;
+  const phonePattern = /\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}/;
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode: function(node) {
       var tag = node.parentElement && node.parentElement.tagName;
@@ -469,6 +469,11 @@ function loadSiteConfig() {
         ['siteNavPhoneText', 'mobNavPhoneText', 'footerPhoneText'].forEach((id) => {
           const el = document.getElementById(id);
           if (el) el.textContent = cfg.phone;
+        });
+
+        // Ticker phone spans
+        document.querySelectorAll('.ticker-phone').forEach((el) => {
+          el.textContent = cfg.phone;
         });
 
         // All tel: links anywhere on the page
