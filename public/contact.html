@@ -50,6 +50,8 @@
     .size-opt:has(input:checked),.size-opt.selected{border-color:var(--orange);background:rgba(249,115,22,.08);}
     .size-opt-num{font-family:var(--font-display);font-size:1.5rem;color:var(--orange);line-height:1;}
     .size-opt-yd{font-family:var(--font-cond);font-weight:700;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray);}
+    .size-opt-meta{font-family:var(--font-cond);font-weight:600;font-size:.72rem;letter-spacing:.03em;color:var(--gray-light);margin-top:.4rem;}
+    @media(max-width:767px){.size-selector{grid-template-columns:repeat(2,1fr);}}
     .success-msg{display:none;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);border-radius:var(--radius);padding:1.5rem;text-align:center;font-family:var(--font-cond);font-weight:700;font-size:1.05rem;color:#4ade80;letter-spacing:.04em;}
 
     .trust-strip{background:var(--dark3);border:1px solid var(--steel);border-radius:var(--radius-lg);padding:1.5rem 2rem;display:flex;flex-wrap:wrap;gap:1.5rem;justify-content:center;margin-top:2rem;}
@@ -138,11 +140,8 @@
               </div>
               <div class="form-field">
                 <label>Dumpster Size Needed</label>
-                <div class="size-selector">
-                  <label class="size-opt"><input type="radio" name="size" value="10 yard"/><div class="size-opt-num">10</div><div class="size-opt-yd">Yard</div></label>
-                  <label class="size-opt"><input type="radio" name="size" value="20 yard"/><div class="size-opt-num">20</div><div class="size-opt-yd">Yard</div></label>
-                  <label class="size-opt"><input type="radio" name="size" value="30 yard"/><div class="size-opt-num">30</div><div class="size-opt-yd">Yard</div></label>
-                  <label class="size-opt"><input type="radio" name="size" value="40 yard"/><div class="size-opt-num">40</div><div class="size-opt-yd">Yard</div></label>
+                <div class="size-selector" id="quote-size-selector">
+                  <p style="color:var(--gray-light);margin:0;font-size:.92rem;">Loading live dumpster sizes and stock...</p>
                 </div>
               </div>
               <div class="form-row">
@@ -191,11 +190,11 @@
 <script src="shared-components.js"></script>
 <script>
 // Size selector
-document.querySelectorAll('.size-opt').forEach(opt => {
-  opt.addEventListener('click', () => {
-    document.querySelectorAll('.size-opt').forEach(o => o.classList.remove('selected'));
-    opt.classList.add('selected');
-  });
+document.addEventListener('click', function(e) {
+  const opt = e.target.closest('.size-opt');
+  if (!opt) return;
+  document.querySelectorAll('.size-opt').forEach(o => o.classList.remove('selected'));
+  opt.classList.add('selected');
 });
 
 // Form submit — POST to backend API

@@ -27,6 +27,7 @@
     :root {
       --orange:#F97316;
       --orange-dark:#C2410C;
+      --orange-xd:#7C2D12;
       --amber:#F59E0B;
       --black:#080808;
       --dark:#111111;
@@ -520,7 +521,7 @@
 
     /* ── CTA BANNER ── */
     .cta-banner {
-      background: linear-gradient(135deg, var(--orange-xd) 0%, var(--orange-dark) 40%, var(--orange) 70%, var(--amber) 100%);
+      background: linear-gradient(135deg, var(--orange-xd) 0%, var(--orange-dark) 38%, var(--orange) 72%, #FDBA74 100%);
       position: relative;
       overflow: hidden;
     }
@@ -532,15 +533,17 @@
     .cta-banner-title {
       font-family: var(--font-display);
       font-size: clamp(2.5rem, 6vw, 4.5rem);
-      color: var(--black);
+      color: var(--white);
       line-height: 0.9;
+      text-shadow: 0 8px 22px rgba(0,0,0,.25);
     }
     .cta-banner-sub {
       font-family: var(--font-cond);
       font-size: 1.15rem;
       font-weight: 600;
-      color: rgba(0,0,0,0.65);
+      color: rgba(255,255,255,0.88);
       margin: 1rem 0 0;
+      max-width: 520px;
     }
     .btn-cta-dark {
       display: inline-flex;
@@ -915,7 +918,7 @@
       </div>
       <div class="col-lg-5 d-flex gap-3 flex-wrap justify-content-lg-end">
         <a href="tel:+12513334444" class="btn-cta-dark"><i class="fas fa-phone"></i> Call Now</a>
-        <a href="/book.php" class="btn-cta-dark" style="background:rgba(0,0,0,0.2);border:2px solid rgba(0,0,0,0.3);"><i class="fas fa-calendar-check"></i> Book Now</a>
+        <a href="/book.php" class="btn-cta-dark" style="background:rgba(8,8,8,0.18);border:1px solid rgba(255,255,255,0.18);backdrop-filter:blur(6px);"><i class="fas fa-calendar-check"></i> Book Now</a>
       </div>
     </div>
   </div>

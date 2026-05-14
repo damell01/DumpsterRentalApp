@@ -76,8 +76,6 @@ const footerHTML = `
           <div class="social-row mb-4">
             <a href="#" class="social-btn"><i class="fab fa-facebook-f"></i></a>
             <a href="#" class="social-btn"><i class="fab fa-instagram"></i></a>
-            <a href="#" class="social-btn"><i class="fab fa-google"></i></a>
-            <a href="#" class="social-btn"><i class="fab fa-yelp"></i></a>
           </div>
           <a href="tel:+12513334444" style="font-family:var(--font-cond);font-weight:900;font-size:1.5rem;color:var(--orange);text-decoration:none;letter-spacing:0.02em;display:flex;align-items:center;gap:8px;"><i class="fas fa-phone" style="font-size:1rem;"></i>(251) 333-4444</a>
         </div>
@@ -348,6 +346,37 @@ function renderSizesPage(sizes) {
   }
 }
 
+function renderQuoteSizeOptions(sizes) {
+  const selector = document.getElementById('quote-size-selector');
+  if (!selector) return;
+
+  if (!Array.isArray(sizes) || !sizes.length) {
+    selector.innerHTML = `
+      <p style="color:var(--gray-light);margin:0;font-size:.92rem;">
+        Live dumpster sizes are unavailable right now. Call us and we will recommend the best size for your job.
+      </p>`;
+    return;
+  }
+
+  selector.innerHTML = sizes.map((size) => {
+    const available = Number(size.available_count || 0);
+    const total = Number(size.unit_count || 0);
+    const label = escapeHtml(size.size || 'Dumpster');
+    const value = escapeHtml(String(size.size || ''));
+    const badge = available > 0
+      ? `<div class="size-opt-meta">${available} available now</div>`
+      : `<div class="size-opt-meta">${total} configured unit${total === 1 ? '' : 's'}</div>`;
+
+    return `
+      <label class="size-opt${available > 0 ? ' in-stock' : ''}">
+        <input type="radio" name="size" value="${value}"/>
+        <div class="size-opt-num">${escapeHtml(extractSizeNumber(size.size))}</div>
+        <div class="size-opt-yd">${label}</div>
+        ${badge}
+      </label>`;
+  }).join('');
+}
+
 function loadLiveDumpsterSizes() {
   if (!document.getElementById('home-size-preview') &&
       !document.getElementById('dynamic-sizes-list') &&
@@ -409,9 +438,11 @@ function loadLiveDumpsterSizes() {
       const sizes = Array.isArray(payload && payload.sizes) ? payload.sizes : [];
       renderHomeSizePreview(sizes);
       renderSizesPage(sizes);
+      renderQuoteSizeOptions(sizes);
     })
     .catch((error) => {
       renderLoadError(error && error.message ? error.message : '');
+      renderQuoteSizeOptions([]);
     });
 }
 
