@@ -68,6 +68,15 @@ function column_exists(PDO $pdo, string $table, string $column): bool {
     return (int)$stmt->fetchColumn() > 0;
 }
 
+function index_exists(PDO $pdo, string $table, string $index): bool {
+    $stmt = $pdo->prepare(
+        "SELECT COUNT(*) FROM information_schema.STATISTICS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?"
+    );
+    $stmt->execute([$table, $index]);
+    return (int)$stmt->fetchColumn() > 0;
+}
+
 function table_exists(PDO $pdo, string $table): bool {
     $stmt = $pdo->prepare(
         "SELECT COUNT(*) FROM information_schema.TABLES
@@ -137,6 +146,7 @@ if (!table_exists($pdo, 'bookings')) {
         CREATE TABLE `bookings` (
           `id`                 INT(11)       NOT NULL AUTO_INCREMENT,
           `booking_number`     VARCHAR(20)   NOT NULL,
+          `customer_id`        INT(11)                DEFAULT NULL,
           `customer_name`      VARCHAR(100)  NOT NULL,
           `customer_phone`     VARCHAR(25)            DEFAULT NULL,
           `customer_email`     VARCHAR(150)           DEFAULT NULL,
@@ -156,12 +166,15 @@ if (!table_exists($pdo, 'bookings')) {
           `stripe_session_id`  VARCHAR(255)           DEFAULT NULL,
           `stripe_payment_id`  VARCHAR(255)           DEFAULT NULL,
           `booking_status`     ENUM('pending','confirmed','paid','canceled','completed') NOT NULL DEFAULT 'pending',
+          `booking_group_id`   VARCHAR(32)            DEFAULT NULL,
           `notes`              TEXT                   DEFAULT NULL,
           `created_by`         INT(11)                DEFAULT NULL,
           `created_at`         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
           `updated_at`         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
           PRIMARY KEY (`id`),
-          UNIQUE KEY `uq_bookings_number` (`booking_number`),
+          KEY `idx_bookings_number` (`booking_number`),
+          KEY `idx_bookings_group` (`booking_group_id`),
+          CONSTRAINT `fk_bookings_customer_id` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL,
           CONSTRAINT `fk_bookings_dumpster_id` FOREIGN KEY (`dumpster_id`) REFERENCES `dumpsters` (`id`) ON DELETE SET NULL,
           CONSTRAINT `fk_bookings_created_by`  FOREIGN KEY (`created_by`)  REFERENCES `users` (`id`) ON DELETE SET NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -658,6 +671,77 @@ if (!file_exists($htaccess_path)) {
 }
 
 $log[] = "[SKIP] invoice_footer setting — inserted via application on first save";
+
+// =============================================================================
+// UPGRADE 25 — bookings: drop UNIQUE key on booking_number so multi-unit orders
+//              can share one booking number; replace with a regular index.
+// =============================================================================
+echo "\n--- Upgrade 25: bookings.booking_number — UNIQUE → regular index ---\n";
+
+if (table_exists($pdo, 'bookings')) {
+    if (index_exists($pdo, 'bookings', 'uq_bookings_number')) {
+        run_step($pdo, 'bookings: drop uq_bookings_number',
+            "ALTER TABLE `bookings` DROP INDEX `uq_bookings_number`");
+    } else {
+        $log[] = "[SKIP] bookings.uq_bookings_number (already removed)";
+    }
+    if (!index_exists($pdo, 'bookings', 'idx_bookings_number')) {
+        run_step($pdo, 'bookings: add idx_bookings_number',
+            "ALTER TABLE `bookings` ADD KEY `idx_bookings_number` (`booking_number`)");
+    } else {
+        $log[] = "[SKIP] bookings.idx_bookings_number (already exists)";
+    }
+} else {
+    $log[] = "[SKIP] bookings table does not exist";
+}
+
+// =============================================================================
+// UPGRADE 26 — customers: add stripe_customer_id; add email/phone indexes
+//              for fast deduplication lookups.
+// =============================================================================
+echo "\n--- Upgrade 26: customers — stripe_customer_id + dedup indexes ---\n";
+
+if (table_exists($pdo, 'customers')) {
+    if (!column_exists($pdo, 'customers', 'stripe_customer_id')) {
+        run_step($pdo, 'customers.stripe_customer_id',
+            "ALTER TABLE `customers`
+             ADD COLUMN `stripe_customer_id` VARCHAR(100) DEFAULT NULL
+             COMMENT 'Stripe Customer object ID' AFTER `lead_id`");
+    } else {
+        $log[] = "[SKIP] customers.stripe_customer_id (already exists)";
+    }
+    if (!index_exists($pdo, 'customers', 'idx_customers_email')) {
+        run_step($pdo, 'customers: idx_customers_email',
+            "ALTER TABLE `customers` ADD KEY `idx_customers_email` (`email`)");
+    } else {
+        $log[] = "[SKIP] customers.idx_customers_email (already exists)";
+    }
+    if (!index_exists($pdo, 'customers', 'idx_customers_phone')) {
+        run_step($pdo, 'customers: idx_customers_phone',
+            "ALTER TABLE `customers` ADD KEY `idx_customers_phone` (`phone`)");
+    } else {
+        $log[] = "[SKIP] customers.idx_customers_phone (already exists)";
+    }
+} else {
+    $log[] = "[SKIP] customers table does not exist";
+}
+
+// =============================================================================
+// UPGRADE 27 — bookings: add customer_id FK so bookings link to the customers
+//              table (enables deduplication on public booking form).
+// =============================================================================
+echo "\n--- Upgrade 27: bookings.customer_id ---\n";
+
+if (table_exists($pdo, 'bookings') && !column_exists($pdo, 'bookings', 'customer_id')) {
+    run_step($pdo, 'bookings.customer_id',
+        "ALTER TABLE `bookings`
+         ADD COLUMN `customer_id` INT(11) DEFAULT NULL
+         COMMENT 'FK to customers table — set by findOrCreateByBooking()' AFTER `booking_number`,
+         ADD CONSTRAINT `fk_bookings_customer_id`
+           FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL");
+} else {
+    $log[] = "[SKIP] bookings.customer_id (already exists or bookings table missing)";
+}
 
 // =============================================================================
 // Summary

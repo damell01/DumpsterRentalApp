@@ -31,22 +31,25 @@ CREATE TABLE IF NOT EXISTS `customers` (
   `id`              int(11)      NOT NULL AUTO_INCREMENT,
   `name`            varchar(100) NOT NULL,
   `company`         varchar(150)          DEFAULT NULL,
-  `email`           varchar(150)          DEFAULT NULL,
-  `phone`           varchar(20)           DEFAULT NULL,
-  `address`         varchar(200)          DEFAULT NULL,
-  `city`            varchar(100)          DEFAULT NULL,
-  `state`           varchar(50)           DEFAULT NULL,
-  `zip`             varchar(20)           DEFAULT NULL,
-  `billing_address` varchar(200)          DEFAULT NULL,
-  `billing_city`    varchar(100)          DEFAULT NULL,
-  `billing_state`   varchar(50)           DEFAULT NULL,
-  `billing_zip`     varchar(20)           DEFAULT NULL,
-  `type`            ENUM('residential','commercial','contractor') NOT NULL DEFAULT 'residential',
-  `notes`           text                  DEFAULT NULL,
-  `lead_id`         int(11)               DEFAULT NULL,
-  `created_at`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  `email`               varchar(150)          DEFAULT NULL,
+  `phone`               varchar(20)           DEFAULT NULL,
+  `address`             varchar(200)          DEFAULT NULL,
+  `city`                varchar(100)          DEFAULT NULL,
+  `state`               varchar(50)           DEFAULT NULL,
+  `zip`                 varchar(20)           DEFAULT NULL,
+  `billing_address`     varchar(200)          DEFAULT NULL,
+  `billing_city`        varchar(100)          DEFAULT NULL,
+  `billing_state`       varchar(50)           DEFAULT NULL,
+  `billing_zip`         varchar(20)           DEFAULT NULL,
+  `type`                ENUM('residential','commercial','contractor') NOT NULL DEFAULT 'residential',
+  `notes`               text                  DEFAULT NULL,
+  `lead_id`             int(11)               DEFAULT NULL,
+  `stripe_customer_id`  varchar(100)          DEFAULT NULL,
+  `created_at`          datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`          datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_customers_email` (`email`),
+  KEY `idx_customers_phone` (`phone`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
@@ -286,6 +289,7 @@ CREATE TABLE IF NOT EXISTS `notifications` (
 CREATE TABLE IF NOT EXISTS `bookings` (
   `id`                INT(11)       NOT NULL AUTO_INCREMENT,
   `booking_number`    VARCHAR(20)   NOT NULL,
+  `customer_id`       INT(11)                DEFAULT NULL,
   `customer_name`     VARCHAR(100)  NOT NULL,
   `customer_phone`    VARCHAR(25)            DEFAULT NULL,
   `customer_email`    VARCHAR(150)           DEFAULT NULL,
@@ -313,6 +317,7 @@ CREATE TABLE IF NOT EXISTS `bookings` (
   PRIMARY KEY (`id`),
   KEY `idx_bookings_number` (`booking_number`),
   KEY `idx_bookings_group` (`booking_group_id`),
+  CONSTRAINT `fk_bookings_customer_id` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_bookings_dumpster_id` FOREIGN KEY (`dumpster_id`) REFERENCES `dumpsters` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_bookings_created_by`  FOREIGN KEY (`created_by`)  REFERENCES `users`     (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

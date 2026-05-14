@@ -153,13 +153,13 @@ layout_start('Booking Detail', 'bookings');
                             <td style="padding:.6rem 1rem;" class="fw-semibold"><?= e($gu['unit_code'] ?? '—') ?></td>
                             <td><?= e($gu['unit_size'] ?? '—') ?></td>
                             <td><?= $gu['unit_type'] ? e(ucfirst($gu['unit_type'])) : '—' ?></td>
-                            <td class="text-end" style="padding-right:1rem;"><?= fmt_currency($gu['total_amount']) ?></td>
+                            <td class="text-end" style="padding-right:1rem;"><?= fmt_money($gu['total_amount']) ?></td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if ($is_multi): ?>
                         <tr style="border-top:2px solid var(--steel);border-color:var(--steel);">
                             <td colspan="3" style="padding:.6rem 1rem;" class="fw-bold text-muted">Order Total</td>
-                            <td class="text-end fw-bold" style="padding-right:1rem;color:var(--orange);"><?= fmt_currency($group_total) ?></td>
+                            <td class="text-end fw-bold" style="padding-right:1rem;color:var(--orange);"><?= fmt_money($group_total) ?></td>
                         </tr>
                     <?php endif; ?>
                     </tbody>
