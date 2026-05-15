@@ -820,6 +820,34 @@ if (!table_exists($pdo, 'password_resets')) {
 }
 
 // =============================================================================
+// UPGRADE 32 — bookings: terms acceptance audit trail
+// =============================================================================
+echo "\n--- Upgrade 32: bookings.terms_accepted_at / terms_accepted_ip ---\n";
+
+if (table_exists($pdo, 'bookings')) {
+    if (!column_exists($pdo, 'bookings', 'terms_accepted_at')) {
+        run_step($pdo, 'bookings.terms_accepted_at',
+            "ALTER TABLE `bookings`
+             ADD COLUMN `terms_accepted_at` DATETIME DEFAULT NULL
+             COMMENT 'Timestamp when customer accepted terms & conditions'
+             AFTER `notes`");
+    } else {
+        $log[] = '[SKIP] bookings.terms_accepted_at (already exists)';
+    }
+    if (!column_exists($pdo, 'bookings', 'terms_accepted_ip')) {
+        run_step($pdo, 'bookings.terms_accepted_ip',
+            "ALTER TABLE `bookings`
+             ADD COLUMN `terms_accepted_ip` VARCHAR(45) DEFAULT NULL
+             COMMENT 'IP address from which customer accepted terms'
+             AFTER `terms_accepted_at`");
+    } else {
+        $log[] = '[SKIP] bookings.terms_accepted_ip (already exists)';
+    }
+} else {
+    $log[] = '[SKIP] bookings.terms_accepted_at/ip (bookings table missing)';
+}
+
+// =============================================================================
 // Summary
 // =============================================================================
 echo "\n" . str_repeat('=', 60) . "\n";

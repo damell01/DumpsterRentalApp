@@ -234,6 +234,19 @@ layout_start('Booking Detail', 'bookings');
                         <div class="text-muted" style="font-size:.8rem;">Updated</div>
                         <div><?= e(fmt_datetime($booking['updated_at'])) ?></div>
                     </div>
+                    <?php if (!empty($booking['terms_accepted_at'])): ?>
+                    <div class="col-12" style="border-top:1px solid var(--st2);padding-top:.75rem;margin-top:.25rem;">
+                        <div class="text-muted" style="font-size:.8rem;">
+                            <i class="fa-solid fa-file-contract me-1"></i> Terms Accepted
+                        </div>
+                        <div style="font-size:.85rem;">
+                            <?= e(fmt_datetime($booking['terms_accepted_at'])) ?>
+                            <?php if (!empty($booking['terms_accepted_ip'])): ?>
+                            <span class="text-muted" style="font-size:.75rem;"> &mdash; IP: <?= e($booking['terms_accepted_ip']) ?></span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

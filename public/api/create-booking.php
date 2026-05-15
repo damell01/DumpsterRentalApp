@@ -108,6 +108,12 @@ if ($customer_name === '') {
 if (!$terms_accepted) {
     api_error('You must accept the terms and conditions.');
 }
+
+// Capture audit info server-side at the moment of acceptance
+$terms_accepted_at = date('Y-m-d H:i:s');
+$_xff = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '')[0]);
+$terms_accepted_ip = filter_var($_xff, FILTER_VALIDATE_IP) ? $_xff : ($_SERVER['REMOTE_ADDR'] ?? '');
+unset($_xff);
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $rental_start) || !strtotime($rental_start)) {
     api_error('Invalid start date.');
 }
@@ -277,9 +283,11 @@ foreach ($units_data as $ud) {
         'payment_method'   => $payment_method,
         'payment_status'   => $payment_status,
         'booking_status'   => $booking_status,
-        'notes'            => $notes ?: null,
-        'created_at'       => date('Y-m-d H:i:s'),
-        'updated_at'       => date('Y-m-d H:i:s'),
+        'notes'              => $notes ?: null,
+        'terms_accepted_at'  => $terms_accepted_at,
+        'terms_accepted_ip'  => $terms_accepted_ip ?: null,
+        'created_at'         => date('Y-m-d H:i:s'),
+        'updated_at'         => date('Y-m-d H:i:s'),
     ];
     if ($booking_group_id !== null) {
         $row_data['booking_group_id'] = $booking_group_id;

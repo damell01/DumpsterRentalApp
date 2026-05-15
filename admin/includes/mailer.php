@@ -488,6 +488,14 @@ function notify_booking_confirmed(array $booking): void
     $subject = render_email_vars($tpl['subject'], $vars);
     $body    = render_email_vars($tpl['body_html'], $vars);
 
+    if (!empty($booking['terms_accepted_at'])) {
+        $ta_time = date('F j, Y \a\t g:i A', strtotime($booking['terms_accepted_at']));
+        $body .= '<p style="font-size:.75rem;color:#9ca3af;margin-top:1.5rem;padding-top:1rem;'
+               . 'border-top:1px solid #e5e7eb;">'
+               . 'Terms &amp; Conditions accepted on ' . $ta_time . '.'
+               . '</p>';
+    }
+
     $html = email_template('Booking Confirmation — ' . $bk_num, $body);
     send_email($email, $subject, $html);
 

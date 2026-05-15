@@ -205,17 +205,12 @@ $request_mode = $booking_flow_mode === 'request';
         .book-alert-error { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.4); color: #fca5a5; }
         .book-alert-info  { background: rgba(249,115,22,.12); border: 1px solid rgba(249,115,22,.35); color: #fdba74; }
 
-        /* Terms */
-        .terms-box {
-            background: var(--dark3);
-            border: 1px solid var(--steel2);
-            border-radius: 6px;
-            padding: .9rem;
-            font-size: .85rem;
-            color: var(--gray-light);
-            max-height: 120px;
-            overflow-y: auto;
-        }
+        /* Terms modal */
+        #termsModal { display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1050;align-items:center;justify-content:center;padding:1rem; }
+        .terms-modal-box { background:var(--dark2);border:1px solid var(--steel);border-radius:12px;max-width:600px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5); }
+        .terms-modal-header { padding:1.25rem 1.5rem;border-bottom:1px solid var(--steel);display:flex;justify-content:space-between;align-items:center; }
+        .terms-modal-body { padding:1.25rem 1.5rem;overflow-y:auto;flex:1;font-size:.88rem;color:var(--gray-light);line-height:1.7;white-space:pre-wrap; }
+        .terms-modal-footer { padding:1rem 1.5rem;border-top:1px solid var(--steel);display:flex;justify-content:flex-end;gap:.75rem; }
 
         /* Nav bar minimal */
         .book-nav {
@@ -499,12 +494,16 @@ $request_mode = $booking_flow_mode === 'request';
         <!-- Terms -->
         <div class="book-card">
             <h2><i class="fas fa-file-contract"></i> Terms &amp; Conditions</h2>
-            <div class="terms-box mb-3">
-                <?= htmlspecialchars($booking_terms, ENT_QUOTES, 'UTF-8') ?>
-            </div>
+            <p style="font-size:.88rem;color:var(--gray-light);margin-bottom:1rem;">
+                Please review our rental terms and conditions before completing your booking.
+            </p>
+            <button type="button" class="btn-ghost" style="margin-bottom:1.1rem;" onclick="openTermsModal()">
+                <i class="fas fa-scroll" style="margin-right:.4rem;"></i> View Terms &amp; Conditions
+            </button>
             <label style="display:flex;align-items:flex-start;gap:.6rem;cursor:pointer;font-size:.9rem;color:var(--gray-light);">
                 <input type="checkbox" id="f_terms" style="margin-top:.15rem;accent-color:var(--orange);">
-                I have read and agree to the rental terms and conditions.
+                I have read and agree to the
+                <button type="button" onclick="openTermsModal()" style="background:none;border:none;padding:0;color:var(--orange);cursor:pointer;font-size:.9rem;text-decoration:underline;line-height:inherit;">Terms &amp; Conditions</button>.
             </label>
         </div>
 
@@ -919,4 +918,96 @@ function requestPushPermission(identifier) {
 
     <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
+
+<!-- Terms & Conditions Modal -->
+<div id="termsModal" onclick="if(event.target===this)closeTermsModal()">
+    <div class="terms-modal-box">
+        <div class="terms-modal-header">
+            <h5 style="margin:0;color:#fff;font-size:1rem;font-weight:600;">
+                <i class="fas fa-file-contract" style="color:var(--orange);margin-right:.5rem;"></i>
+                Terms &amp; Conditions
+            </h5>
+            <button type="button" onclick="closeTermsModal()" style="background:none;border:none;color:var(--gray-light);font-size:1.5rem;cursor:pointer;padding:0;line-height:1;">&times;</button>
+        </div>
+        <div class="terms-modal-body" id="termsModalBody"><?= htmlspecialchars($booking_terms, ENT_QUOTES, 'UTF-8') ?></div>
+        <div id="termsScrollHint" style="text-align:center;font-size:.75rem;color:var(--gray);padding:.4rem;border-top:1px solid var(--steel);">
+            <i class="fas fa-arrow-down" style="margin-right:.3rem;"></i> Scroll to read all terms
+        </div>
+        <div class="terms-modal-footer">
+            <button type="button" onclick="printTerms()"
+                    style="background:none;border:1px solid var(--steel2);color:var(--gray-light);border-radius:6px;padding:.45rem .9rem;font-size:.85rem;cursor:pointer;margin-right:auto;">
+                <i class="fas fa-print" style="margin-right:.35rem;"></i> Print
+            </button>
+            <button type="button" class="btn-ghost" onclick="closeTermsModal()">Close</button>
+            <button type="button" id="termsAgreeBtn" class="btn-panda" onclick="agreeTerms()" disabled
+                    style="opacity:.5;cursor:not-allowed;">
+                <i class="fas fa-check" style="margin-right:.35rem;"></i> I Agree
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openTermsModal() {
+    var body = document.getElementById('termsModalBody');
+    var btn  = document.getElementById('termsAgreeBtn');
+    var hint = document.getElementById('termsScrollHint');
+
+    // Reset scroll lock
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'not-allowed';
+    if (hint) hint.style.display = 'block';
+
+    document.getElementById('termsModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    // Scroll back to top on re-open
+    body.scrollTop = 0;
+
+    // Unlock immediately if content is short enough to not scroll
+    setTimeout(function() { _checkTermsScroll(body, btn, hint); }, 60);
+
+    body.onscroll = function() { _checkTermsScroll(body, btn, hint); };
+}
+
+function _checkTermsScroll(body, btn, hint) {
+    if (body.scrollHeight - body.scrollTop - body.clientHeight < 30) {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        if (hint) hint.style.display = 'none';
+        body.onscroll = null;
+    }
+}
+
+function closeTermsModal() {
+    document.getElementById('termsModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function agreeTerms() {
+    document.getElementById('f_terms').checked = true;
+    closeTermsModal();
+}
+
+function printTerms() {
+    var text = document.getElementById('termsModalBody').textContent || '';
+    var esc  = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    var w = window.open('', '_blank', 'width=720,height=800');
+    w.document.write('<!DOCTYPE html><html><head><title>Terms & Conditions</title>'
+        + '<style>body{font-family:Arial,sans-serif;padding:2rem;font-size:14px;line-height:1.7;color:#111;}'
+        + 'h1{font-size:1.1rem;margin-bottom:1.5rem;border-bottom:1px solid #ccc;padding-bottom:.5rem;}'
+        + '@media print{button{display:none;}}</style></head><body>'
+        + '<h1>Terms &amp; Conditions</h1>'
+        + '<pre style="white-space:pre-wrap;font-family:inherit;">' + esc + '</pre>'
+        + '</body></html>');
+    w.document.close();
+    w.print();
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeTermsModal();
+});
+</script>
 </html>
