@@ -551,14 +551,10 @@ layout_start('Settings', 'settings');
                             <?= $cron_key === '' ? 'disabled' : '' ?>>
                         Copy
                     </button>
-                    <form method="POST" action="index.php" style="display:inline;">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="action" value="regenerate_cron_key">
-                        <button type="submit" class="btn btn-outline-warning btn-sm"
-                                onclick="return confirm('Regenerate the cron key? Any existing cron job URL using the old key will stop working until updated.')">
-                            <i class="fa-solid fa-rotate"></i> <?= $cron_key === '' ? 'Generate Key' : 'Regenerate' ?>
-                        </button>
-                    </form>
+                    <button type="submit" form="regenCronForm" class="btn btn-outline-warning btn-sm"
+                            onclick="return <?= $cron_key !== '' ? "confirm('Regenerate the cron key? Any existing cron job URL using the old key will stop working until updated.')" : 'true' ?>">
+                        <i class="fa-solid fa-rotate"></i> <?= $cron_key === '' ? 'Generate Key' : 'Regenerate' ?>
+                    </button>
                 </div>
                 <div class="form-text" style="color:var(--gy);">
                     Daily cron URL:
@@ -633,6 +629,11 @@ layout_start('Settings', 'settings');
     <form id="testEmailForm" method="POST" action="index.php" style="display:none;">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="test_email">
+    </form>
+
+    <form id="regenCronForm" method="POST" action="index.php" style="display:none;">
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="regenerate_cron_key">
     </form>
 </div>
 
