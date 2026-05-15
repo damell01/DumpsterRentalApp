@@ -151,7 +151,7 @@ layout_start('Invoices', 'invoices');
                     </td>
                     <td class="d-none d-md-table-cell"><?= e(fmt_date($inv['created_at'])) ?></td>
                     <td class="text-end">
-                        <div class="d-flex gap-1 justify-content-end">
+                        <div class="d-flex gap-1 justify-content-end tp-table-actions">
                             <a href="view.php?id=<?= (int)$inv['id'] ?>"
                                class="btn-tp-ghost btn-tp-sm" title="View">
                                 <i class="fa-solid fa-eye"></i> View

@@ -473,6 +473,7 @@ function layout_start(string $page_title, string $active_nav = ''): void
     </div>
 
 </div><!-- /.tp-sidebar -->
+<div class="tp-sidebar-overlay" id="tpSidebarOverlay" aria-hidden="true"></div>
 
 
 <!-- =====================================================================
@@ -482,9 +483,10 @@ function layout_start(string $page_title, string $active_nav = ''): void
 
     <!-- Top bar -->
     <div class="tp-topbar">
-        <!-- Hamburger (mobile) -->
+        <!-- Navigation toggle -->
         <button class="hamburger-btn me-1" id="hamburgerBtn"
-                aria-label="Toggle navigation" aria-expanded="false" aria-controls="tpSidebar">
+                aria-label="Toggle navigation" aria-expanded="false" aria-controls="tpSidebar"
+                title="Toggle navigation">
             <span class="hamburger-lines" aria-hidden="true">
                 <span></span>
                 <span></span>
@@ -602,6 +604,31 @@ tr[data-href]:hover > td { background: rgba(249,115,22,.05) !important; }
         box-shadow: 0 -6px 20px rgba(0,0,0,.4);
     }
     .tp-sticky-bar-spacer { display: block; height: 68px; }
+}
+
+/* ── Shared confirmation modal ── */
+#tpConfirmModal .modal-content {
+    background: linear-gradient(180deg, #1d2333 0%, #171c29 100%) !important;
+    border: 1px solid rgba(249,115,22,.28) !important;
+    color: #f8fafc;
+    box-shadow: 0 24px 60px rgba(0,0,0,.45);
+}
+#tpConfirmModal .modal-body,
+#tpConfirmModal .modal-footer {
+    color: #f8fafc;
+}
+#tpConfirmModal #tpConfirmMsg {
+    color: rgba(248,250,252,.92);
+    font-size: 1rem !important;
+    line-height: 1.65 !important;
+}
+#tpConfirmModal .btn-tp-ghost {
+    border-color: rgba(255,255,255,.35);
+    color: #e5e7eb;
+}
+#tpConfirmModal .btn-tp-ghost:hover {
+    border-color: rgba(255,255,255,.55);
+    color: #ffffff;
 }
 </style>
 
@@ -761,8 +788,8 @@ if ('serviceWorker' in navigator) {
 
 <!-- ── Reusable confirmation modal ── -->
 <div class="modal fade" id="tpConfirmModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width:380px;">
-        <div class="modal-content" style="background:var(--card-bg,#1e2230);border:1px solid var(--st,#2a2f3e);border-radius:12px;">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:430px;">
+        <div class="modal-content" style="border-radius:14px;">
             <div class="modal-body text-center pt-4 pb-2 px-4">
                 <div style="font-size:2.2rem;color:var(--or,#f97316);margin-bottom:.75rem;">
                     <i class="fa-solid fa-triangle-exclamation"></i>

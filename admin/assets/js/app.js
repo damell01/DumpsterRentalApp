@@ -12,34 +12,103 @@
     function initSidebarToggle() {
         var hamburger = document.getElementById('hamburgerBtn');
         var sidebar   = document.getElementById('tpSidebar');
+        var overlay   = document.getElementById('tpSidebarOverlay');
+        var desktopMq = window.matchMedia('(max-width: 768px)');
+        var storageKey = 'tp-admin-sidebar-collapsed';
 
         if (!hamburger || !sidebar) return;
 
+        function isMobile() {
+            return desktopMq.matches;
+        }
+
+        function syncButtonState() {
+            var expanded;
+            if (isMobile()) {
+                expanded = sidebar.classList.contains('open');
+            } else {
+                expanded = !document.body.classList.contains('sidebar-collapsed');
+            }
+
+            hamburger.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            hamburger.setAttribute('title', expanded ? 'Hide navigation' : 'Show navigation');
+            hamburger.setAttribute('aria-label', expanded ? 'Hide navigation' : 'Show navigation');
+        }
+
+        function setDesktopCollapsed(collapsed) {
+            document.body.classList.toggle('sidebar-collapsed', collapsed);
+            try {
+                window.localStorage.setItem(storageKey, collapsed ? '1' : '0');
+            } catch (err) {}
+            syncButtonState();
+        }
+
+        function closeMobileSidebar() {
+            sidebar.classList.remove('open');
+            document.body.classList.remove('sidebar-open');
+            syncButtonState();
+        }
+
+        function setMobileSidebar(open) {
+            sidebar.classList.toggle('open', open);
+            document.body.classList.toggle('sidebar-open', open);
+            syncButtonState();
+        }
+
+        try {
+            if (!isMobile() && window.localStorage.getItem(storageKey) === '1') {
+                document.body.classList.add('sidebar-collapsed');
+            }
+        } catch (err) {}
+
+        syncButtonState();
+
         hamburger.addEventListener('click', function (e) {
             e.stopPropagation();
-            var isOpen = sidebar.classList.toggle('open');
-            hamburger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+
+            if (isMobile()) {
+                setMobileSidebar(!sidebar.classList.contains('open'));
+                return;
+            }
+
+            setDesktopCollapsed(!document.body.classList.contains('sidebar-collapsed'));
         });
 
-        // Close sidebar when clicking anywhere outside of it
+        if (overlay) {
+            overlay.addEventListener('click', function () {
+                closeMobileSidebar();
+            });
+        }
+
+        // Close mobile sidebar when clicking anywhere outside of it
         document.addEventListener('click', function (e) {
             if (
+                isMobile() &&
                 sidebar.classList.contains('open') &&
                 !sidebar.contains(e.target) &&
                 e.target !== hamburger
             ) {
-                sidebar.classList.remove('open');
-                hamburger.setAttribute('aria-expanded', 'false');
+                closeMobileSidebar();
             }
         });
 
         // Close sidebar on Escape key
         document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape' && sidebar.classList.contains('open')) {
-                sidebar.classList.remove('open');
-                hamburger.setAttribute('aria-expanded', 'false');
+            if (e.key === 'Escape' && isMobile() && sidebar.classList.contains('open')) {
+                closeMobileSidebar();
             }
         });
+
+        function handleViewportChange() {
+            closeMobileSidebar();
+            syncButtonState();
+        }
+
+        if (typeof desktopMq.addEventListener === 'function') {
+            desktopMq.addEventListener('change', handleViewportChange);
+        } else if (typeof desktopMq.addListener === 'function') {
+            desktopMq.addListener(handleViewportChange);
+        }
     }
 
     /* =========================================================================
@@ -111,6 +180,10 @@
         document.addEventListener('click', function (e) {
             var el = e.target.closest('[data-confirm]');
             if (!el) return;
+
+            if (document.getElementById('tpConfirmModal')) {
+                return;
+            }
 
             var message = el.getAttribute('data-confirm') ||
                           'Are you sure you want to delete this item? This action cannot be undone.';

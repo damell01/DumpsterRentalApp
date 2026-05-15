@@ -240,6 +240,107 @@ layout_start('Dashboard', 'dashboard');
 
 <!-- ── KPI Cards ──────────────────────────────────────────────────────────── -->
 <style>
+.tp-dash-section {
+    overflow: hidden;
+}
+.tp-dash-section .tp-card-header {
+    padding: 1rem 1.2rem;
+}
+.tp-dash-section .tp-card-body.p-0 .table-responsive {
+    border-top: 1px solid rgba(229,231,235,.9);
+}
+.tp-dash-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    width: 100%;
+}
+.tp-dash-section-title {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    min-width: 0;
+}
+.tp-dash-section-title i {
+    width: 18px;
+    text-align: center;
+}
+.tp-dash-section-text {
+    min-width: 0;
+}
+.tp-dash-section-kicker {
+    display: block;
+    font-family: var(--font-cond);
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--gl);
+    margin-bottom: .15rem;
+}
+.tp-dash-section-label {
+    display: block;
+    font-family: var(--font-cond);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--wh);
+}
+.tp-dash-section-note {
+    font-size: .78rem;
+    color: var(--gy);
+    white-space: nowrap;
+}
+.tp-dash-empty {
+    padding: 2rem 1.25rem;
+    text-align: center;
+    color: var(--gy);
+    font-size: .9rem;
+}
+.tp-dash-empty i {
+    display: block;
+    font-size: 1.35rem;
+    margin-bottom: .5rem;
+    color: var(--gl);
+}
+.tp-schedule-card .tp-card-body {
+    padding: 1.15rem 1.2rem;
+}
+.tp-schedule-stats {
+    display: grid;
+    gap: .7rem;
+}
+.tp-schedule-divider {
+    border-top: 1px solid var(--st);
+    margin: 1rem 0;
+}
+.tp-schedule-mini {
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+}
+.tp-schedule-mini-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+}
+.tp-dash-table td,
+.tp-dash-table th {
+    white-space: nowrap;
+}
+.tp-dash-table td:nth-child(2),
+.tp-dash-table th:nth-child(2),
+.tp-dash-table td:nth-child(3),
+.tp-dash-table th:nth-child(3) {
+    white-space: normal;
+}
+.tp-dash-money {
+    color: var(--gr);
+    font-weight: 700;
+}
 .tp-launch-card {
     border: 1px solid rgba(249,115,22,.18);
     background: linear-gradient(135deg, rgba(15,23,42,.98), rgba(30,41,59,.94));
@@ -323,6 +424,21 @@ layout_start('Dashboard', 'dashboard');
     color: var(--wh);
     text-decoration: none;
 }
+@media (max-width: 768px) {
+    .tp-dash-section .tp-card-header {
+        padding: .95rem 1rem;
+    }
+    .tp-dash-section-head {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+    .tp-dash-section-note {
+        white-space: normal;
+    }
+    .tp-schedule-card .tp-card-body {
+        padding: 1rem;
+    }
+}
 </style>
 
 <?php
@@ -400,7 +516,46 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
 </div>
 <?php endif; ?>
 
-<div class="row g-3 mb-4">
+<div class="tp-state-grid">
+    <div class="tp-state-card tp-state-info">
+        <div class="tp-state-icon">
+            <i class="fa-solid fa-signal"></i>
+        </div>
+        <div class="tp-state-body">
+            <span class="tp-state-kicker">Live Ops</span>
+            <h3 class="tp-state-title">Dashboard stays current</h3>
+            <p class="tp-state-copy">Metrics refresh every 60 seconds so dispatch, payments, and open work stay visible without manual reloads.</p>
+        </div>
+    </div>
+    <div class="tp-state-card tp-state-warning">
+        <div class="tp-state-icon">
+            <i class="fa-solid fa-hourglass-half"></i>
+        </div>
+        <div class="tp-state-body">
+            <span class="tp-state-kicker">Needs Attention</span>
+            <h3 class="tp-state-title"><?= (int)$bookings_unpaid ?> bookings awaiting payment</h3>
+            <p class="tp-state-copy">Keep an eye on unpaid or manual-payment bookings so approvals, invoices, and follow-up do not stall.</p>
+            <a href="<?= e(APP_URL) ?>/modules/bookings/index.php?filter=pending" class="tp-state-link">
+                Review pending bookings <i class="fa-solid fa-arrow-right"></i>
+            </a>
+        </div>
+    </div>
+    <div class="tp-state-card tp-state-success">
+        <div class="tp-state-icon">
+            <i class="fa-solid fa-dumpster"></i>
+        </div>
+        <div class="tp-state-body">
+            <span class="tp-state-kicker">Ready Inventory</span>
+            <h3 class="tp-state-title"><?= (int)$dumpsters_available ?> dumpsters currently available</h3>
+            <p class="tp-state-copy">Your available fleet count is synced into the dashboard so the team can spot capacity before quoting or approving orders.</p>
+            <a href="<?= e(APP_URL) ?>/modules/dumpsters/index.php" class="tp-state-link">
+                Open inventory <i class="fa-solid fa-arrow-right"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4 tp-dashboard-kpis tp-dashboard-kpis-primary">
 
     <!-- Upcoming Bookings -->
     <div class="col-6 col-md-4 col-xl-2">
@@ -445,7 +600,8 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
             <div class="kpi-value" data-metric="kpis.revenue_month" data-metric-format="money" style="font-size:1.1rem;">
                 <?= $stripe_available ? fmt_money($stripe_revenue_month) : fmt_money($revenue_payments_month) ?>
             </div>
-            <div class="kpi-label">Revenue This Month<?= $stripe_available ? ' <span style="font-size:.6rem;opacity:.6;">(Stripe)</span>' : '' ?></div>
+            <div class="kpi-label">Revenue This Month</div>
+            <div class="kpi-note"><?= $stripe_available ? 'Stripe live totals are driving this card.' : 'Calculated from paid work orders, bookings, and invoices.' ?></div>
         </a>
     </div>
 
@@ -473,7 +629,7 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
 
 <!-- ── Stripe KPI Cards (only shown when Stripe is configured) ───────────── -->
 <?php if ($stripe_available): ?>
-<div class="row g-3 mb-4" id="stripe-kpi-row">
+<div class="row g-3 mb-4 tp-dashboard-kpis tp-dashboard-kpis-secondary" id="stripe-kpi-row">
 
     <!-- Stripe Revenue Today -->
     <div class="col-6 col-md-3">
@@ -524,7 +680,7 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
 <?php endif; ?>
 
 <!-- ── Booking KPI Cards ──────────────────────────────────────────────────── -->
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-4 tp-dashboard-kpis tp-dashboard-kpis-bookings">
 
     <!-- Bookings This Month -->
     <div class="col-6 col-md-4 col-xl-4">
@@ -557,16 +713,24 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
 
 <!-- ── Recent Bookings ──────────────────────────────────────────────────── -->
 <?php if (!empty($recent_bookings)): ?>
-<div class="tp-card mb-4">
-    <div class="tp-card-header d-flex align-items-center justify-content-between">
-        <span><i class="fa-solid fa-calendar-check me-2 text-muted"></i>Recent Bookings</span>
-        <a href="<?= e(APP_URL) ?>/modules/bookings/index.php" class="btn-tp-ghost btn-tp-xs">
-            View All <i class="fa-solid fa-arrow-right ms-1"></i>
-        </a>
+<div class="tp-card tp-dash-section mb-4">
+    <div class="tp-card-header">
+        <div class="tp-dash-section-head">
+            <div class="tp-dash-section-title">
+                <i class="fa-solid fa-calendar-check text-muted"></i>
+                <div class="tp-dash-section-text">
+                    <span class="tp-dash-section-kicker">Bookings</span>
+                    <span class="tp-dash-section-label">Recent Bookings</span>
+                </div>
+            </div>
+            <a href="<?= e(APP_URL) ?>/modules/bookings/index.php" class="btn-tp-ghost btn-tp-xs">
+                View All <i class="fa-solid fa-arrow-right ms-1"></i>
+            </a>
+        </div>
     </div>
     <div class="tp-card-body p-0">
         <div class="table-responsive">
-            <table class="tp-table mb-0">
+            <table class="tp-table tp-dash-table mb-0">
                 <thead>
                     <tr>
                         <th>Booking #</th>
@@ -594,9 +758,9 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
                             <span class="text-muted">→</span>
                             <?= e(fmt_date($b['rental_end'])) ?>
                         </td>
-                                <td class="text-end text-gr fw-semibold">
-                            <?= e(fmt_money($b['total_amount'])) ?>
-                        </td>
+                                <td class="text-end tp-dash-money">
+                                    <?= e(fmt_money($b['total_amount'])) ?>
+                                </td>
                         <td><?= status_badge($b['booking_status']) ?></td>
                         <td><?= payment_badge($b['payment_status']) ?></td>
                     </tr>
@@ -613,21 +777,30 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
 
     <!-- Recent Work Orders -->
     <div class="col-12 col-lg-7">
-        <div class="tp-card h-100">
-            <div class="tp-card-header d-flex align-items-center justify-content-between">
-                <span><i class="fa-solid fa-clipboard-list me-2 text-muted"></i>Recent Work Orders</span>
-                <a href="<?= e(APP_URL) ?>/modules/work_orders/index.php" class="btn-tp-ghost btn-tp-xs">
-                    View All <i class="fa-solid fa-arrow-right ms-1"></i>
-                </a>
+        <div class="tp-card tp-dash-section h-100">
+            <div class="tp-card-header">
+                <div class="tp-dash-section-head">
+                    <div class="tp-dash-section-title">
+                        <i class="fa-solid fa-clipboard-list text-muted"></i>
+                        <div class="tp-dash-section-text">
+                            <span class="tp-dash-section-kicker">Operations</span>
+                            <span class="tp-dash-section-label">Recent Work Orders</span>
+                        </div>
+                    </div>
+                    <a href="<?= e(APP_URL) ?>/modules/work_orders/index.php" class="btn-tp-ghost btn-tp-xs">
+                        View All <i class="fa-solid fa-arrow-right ms-1"></i>
+                    </a>
+                </div>
             </div>
             <div class="tp-card-body p-0">
                 <?php if (empty($recent_wo)): ?>
-                    <p class="text-muted p-3 mb-0 text-center" style="font-size:.875rem;">
+                    <div class="tp-dash-empty">
+                        <i class="fa-solid fa-clipboard-list"></i>
                         No work orders yet.
-                    </p>
+                    </div>
                 <?php else: ?>
                 <div class="table-responsive">
-                    <table class="tp-table mb-0">
+                    <table class="tp-table tp-dash-table mb-0">
                         <thead>
                             <tr>
                                 <th>WO #</th>
@@ -649,7 +822,7 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
                                 <td><?= e($wo['customer_name'] ?: $wo['cust_name']) ?></td>
                                 <td><?= status_badge($wo['status']) ?></td>
                                 <td><?= $wo['delivery_date'] ? e(fmt_date($wo['delivery_date'])) : '<span class="text-muted">—</span>' ?></td>
-                                <td class="text-end"><?= e(fmt_money($wo['amount'])) ?></td>
+                                <td class="text-end tp-dash-money"><?= e(fmt_money($wo['amount'])) ?></td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
@@ -662,13 +835,22 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
 
     <!-- Quick Stats -->
     <div class="col-12 col-lg-5">
-        <div class="tp-card h-100">
+        <div class="tp-card tp-dash-section tp-schedule-card h-100">
             <div class="tp-card-header">
-                <i class="fa-solid fa-chart-simple me-2 text-muted"></i>Today's Schedule
+                <div class="tp-dash-section-head">
+                    <div class="tp-dash-section-title">
+                        <i class="fa-solid fa-chart-simple text-muted"></i>
+                        <div class="tp-dash-section-text">
+                            <span class="tp-dash-section-kicker">Dispatch</span>
+                            <span class="tp-dash-section-label">Today's Schedule</span>
+                        </div>
+                    </div>
+                    <span class="tp-dash-section-note">Quick operational snapshot</span>
+                </div>
             </div>
             <div class="tp-card-body">
-
-                <div class="tp-stat-item mb-2">
+                <div class="tp-schedule-stats">
+                <div class="tp-stat-item mb-0">
                     <span class="tp-stat-icon" style="color:var(--gr);"><i class="fa-solid fa-truck"></i></span>
                     <div class="tp-stat-info">
                         <div class="tp-stat-label">Deliveries Today</div>
@@ -677,7 +859,7 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
                     <a href="<?= e(APP_URL) ?>/modules/calendar/index.php" class="btn-tp-ghost btn-tp-xs">View</a>
                 </div>
 
-                <div class="tp-stat-item mb-3">
+                <div class="tp-stat-item mb-0">
                     <span class="tp-stat-icon" style="color:var(--am);"><i class="fa-solid fa-truck-ramp-box"></i></span>
                     <div class="tp-stat-info">
                         <div class="tp-stat-label">Pickups Today</div>
@@ -685,23 +867,26 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
                     </div>
                     <a href="<?= e(APP_URL) ?>/modules/calendar/index.php" class="btn-tp-ghost btn-tp-xs">View</a>
                 </div>
+                </div>
 
-                <hr style="border-color:var(--st);margin:1rem 0;">
+                <div class="tp-schedule-divider"></div>
 
-                <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="tp-schedule-mini">
+                <div class="tp-schedule-mini-row">
                     <span class="text-gy" style="font-size:.85rem;">Upcoming Deliveries (7 days)</span>
                     <span class="tp-badge badge-delivered" data-metric="kpis.upcoming_deliveries_7d"><?= count($upcoming_deliveries) ?></span>
                 </div>
-                <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="tp-schedule-mini-row">
                     <span class="text-gy" style="font-size:.85rem;">Upcoming Pickups (7 days)</span>
                     <span class="tp-badge badge-pickup-requested" data-metric="kpis.upcoming_pickups_7d"><?= count($upcoming_pickups) ?></span>
                 </div>
                 <?php if (count($overdue_pickups) > 0): ?>
-                <div class="d-flex justify-content-between align-items-center">
+                <div class="tp-schedule-mini-row">
                     <span class="tp-overdue-text" style="font-size:.85rem;">Overdue Pickups</span>
                     <span class="tp-badge badge-canceled" data-metric="kpis.overdue_pickups"><?= count($overdue_pickups) ?></span>
                 </div>
                 <?php endif; ?>
+                </div>
 
             </div>
         </div>
@@ -710,19 +895,28 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
 </div><!-- /.row two-col -->
 
 <!-- ── Upcoming Deliveries Table ─────────────────────────────────────────── -->
-<div class="tp-card mb-4">
-    <div class="tp-card-header d-flex align-items-center justify-content-between">
-        <span class="tp-card-title"><i class="fa-solid fa-truck me-2 text-gr"></i>Upcoming Deliveries — Next 7 Days</span>
-        <span class="tp-badge badge-delivered"><?= count($upcoming_deliveries) ?></span>
+<div class="tp-card tp-dash-section mb-4">
+    <div class="tp-card-header">
+        <div class="tp-dash-section-head">
+            <div class="tp-dash-section-title">
+                <i class="fa-solid fa-truck text-gr"></i>
+                <div class="tp-dash-section-text">
+                    <span class="tp-dash-section-kicker">Planning Window</span>
+                    <span class="tp-dash-section-label">Upcoming Deliveries — Next 7 Days</span>
+                </div>
+            </div>
+            <span class="tp-badge badge-delivered"><?= count($upcoming_deliveries) ?></span>
+        </div>
     </div>
     <div class="tp-card-body p-0">
         <?php if (empty($upcoming_deliveries)): ?>
-            <p class="text-muted p-3 mb-0 text-center" style="font-size:.875rem;">
+            <div class="tp-dash-empty">
+                <i class="fa-solid fa-truck"></i>
                 No deliveries scheduled in the next 7 days.
-            </p>
+            </div>
         <?php else: ?>
         <div class="table-responsive">
-            <table class="tp-table mb-0">
+            <table class="tp-table tp-dash-table mb-0">
                 <thead>
                     <tr>
                         <th>WO #</th>
@@ -768,19 +962,28 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
 </div>
 
 <!-- ── Upcoming Pickups Table ────────────────────────────────────────────── -->
-<div class="tp-card mb-4">
-    <div class="tp-card-header d-flex align-items-center justify-content-between">
-        <span class="tp-card-title"><i class="fa-solid fa-truck-ramp-box me-2 text-am"></i>Upcoming Pickups — Next 7 Days</span>
-        <span class="tp-badge badge-pickup-requested"><?= count($upcoming_pickups) ?></span>
+<div class="tp-card tp-dash-section mb-4">
+    <div class="tp-card-header">
+        <div class="tp-dash-section-head">
+            <div class="tp-dash-section-title">
+                <i class="fa-solid fa-truck-ramp-box text-am"></i>
+                <div class="tp-dash-section-text">
+                    <span class="tp-dash-section-kicker">Planning Window</span>
+                    <span class="tp-dash-section-label">Upcoming Pickups — Next 7 Days</span>
+                </div>
+            </div>
+            <span class="tp-badge badge-pickup-requested"><?= count($upcoming_pickups) ?></span>
+        </div>
     </div>
     <div class="tp-card-body p-0">
         <?php if (empty($upcoming_pickups)): ?>
-            <p class="text-muted p-3 mb-0 text-center" style="font-size:.875rem;">
+            <div class="tp-dash-empty">
+                <i class="fa-solid fa-truck-ramp-box"></i>
                 No pickups scheduled in the next 7 days.
-            </p>
+            </div>
         <?php else: ?>
         <div class="table-responsive">
-            <table class="tp-table mb-0">
+            <table class="tp-table tp-dash-table mb-0">
                 <thead>
                     <tr>
                         <th>WO #</th>
@@ -827,16 +1030,22 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
 
 <!-- ── Overdue Pickups Table ─────────────────────────────────────────────── -->
 <?php if (!empty($overdue_pickups)): ?>
-<div class="tp-card mb-4 tp-card-danger">
-    <div class="tp-card-header d-flex align-items-center justify-content-between tp-card-header-danger">
-        <span class="tp-card-title">
-            <i class="fa-solid fa-triangle-exclamation me-2"></i>Overdue Pickups
-        </span>
-        <span class="tp-badge badge-canceled"><?= count($overdue_pickups) ?></span>
+<div class="tp-card tp-dash-section mb-4 tp-card-danger">
+    <div class="tp-card-header tp-card-header-danger">
+        <div class="tp-dash-section-head">
+            <div class="tp-dash-section-title">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <div class="tp-dash-section-text">
+                    <span class="tp-dash-section-kicker">Urgent Follow-Up</span>
+                    <span class="tp-dash-section-label">Overdue Pickups</span>
+                </div>
+            </div>
+            <span class="tp-badge badge-canceled"><?= count($overdue_pickups) ?></span>
+        </div>
     </div>
     <div class="tp-card-body p-0">
         <div class="table-responsive">
-            <table class="tp-table mb-0">
+            <table class="tp-table tp-dash-table mb-0">
                 <thead>
                     <tr>
                         <th>WO #</th>
@@ -887,12 +1096,20 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
 <!-- ── Recent Activity Feed ──────────────────────────────────────────────── -->
 <div class="row g-4 mb-4">
     <div class="col-12 col-lg-6">
-        <div class="tp-card h-100">
-            <div class="tp-card-header d-flex align-items-center justify-content-between">
-                <span class="tp-card-title"><i class="fa-solid fa-bolt me-2 text-or"></i>Recent Activity</span>
-                <span id="activity-refresh-badge" class="tp-badge tp-kpi-stripe" style="display:none;">
-                    <i class="fa-solid fa-rotate fa-spin me-1"></i>Refreshing…
-                </span>
+        <div class="tp-card tp-dash-section h-100">
+            <div class="tp-card-header">
+                <div class="tp-dash-section-head">
+                    <div class="tp-dash-section-title">
+                        <i class="fa-solid fa-bolt text-or"></i>
+                        <div class="tp-dash-section-text">
+                            <span class="tp-dash-section-kicker">Activity</span>
+                            <span class="tp-dash-section-label">Recent Activity</span>
+                        </div>
+                    </div>
+                    <span id="activity-refresh-badge" class="tp-badge tp-kpi-stripe" style="display:none;">
+                        <i class="fa-solid fa-rotate fa-spin me-1"></i>Refreshing…
+                    </span>
+                </div>
             </div>
             <div class="tp-card-body p-0" id="activity-feed">
                 <?php
@@ -946,7 +1163,10 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
                 $init_activity = array_slice($init_activity, 0, 10);
                 ?>
                 <?php if (empty($init_activity)): ?>
-                    <p class="text-muted p-3 mb-0 text-center" style="font-size:.875rem;">No recent activity.</p>
+                    <div class="tp-dash-empty">
+                        <i class="fa-solid fa-bolt"></i>
+                        No recent activity.
+                    </div>
                 <?php else: ?>
                 <ul class="list-unstyled mb-0" style="max-height:360px;overflow-y:auto;">
                     <?php foreach ($init_activity as $ev): ?>
@@ -973,13 +1193,22 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
     <?php if ($stripe_available && !empty($stripe_recent_charges)): ?>
     <!-- Recent Stripe Payments -->
     <div class="col-12 col-lg-6">
-        <div class="tp-card h-100">
+        <div class="tp-card tp-dash-section h-100">
             <div class="tp-card-header">
-                <i class="fa-brands fa-stripe me-2 text-or"></i>Recent Stripe Payments
+                <div class="tp-dash-section-head">
+                    <div class="tp-dash-section-title">
+                        <i class="fa-brands fa-stripe text-or"></i>
+                        <div class="tp-dash-section-text">
+                            <span class="tp-dash-section-kicker">Payments</span>
+                            <span class="tp-dash-section-label">Recent Stripe Payments</span>
+                        </div>
+                    </div>
+                    <span class="tp-dash-section-note">Latest successful Stripe activity</span>
+                </div>
             </div>
             <div class="tp-card-body p-0" id="stripe-recent-charges">
                 <div class="table-responsive">
-                    <table class="tp-table mb-0">
+                    <table class="tp-table tp-dash-table mb-0">
                         <thead>
                             <tr>
                                 <th>Customer</th>
@@ -997,7 +1226,7 @@ $checklist_hidden = get_setting('hide_launch_checklist', '0') === '1' || $launch
                                 <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                                     <?= e($ch['description'] ?: $ch['id']) ?>
                                 </td>
-                                <td class="text-end text-gr fw-semibold">
+                                <td class="text-end tp-dash-money">
                                     <?= fmt_money($ch['amount']) ?>
                                 </td>
                                 <td style="white-space:nowrap;"><?= e(fmt_datetime($ch['created'])) ?></td>

@@ -258,7 +258,7 @@ layout_start('Bookings', 'bookings');
                 </td>
                 <td><?= status_badge($b['booking_status']) ?></td>
                 <td class="text-end">
-                    <div class="d-flex gap-1 flex-wrap justify-content-end">
+                    <div class="d-flex gap-1 flex-wrap justify-content-end tp-table-actions">
                         <a href="view.php?id=<?= (int)$b['id'] ?>" class="btn-tp-ghost btn-tp-xs">
                             <i class="fa-solid fa-eye"></i> View
                         </a>

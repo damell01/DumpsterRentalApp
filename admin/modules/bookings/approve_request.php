@@ -52,7 +52,7 @@ function booking_existing_work_order(array $booking): ?array
     ) ?: null;
 }
 
-function create_invoice_from_booking(array $booking, bool $autoSend = true): array
+function create_invoice_from_booking(array $booking, bool $markSent = true): array
 {
     // Load all units in this booking group (shared booking_number).
     $group = db_fetchall(
@@ -70,7 +70,7 @@ function create_invoice_from_booking(array $booking, bool $autoSend = true): arr
 
     $customerId = !empty($booking['customer_id']) ? (int)$booking['customer_id'] : null;
     $paymentMethod = (string)($booking['payment_method'] ?? 'stripe');
-    $invoiceStatus = ($autoSend && !empty($booking['customer_email'])) ? 'sent' : 'draft';
+    $invoiceStatus = ($markSent && !empty($booking['customer_email'])) ? 'sent' : 'draft';
     $invoiceId = 0;
     $invoiceNumber = '';
 
@@ -131,13 +131,14 @@ function create_invoice_from_booking(array $booking, bool $autoSend = true): arr
 
     try {
         $stripeKey = trim(get_setting('stripe_secret_key', ''));
-        if ($stripeKey !== '' && str_starts_with($stripeKey, 'sk_') && in_array($paymentMethod, ['stripe', 'ach'], true)) {
+        if ($stripeKey !== '' && str_starts_with($stripeKey, 'sk_')) {
             $invoiceRow = db_fetch('SELECT * FROM invoices WHERE id = ? LIMIT 1', [$invoiceId]);
             if ($invoiceRow) {
                 $baseUrl = rtrim(APP_URL, '/');
                 $successUrl = $baseUrl . '/modules/invoices/view.php?id=' . $invoiceId . '&paid=1';
                 $cancelUrl = $baseUrl . '/modules/invoices/view.php?id=' . $invoiceId;
-                $session = stripe_create_invoice_checkout($invoiceRow, $successUrl, $cancelUrl, $paymentMethod);
+                $checkoutMethod = in_array($paymentMethod, ['stripe', 'ach'], true) ? $paymentMethod : 'stripe';
+                $session = stripe_create_invoice_checkout($invoiceRow, $successUrl, $cancelUrl, $checkoutMethod);
                 db_update('invoices', [
                     'stripe_payment_link' => $session->url,
                     'stripe_session_id' => $session->id,
@@ -150,19 +151,10 @@ function create_invoice_from_booking(array $booking, bool $autoSend = true): arr
     }
 
     $invoice = db_fetch('SELECT * FROM invoices WHERE id = ? LIMIT 1', [$invoiceId]) ?: ['id' => $invoiceId, 'invoice_number' => $invoiceNumber];
-    $emailSent = false;
-    if ($autoSend && !empty($invoice['cust_email'])) {
-        try {
-            $emailSent = send_invoice_email_to_customer($invoice);
-        } catch (\Throwable $e) {
-            error_log('[Booking approval] Invoice email failed: ' . $e->getMessage());
-        }
-    }
-
     return [
         'invoice_id' => $invoiceId,
         'invoice_number' => $invoiceNumber,
-        'email_sent' => $emailSent,
+        'email_sent' => false,
     ];
 }
 
@@ -293,6 +285,16 @@ try {
         $invoice = create_invoice_from_booking($booking, $autoSend);
     }
 
+    $invoiceRow = db_fetch('SELECT * FROM invoices WHERE id = ? LIMIT 1', [(int)$invoice['invoice_id']]) ?: [];
+    $approvalEmailSent = false;
+    if ($autoSend && !empty($booking['customer_email']) && !empty($invoiceRow)) {
+        try {
+            $approvalEmailSent = notify_booking_approved($booking, $invoiceRow);
+        } catch (\Throwable $e) {
+            error_log('[Booking approval] Approval email failed: ' . $e->getMessage());
+        }
+    }
+
     log_activity(
         'approve_booking_request',
         'Approved booking request ' . ($booking['booking_number'] ?? '')
@@ -306,8 +308,8 @@ try {
     $msgs[] = 'Work order ' . $workOrder['wo_number'] . ($workOrder['already_exists'] ? ' (already existed)' : ' created') . '.';
     if (!empty($existingInvoice)) {
         $msgs[] = 'Invoice ' . $invoice['invoice_number'] . ' already existed.';
-    } elseif (!empty($invoice['email_sent'])) {
-        $msgs[] = 'Invoice ' . $invoice['invoice_number'] . ' created and emailed to customer.';
+    } elseif ($approvalEmailSent) {
+        $msgs[] = 'Invoice ' . $invoice['invoice_number'] . ' created and approval email sent to customer.';
     } else {
         $msgs[] = 'Invoice ' . $invoice['invoice_number'] . ' created as draft — send manually when ready.';
     }

@@ -85,16 +85,7 @@ try {
 
 $customer = db_fetch('SELECT * FROM customers WHERE LOWER(email) = ? LIMIT 1', [$email]);
 if ($customer) {
-    $token = billing_portal_access_service()->issueTokenForCustomer((int)$customer['id'], (int)get_setting('portal_link_ttl_minutes', '30'));
-    $basePublicUrl = preg_replace('#/admin$#', '', APP_URL);
-    $portalUrl = rtrim((string)$basePublicUrl, '/') . '/public/portal/index.php?customer_id=' . (int)$customer['id'] . '&token=' . urlencode($token);
-    $html = email_template(
-        'Customer Billing Portal',
-        '<p>Your secure Trash Panda billing portal link is ready.</p><p>This link expires automatically.</p>',
-        'Open Billing Portal',
-        $portalUrl
-    );
-    send_email($email, 'Your Trash Panda Billing Portal Link', $html);
+    send_customer_portal_link_email($customer);
 }
 
 echo json_encode(['success' => true]);

@@ -28,7 +28,7 @@ unset($_tp_phpmailer_autoload);
  * @param string $from  Override From; defaults to company email from settings
  * @return bool
  */
-function send_email(string $to, string $subject, string $html_body, string $from = ''): bool
+function send_email(string $to, string $subject, string $html_body, string $from = '', array $attachments = []): bool
 {
     $from_name  = get_setting('email_from_name',  get_setting('company_name', 'Trash Panda Roll-Offs'));
     $from_email = get_setting('email_from_email', get_setting('company_email', 'noreply@example.com'));
@@ -72,6 +72,15 @@ function send_email(string $to, string $subject, string $html_body, string $from
             $mail->Subject = $subject;
             $mail->Body    = $html_body;
             $mail->AltBody = strip_tags($html_body);
+            foreach ($attachments as $attachment) {
+                $name = (string)($attachment['name'] ?? 'attachment.bin');
+                $type = (string)($attachment['type'] ?? 'application/octet-stream');
+                $content = $attachment['content'] ?? null;
+                if (!is_string($content) || $content === '') {
+                    continue;
+                }
+                $mail->addStringAttachment($content, $name, 'base64', $type);
+            }
 
             $mail->send();
             _log_notification('email', $to, $subject, $html_body, 'sent');
@@ -84,12 +93,40 @@ function send_email(string $to, string $subject, string $html_body, string $from
 
     // ── PHP mail() fallback ──────────────────────────────────────────────────
     $headers  = 'MIME-Version: 1.0' . "\r\n";
-    $headers .= 'Content-Type: text/html; charset=UTF-8' . "\r\n";
     $headers .= 'From: ' . $from_name . ' <' . $from_email . '>' . "\r\n";
     $headers .= 'Reply-To: ' . $from_email . "\r\n";
     $headers .= 'X-Mailer: PHP/' . PHP_VERSION . "\r\n";
 
-    $result = @mail($to, $subject, $html_body, $headers);
+    if (!empty($attachments)) {
+        $boundary = 'tp_mail_' . bin2hex(random_bytes(12));
+        $headers .= 'Content-Type: multipart/mixed; boundary="' . $boundary . '"' . "\r\n";
+
+        $body  = '--' . $boundary . "\r\n";
+        $body .= 'Content-Type: text/html; charset=UTF-8' . "\r\n";
+        $body .= 'Content-Transfer-Encoding: base64' . "\r\n\r\n";
+        $body .= chunk_split(base64_encode($html_body)) . "\r\n";
+
+        foreach ($attachments as $attachment) {
+            $name = (string)($attachment['name'] ?? 'attachment.bin');
+            $type = (string)($attachment['type'] ?? 'application/octet-stream');
+            $content = $attachment['content'] ?? null;
+            if (!is_string($content) || $content === '') {
+                continue;
+            }
+
+            $body .= '--' . $boundary . "\r\n";
+            $body .= 'Content-Type: ' . $type . '; name="' . addslashes($name) . '"' . "\r\n";
+            $body .= 'Content-Disposition: attachment; filename="' . addslashes($name) . '"' . "\r\n";
+            $body .= 'Content-Transfer-Encoding: base64' . "\r\n\r\n";
+            $body .= chunk_split(base64_encode($content)) . "\r\n";
+        }
+
+        $body .= '--' . $boundary . '--';
+        $result = @mail($to, $subject, $body, $headers);
+    } else {
+        $headers .= 'Content-Type: text/html; charset=UTF-8' . "\r\n";
+        $result = @mail($to, $subject, $html_body, $headers);
+    }
 
     _log_notification('email', $to, $subject, $html_body, $result ? 'sent' : 'failed');
 
@@ -305,6 +342,325 @@ function email_template(string $title, string $body_html, string $cta_text = '',
 </html>';
 }
 
+function booking_group_rows(array $booking): array
+{
+    $bookingNumber = trim((string)($booking['booking_number'] ?? ''));
+    if ($bookingNumber === '') {
+        return [$booking];
+    }
+
+    $rows = db_fetchall('SELECT * FROM bookings WHERE booking_number = ? ORDER BY id', [$bookingNumber]);
+    return !empty($rows) ? $rows : [$booking];
+}
+
+function booking_group_summary(array $booking): array
+{
+    $rows = booking_group_rows($booking);
+    $items = [];
+    $unitLabels = [];
+    $total = 0.0;
+
+    foreach ($rows as $row) {
+        $unitCode = trim((string)($row['unit_code'] ?? ''));
+        $unitSize = trim((string)($row['unit_size'] ?? ''));
+        $label = trim($unitCode . ($unitSize !== '' ? ' - ' . $unitSize : ''));
+        if ($label === '') {
+            $label = 'Dumpster rental';
+        }
+        $unitLabels[] = $label;
+        $items[] = '<div style="padding:6px 0;border-bottom:1px solid #e5e7eb;">'
+            . htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+            . '</div>';
+        $total += (float)($row['total_amount'] ?? 0);
+    }
+
+    return [
+        'rows' => $rows,
+        'count' => count($rows),
+        'unit_text' => htmlspecialchars(implode(', ', $unitLabels), ENT_QUOTES, 'UTF-8'),
+        'unit_html' => implode('', $items),
+        'total' => $total,
+    ];
+}
+
+function booking_terms_download_url(array $booking): string
+{
+    $rows = booking_group_rows($booking);
+    $ids = array_map(static fn(array $row): int => (int)($row['id'] ?? 0), $rows);
+    $ids = array_values(array_filter($ids, static fn(int $id): bool => $id > 0));
+    $idsStr = implode(',', $ids);
+    $token = hash_hmac('sha256', $idsStr, defined('PORTAL_SIGNING_KEY') ? PORTAL_SIGNING_KEY : 'booking-token-secret');
+    return '/download-terms.php?ids=' . urlencode($idsStr) . '&token=' . urlencode($token);
+}
+
+function resolve_logo_file_path(): ?string
+{
+    $candidates = [];
+    foreach ([get_setting('logo_path', ''), get_setting('logo_url', '')] as $value) {
+        $value = trim((string)$value);
+        if ($value === '') {
+            continue;
+        }
+
+        $path = parse_url($value, PHP_URL_PATH);
+        $path = is_string($path) ? $path : $value;
+        $path = ltrim($path, '/');
+
+        $roots = array_filter([
+            defined('ROOT_PATH') ? ROOT_PATH : null,
+            defined('ROOT_PATH') ? dirname(ROOT_PATH) : null,
+            defined('ROOT_PATH') ? dirname(ROOT_PATH) . '/public' : null,
+            $_SERVER['DOCUMENT_ROOT'] ?? null,
+        ]);
+
+        foreach ($roots as $root) {
+            $candidates[] = rtrim($root, '/\\') . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+        }
+    }
+
+    foreach (array_unique($candidates) as $candidate) {
+        if (is_file($candidate)) {
+            return $candidate;
+        }
+    }
+
+    return null;
+}
+
+function booking_terms_logo_jpeg(): ?array
+{
+    $logoPath = resolve_logo_file_path();
+    if ($logoPath === null) {
+        return null;
+    }
+
+    $info = @getimagesize($logoPath);
+    if (!$info) {
+        return null;
+    }
+
+    $type = (int)($info[2] ?? 0);
+    $width = (int)($info[0] ?? 0);
+    $height = (int)($info[1] ?? 0);
+    if ($width <= 0 || $height <= 0) {
+        return null;
+    }
+
+    if ($type === IMAGETYPE_JPEG) {
+        $binary = @file_get_contents($logoPath);
+        if (is_string($binary) && $binary !== '') {
+            return ['binary' => $binary, 'width' => $width, 'height' => $height];
+        }
+    }
+
+    if (!function_exists('imagecreatefromstring') || !function_exists('imagejpeg')) {
+        return null;
+    }
+
+    $raw = @file_get_contents($logoPath);
+    if (!is_string($raw) || $raw === '') {
+        return null;
+    }
+
+    $src = @imagecreatefromstring($raw);
+    if (!$src) {
+        return null;
+    }
+
+    $canvas = imagecreatetruecolor($width, $height);
+    $white = imagecolorallocate($canvas, 255, 255, 255);
+    imagefill($canvas, 0, 0, $white);
+    imagecopy($canvas, $src, 0, 0, 0, 0, $width, $height);
+
+    ob_start();
+    imagejpeg($canvas, null, 88);
+    $binary = (string)ob_get_clean();
+    imagedestroy($canvas);
+    imagedestroy($src);
+
+    if ($binary === '') {
+        return null;
+    }
+
+    return ['binary' => $binary, 'width' => $width, 'height' => $height];
+}
+
+function pdf_escape_text(string $text): string
+{
+    return str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $text);
+}
+
+function pdf_wrap_lines(string $text, int $lineLength = 88): array
+{
+    $lines = preg_split("/\r\n|\n|\r/", $text) ?: [];
+    $wrapped = [];
+    foreach ($lines as $line) {
+        $parts = explode("\n", wordwrap($line, $lineLength, "\n", true));
+        foreach ($parts as $part) {
+            $wrapped[] = $part === '' ? ' ' : $part;
+        }
+    }
+    return !empty($wrapped) ? $wrapped : [' '];
+}
+
+function booking_terms_pdf_attachment(array $booking): ?array
+{
+    $termsText = trim((string)get_setting('booking_terms', ''));
+    if ($termsText === '') {
+        return null;
+    }
+
+    $companyName = (string)get_setting('company_name', 'Trash Panda Roll-Offs');
+    $acceptedDate = !empty($booking['terms_accepted_at'])
+        ? date('F j, Y', strtotime((string)$booking['terms_accepted_at']))
+        : date('F j, Y');
+    $customerName = (string)($booking['customer_name'] ?? 'Customer');
+    $bookingNumber = (string)($booking['booking_number'] ?? '');
+
+    $content = [];
+    $content[] = '0.08 0.1 0.16 rg 0 0 612 792 re f';
+    $content[] = '0.97 0.45 0.09 rg 0 708 612 84 re f';
+    $content[] = '1 1 1 rg';
+    $content[] = 'BT /F2 24 Tf 48 752 Td (' . pdf_escape_text('Terms & Conditions') . ') Tj ET';
+    $content[] = 'BT /F1 11 Tf 48 730 Td (' . pdf_escape_text($companyName) . ') Tj ET';
+
+    $logo = booking_terms_logo_jpeg();
+    $imageObject = '';
+    $imageObjectNumber = 0;
+    $contentObjectNumber = 6;
+    $resourceExtra = '';
+    if ($logo !== null) {
+        $maxWidth = 132.0;
+        $scale = min(1.0, $maxWidth / max(1, (float)$logo['width']));
+        $displayW = round($logo['width'] * $scale, 2);
+        $displayH = round($logo['height'] * $scale, 2);
+        $x = round(612 - 48 - $displayW, 2);
+        $y = round(720 + ((72 - $displayH) / 2), 2);
+        $content[] = 'q ' . $displayW . ' 0 0 ' . $displayH . ' ' . $x . ' ' . $y . ' cm /Im1 Do Q';
+        $imageBinary = $logo['binary'];
+        $imageObjectNumber = 6;
+        $contentObjectNumber = 7;
+        $imageObject = $imageObjectNumber . " 0 obj\n<< /Type /XObject /Subtype /Image /Width {$logo['width']} /Height {$logo['height']} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " . strlen($imageBinary) . " >>\nstream\n" . $imageBinary . "\nendstream\nendobj\n";
+        $resourceExtra = ' /XObject << /Im1 ' . $imageObjectNumber . ' 0 R >>';
+    }
+
+    // Main white card
+    $content[] = '1 1 1 rg 36 54 540 624 re f';
+    $content[] = '0.87 0.89 0.93 RG 1 w 36 54 540 624 re S';
+
+    // Booking details strip
+    $content[] = '0.95 0.96 0.98 rg 54 592 504 64 re f';
+    $content[] = '0.9 0.92 0.95 RG 1 w 54 592 504 64 re S';
+    $content[] = '0.15 0.18 0.24 rg';
+    $content[] = 'BT /F2 10 Tf 70 632 Td (' . pdf_escape_text('Accepted Date') . ') Tj ET';
+    $content[] = 'BT /F1 11 Tf 70 615 Td (' . pdf_escape_text($acceptedDate) . ') Tj ET';
+    $content[] = 'BT /F2 10 Tf 250 632 Td (' . pdf_escape_text('Customer') . ') Tj ET';
+    $content[] = 'BT /F1 11 Tf 250 615 Td (' . pdf_escape_text($customerName) . ') Tj ET';
+    $content[] = 'BT /F2 10 Tf 430 632 Td (' . pdf_escape_text('Booking #') . ') Tj ET';
+    $content[] = 'BT /F1 11 Tf 430 615 Td (' . pdf_escape_text($bookingNumber !== '' ? $bookingNumber : 'N/A') . ') Tj ET';
+
+    // Intro copy
+    $content[] = '0.11 0.13 0.18 rg';
+    $content[] = 'BT /F2 13 Tf 54 565 Td (' . pdf_escape_text('Agreement Summary') . ') Tj ET';
+    $introLines = [
+        'This document records the Terms and Conditions accepted for this dumpster rental booking.',
+        'Please keep this copy with your booking records for future reference.',
+    ];
+    $y = 545;
+    foreach ($introLines as $line) {
+        $content[] = 'BT /F1 10.5 Tf 54 ' . $y . ' Td (' . pdf_escape_text($line) . ') Tj ET';
+        $y -= 15;
+    }
+
+    // Terms section container
+    $content[] = '0.99 0.99 1 rg 54 92 504 420 re f';
+    $content[] = '0.9 0.92 0.95 RG 1 w 54 92 504 420 re S';
+    $content[] = '0.97 0.45 0.09 rg 54 482 504 30 re f';
+    $content[] = '1 1 1 rg';
+    $content[] = 'BT /F2 12 Tf 68 493 Td (' . pdf_escape_text('Accepted Terms') . ') Tj ET';
+
+    $content[] = '0.16 0.18 0.24 rg';
+    $textLines = pdf_wrap_lines($termsText, 84);
+    $y = 463;
+    foreach ($textLines as $line) {
+        if ($y < 112) {
+            break;
+        }
+        $content[] = 'BT /F1 9.6 Tf 68 ' . $y . ' Td (' . pdf_escape_text($line) . ') Tj ET';
+        $y -= 12.5;
+    }
+
+    // Footer note
+    $content[] = '0.45 0.49 0.56 rg';
+    $content[] = 'BT /F1 8.5 Tf 54 70 Td (' . pdf_escape_text('Generated automatically by ' . $companyName . ' on ' . date('F j, Y')) . ') Tj ET';
+
+    $stream = implode("\n", $content) . "\n";
+
+    $pdf = "%PDF-1.4\n";
+    $offsets = [];
+    $objects = [
+        "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+        "2 0 obj\n<< /Type /Pages /Count 1 /Kids [3 0 R] >>\nendobj\n",
+        "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 5 0 R >>{$resourceExtra} >> /Contents {$contentObjectNumber} 0 R >>\nendobj\n",
+        "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+        "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n",
+    ];
+    if ($imageObject !== '') {
+        $objects[] = $imageObject;
+    }
+    $objects[] = $contentObjectNumber . " 0 obj\n<< /Length " . strlen($stream) . " >>\nstream\n" . $stream . "endstream\nendobj\n";
+
+    foreach ($objects as $object) {
+        $offsets[] = strlen($pdf);
+        $pdf .= $object;
+    }
+
+    $xrefOffset = strlen($pdf);
+    $pdf .= "xref\n0 " . (count($offsets) + 1) . "\n";
+    $pdf .= "0000000000 65535 f \n";
+    foreach ($offsets as $offset) {
+        $pdf .= sprintf("%010d 00000 n \n", $offset);
+    }
+    $pdf .= "trailer\n<< /Size " . (count($offsets) + 1) . " /Root 1 0 R >>\nstartxref\n{$xrefOffset}\n%%EOF";
+
+    return [
+        'name' => 'terms-and-conditions-' . preg_replace('/[^a-z0-9\-]+/i', '-', strtolower($bookingNumber !== '' ? $bookingNumber : 'booking')) . '.pdf',
+        'type' => 'application/pdf',
+        'content' => $pdf,
+    ];
+}
+
+function send_customer_portal_link_email(array $customer): bool
+{
+    $email = trim((string)($customer['email'] ?? ''));
+    $customerId = (int)($customer['id'] ?? 0);
+    if ($email === '' || $customerId <= 0 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return false;
+    }
+
+    $token = billing_portal_access_service()->issueTokenForCustomer($customerId, (int)get_setting('portal_link_ttl_minutes', '30'));
+    $basePublicUrl = preg_replace('#/admin$#', '', APP_URL);
+    $portalUrl = rtrim((string)$basePublicUrl, '/') . '/public/portal/index.php?customer_id=' . $customerId . '&token=' . urlencode($token);
+    $html = email_template(
+        'Customer Billing Portal',
+        '<p>Your secure Trash Panda billing portal link is ready.</p><p>This link expires automatically.</p>',
+        'Open Billing Portal',
+        $portalUrl
+    );
+
+    $sent = send_email($email, 'Your Trash Panda Billing Portal Link', $html);
+    if ($sent) {
+        log_activity(
+            'portal_link_emailed',
+            'Sent customer portal access link to ' . $email . '.',
+            'customer',
+            $customerId
+        );
+    }
+
+    return $sent;
+}
+
 /**
  * Send delivery reminder emails for work orders scheduled for tomorrow.
  */
@@ -434,19 +790,21 @@ function notify_booking_confirmed(array $booking): void
         return;
     }
 
+    $summary = booking_group_summary($booking);
     $name   = htmlspecialchars($booking['customer_name'] ?? 'Customer',  ENT_QUOTES, 'UTF-8');
     $bk_num = htmlspecialchars($booking['booking_number'] ?? '',          ENT_QUOTES, 'UTF-8');
-    $unit   = htmlspecialchars(($booking['unit_code'] ?? '') . ' — ' . ($booking['unit_size'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $unit   = $summary['unit_text'];
+    $unitHtml = $summary['count'] > 1 ? $summary['unit_html'] : $unit;
     $start  = !empty($booking['rental_start']) ? date('l, F j, Y', strtotime($booking['rental_start'])) : '—';
     $end    = !empty($booking['rental_end'])   ? date('l, F j, Y', strtotime($booking['rental_end']))   : '—';
     $days   = (int)($booking['rental_days'] ?? 0);
-    $total  = fmt_money($booking['total_amount'] ?? 0);
+    $total  = fmt_money($summary['total']);
     $method = htmlspecialchars(ucfirst($booking['payment_method'] ?? ''), ENT_QUOTES, 'UTF-8');
 
     $vars = [
         'customer_name'  => $name,
         'booking_number' => $bk_num,
-        'unit'           => $unit,
+        'unit'           => $unitHtml,
         'rental_start'   => $start,
         'rental_end'     => $end,
         'rental_days'    => (string)$days,
@@ -488,16 +846,27 @@ function notify_booking_confirmed(array $booking): void
     $subject = render_email_vars($tpl['subject'], $vars);
     $body    = render_email_vars($tpl['body_html'], $vars);
 
+    $attachments = [];
     if (!empty($booking['terms_accepted_at'])) {
-        $ta_time = date('F j, Y \a\t g:i A', strtotime($booking['terms_accepted_at']));
+        $ta_time = date('F j, Y', strtotime($booking['terms_accepted_at']));
         $body .= '<p style="font-size:.75rem;color:#9ca3af;margin-top:1.5rem;padding-top:1rem;'
                . 'border-top:1px solid #e5e7eb;">'
                . 'Terms &amp; Conditions accepted on ' . $ta_time . '.'
                . '</p>';
+        $termsAttachment = booking_terms_pdf_attachment($booking);
+        if ($termsAttachment !== null) {
+            $attachments[] = $termsAttachment;
+        }
     }
 
     $html = email_template('Booking Confirmation — ' . $bk_num, $body);
-    send_email($email, $subject, $html);
+    send_email($email, $subject, $html, '', $attachments);
+    log_activity(
+        'booking_confirmation_emailed',
+        'Sent booking confirmation email for ' . ($booking['booking_number'] ?? '') . '.',
+        'booking',
+        (int)($booking['id'] ?? 0)
+    );
 
     // Also notify the company
     notify_admins(
@@ -531,18 +900,20 @@ function notify_booking_confirmed(array $booking): void
 function notify_booking_request_received(array $booking): void
 {
     $email  = trim($booking['customer_email'] ?? '');
+    $summary = booking_group_summary($booking);
     $bk_num = htmlspecialchars($booking['booking_number'] ?? '', ENT_QUOTES, 'UTF-8');
     $name   = htmlspecialchars($booking['customer_name'] ?? 'Customer', ENT_QUOTES, 'UTF-8');
-    $unit   = htmlspecialchars(($booking['unit_code'] ?? '') . ' — ' . ($booking['unit_size'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $unit   = $summary['unit_text'];
+    $unitHtml = $summary['count'] > 1 ? $summary['unit_html'] : $unit;
     $start  = !empty($booking['rental_start']) ? date('l, F j, Y', strtotime($booking['rental_start'])) : '—';
     $end    = !empty($booking['rental_end'])   ? date('l, F j, Y', strtotime($booking['rental_end']))   : '—';
-    $total  = fmt_money($booking['total_amount'] ?? 0);
+    $total  = fmt_money($summary['total']);
     $method = htmlspecialchars(payment_method_label($booking['payment_method'] ?? ''), ENT_QUOTES, 'UTF-8');
 
     $vars = [
         'customer_name'  => $name,
         'booking_number' => $bk_num,
-        'unit'           => $unit,
+        'unit'           => $unitHtml,
         'rental_start'   => $start,
         'rental_end'     => $end,
         'total'          => $total,
@@ -582,14 +953,117 @@ function notify_booking_request_received(array $booking): void
     $body    = render_email_vars($tpl['body_html'], $vars);
 
     if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $attachments = [];
+        if (!empty($booking['terms_accepted_at'])) {
+            $body .= '<p style="font-size:.75rem;color:#9ca3af;margin-top:1.5rem;padding-top:1rem;'
+                   . 'border-top:1px solid #e5e7eb;">'
+                   . 'Terms &amp; Conditions accepted on ' . date('F j, Y', strtotime($booking['terms_accepted_at'])) . '.'
+                   . '</p>';
+            $termsAttachment = booking_terms_pdf_attachment($booking);
+            if ($termsAttachment !== null) {
+                $attachments[] = $termsAttachment;
+            }
+        }
         $html = email_template('Booking Request Received — ' . $bk_num, $body);
-        send_email($email, $subject, $html);
+        send_email($email, $subject, $html, '', $attachments);
+        log_activity(
+            'booking_request_emailed',
+            'Sent booking request received email for ' . ($booking['booking_number'] ?? '') . '.',
+            'booking',
+            (int)($booking['id'] ?? 0)
+        );
     }
 
     notify_admins(
         'New Booking Request — ' . $bk_num . ' (' . ($booking['customer_name'] ?? '') . ')',
         $body
     );
+}
+
+function notify_booking_approved(array $booking, array $invoice = []): bool
+{
+    $email = trim((string)($booking['customer_email'] ?? ''));
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return false;
+    }
+
+    $summary = booking_group_summary($booking);
+    $bkNum = htmlspecialchars((string)($booking['booking_number'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $name = htmlspecialchars((string)($booking['customer_name'] ?? 'Customer'), ENT_QUOTES, 'UTF-8');
+    $unitHtml = $summary['count'] > 1 ? $summary['unit_html'] : $summary['unit_text'];
+    $start = !empty($booking['rental_start']) ? date('l, F j, Y', strtotime((string)$booking['rental_start'])) : '—';
+    $end = !empty($booking['rental_end']) ? date('l, F j, Y', strtotime((string)$booking['rental_end'])) : '—';
+    $days = (int)($booking['rental_days'] ?? 0);
+    $total = fmt_money($summary['total']);
+    $paymentMethod = payment_method_label((string)($booking['payment_method'] ?? ''));
+    $paymentLink = trim((string)($invoice['stripe_payment_link'] ?? ''));
+    $invoiceNumber = htmlspecialchars((string)($invoice['invoice_number'] ?? 'Pending'), ENT_QUOTES, 'UTF-8');
+    $methodSlug = strtolower(trim((string)($booking['payment_method'] ?? '')));
+
+    $paymentMessage = '<p>Your invoice is ready. Use the button below to review and pay online.</p>';
+    if (in_array($methodSlug, ['cash', 'check'], true) && $paymentLink !== '') {
+        $paymentMessage = '<p>Your invoice is ready. You can pay online using the button below, or you can still pay by '
+            . htmlspecialchars($paymentMethod, ENT_QUOTES, 'UTF-8')
+            . ' if that is your preference.</p>';
+    } elseif (in_array($methodSlug, ['cash', 'check'], true)) {
+        $paymentMessage = '<p>Your booking is approved. You can still pay by '
+            . htmlspecialchars($paymentMethod, ENT_QUOTES, 'UTF-8')
+            . ' as requested.</p>';
+    }
+
+    $vars = [
+        'customer_name' => $name,
+        'booking_number' => $bkNum,
+        'invoice_number' => $invoiceNumber,
+        'unit' => $unitHtml,
+        'rental_start' => $start,
+        'rental_end' => $end,
+        'rental_days' => (string)$days,
+        'rental_days_s' => $days !== 1 ? 's' : '',
+        'total' => $total,
+        'payment_method' => htmlspecialchars($paymentMethod, ENT_QUOTES, 'UTF-8'),
+        'payment_message' => $paymentMessage,
+    ];
+
+    $tpl = get_email_template('booking_approved', [
+        'subject' => 'Booking Approved — {{booking_number}}',
+        'body_html' => '<p>Hello {{customer_name}},</p><p>Your dumpster rental request has been <strong>approved</strong>.</p><p>{{payment_message}}</p>',
+    ]);
+
+    $subject = render_email_vars($tpl['subject'], $vars);
+    $body = render_email_vars($tpl['body_html'], $vars);
+
+    if (!empty($booking['terms_accepted_at'])) {
+        $body .= '<p style="font-size:.75rem;color:#9ca3af;margin-top:1.5rem;padding-top:1rem;border-top:1px solid #e5e7eb;">'
+            . 'Terms &amp; Conditions accepted on ' . date('F j, Y', strtotime((string)$booking['terms_accepted_at'])) . '. '
+            . '<a href="' . htmlspecialchars(booking_terms_download_url($booking), ENT_QUOTES, 'UTF-8') . '" style="color:#f97316;">Download terms PDF</a>.'
+            . '</p>';
+    }
+
+    $attachments = [];
+    $termsAttachment = booking_terms_pdf_attachment($booking);
+    if ($termsAttachment !== null) {
+        $attachments[] = $termsAttachment;
+    }
+
+    $html = email_template(
+        'Booking Approved — ' . (string)($booking['booking_number'] ?? ''),
+        $body,
+        $paymentLink !== '' ? 'View Booking Invoice' : '',
+        $paymentLink !== '' ? $paymentLink : ''
+    );
+
+    $sent = send_email($email, $subject, $html, '', $attachments);
+    if ($sent) {
+        log_activity(
+            'booking_approved_emailed',
+            'Sent booking approval email for ' . ($booking['booking_number'] ?? '') . '.',
+            'booking',
+            (int)($booking['id'] ?? 0)
+        );
+    }
+
+    return $sent;
 }
 
 /**
@@ -608,10 +1082,23 @@ function send_invoice_email_to_customer(array $invoice): bool
     $dueDate = !empty($invoice['due_date']) ? fmt_date((string)$invoice['due_date']) : 'upon receipt';
     $paymentLink = trim((string)($invoice['stripe_payment_link'] ?? ''));
     $notes = trim((string)($invoice['notes'] ?? ''));
+    $paymentMethod = strtolower(trim((string)($invoice['payment_method'] ?? '')));
+    $isOfflineFriendly = in_array($paymentMethod, ['cash', 'check'], true);
 
     $notesBlock = $notes !== ''
         ? '<p><strong>Notes:</strong><br>' . nl2br(htmlspecialchars($notes, ENT_QUOTES, 'UTF-8')) . '</p>'
         : '';
+
+    $paymentInstructions = '<p>You can review and pay this invoice using the link below.</p>';
+    if ($isOfflineFriendly && $paymentLink !== '') {
+        $paymentInstructions = '<p>You can pay this invoice online using the link below, or you can still pay by '
+            . htmlspecialchars($paymentMethod, ENT_QUOTES, 'UTF-8')
+            . ' if that is your preference.</p>';
+    } elseif ($isOfflineFriendly) {
+        $paymentInstructions = '<p>You can pay this invoice by '
+            . htmlspecialchars($paymentMethod, ENT_QUOTES, 'UTF-8')
+            . '. If you would prefer to pay online instead, please contact us and we can help.</p>';
+    }
 
     $vars = [
         'customer_name'  => $customerName,
@@ -619,6 +1106,7 @@ function send_invoice_email_to_customer(array $invoice): bool
         'amount'         => htmlspecialchars($amount, ENT_QUOTES, 'UTF-8'),
         'due_date'       => htmlspecialchars($dueDate, ENT_QUOTES, 'UTF-8'),
         'notes_block'    => $notesBlock,
+        'payment_instructions' => $paymentInstructions,
     ];
 
     $tpl = get_email_template('invoice_ready', [
@@ -638,10 +1126,10 @@ function send_invoice_email_to_customer(array $invoice): bool
     <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Due Date</td>
     <td style="padding:10px 14px;border:1px solid #e5e7eb;">{{due_date}}</td>
   </tr>
-</table>
-{{notes_block}}
-<p>You can review and pay this invoice using the link below.</p>',
-    ]);
+  </table>
+  {{notes_block}}
+  {{payment_instructions}}',
+      ]);
 
     $subject = render_email_vars($tpl['subject'], $vars);
     $body    = render_email_vars($tpl['body_html'], $vars);

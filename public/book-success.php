@@ -143,6 +143,8 @@ $company_name  = get_setting('company_name', 'Trash Panda Roll-Offs');
 $company_phone = get_setting('company_phone', '');
 $multi         = count($bookings) > 1;
 $page_title = $all_pending_review ? 'Booking Request Received' : 'Booking Confirmed';
+$terms_download_url = '/download-terms.php?ids=' . urlencode($ids_str) . '&token=' . urlencode($token);
+$has_terms_document = trim((string)get_setting('booking_terms', '')) !== '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -236,6 +238,60 @@ $page_title = $all_pending_review ? 'Booking Request Received' : 'Booking Confir
             margin-bottom: .75rem;
         }
         .unit-row:last-child { margin-bottom: 0; }
+        .next-steps {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: .9rem;
+            margin-top: 1.5rem;
+            text-align: left;
+        }
+        .step-card {
+            background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+            border: 1px solid var(--steel);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+        .step-number {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(249,115,22,.15);
+            color: var(--orange);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-cond);
+            font-weight: 800;
+            margin-bottom: .75rem;
+        }
+        .step-card h4 {
+            font-family: var(--font-cond);
+            font-size: 1rem;
+            color: var(--white);
+            margin: 0 0 .35rem;
+        }
+        .step-card p {
+            margin: 0;
+            color: var(--gray-light);
+            font-size: .86rem;
+            line-height: 1.55;
+        }
+        .step-card.is-active {
+            border-color: rgba(249,115,22,.35);
+            background: linear-gradient(180deg, rgba(249,115,22,.12), rgba(249,115,22,.04));
+        }
+        .success-help-card {
+            background: rgba(249,115,22,.08);
+            border: 1px solid rgba(249,115,22,.25);
+            border-radius: 12px;
+            padding: 1rem 1.15rem;
+            margin-top: 1.35rem;
+            text-align: left;
+        }
+        .success-help-card strong { color: var(--white); }
+        @media (max-width: 767px) {
+            .next-steps { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -268,6 +324,36 @@ $page_title = $all_pending_review ? 'Booking Request Received' : 'Booking Confir
         <?php foreach ($bookings as $bk): ?>
         <span class="booking-number-display"><?= htmlspecialchars($bk['booking_number'], ENT_QUOTES, 'UTF-8') ?></span>
         <?php endforeach; ?>
+    </div>
+
+    <div class="next-steps">
+        <div class="step-card is-active">
+            <div class="step-number">1</div>
+            <h4><?= $all_pending_review ? 'Request Received' : 'Booking Confirmed' ?></h4>
+            <p>
+                <?= $all_pending_review
+                    ? 'Your request is safely in our queue and tied to the booking number above.'
+                    : 'Your rental is on the schedule and tied to the booking number above.' ?>
+            </p>
+        </div>
+        <div class="step-card">
+            <div class="step-number">2</div>
+            <h4><?= $all_pending_review ? 'We Review Availability' : 'Watch for Updates' ?></h4>
+            <p>
+                <?= $all_pending_review
+                    ? 'Our team reviews inventory, timing, and routing before approving the order.'
+                    : 'We may still send reminders, invoice updates, or portal access details before delivery.' ?>
+            </p>
+        </div>
+        <div class="step-card">
+            <div class="step-number">3</div>
+            <h4><?= $all_pending_review ? 'Approval & Payment' : 'Delivery Day Prep' ?></h4>
+            <p>
+                <?= $all_pending_review
+                    ? 'Once approved, you will receive a branded confirmation, terms PDF, and payment instructions.'
+                    : 'Make sure the drop-off area is clear and accessible before your scheduled delivery date.' ?>
+            </p>
+        </div>
     </div>
 
     <?php if ($multi): ?>
@@ -344,6 +430,23 @@ $page_title = $all_pending_review ? 'Booking Request Received' : 'Booking Confir
             <span class="detail-label" style="font-weight:600;">Total<?= $multi ? ' (All Units)' : '' ?></span>
             <span class="detail-value"><?= htmlspecialchars(fmt_money($grand_total), ENT_QUOTES, 'UTF-8') ?></span>
         </div>
+    </div>
+
+    <?php if ($has_terms_document): ?>
+    <div class="booking-card" style="text-align:center;">
+        <h3><i class="fas fa-file-contract" style="color:var(--orange);margin-right:.4rem;"></i> Terms & Agreement</h3>
+        <p style="color:var(--gray-light);font-size:.92rem;margin-bottom:1rem;">
+            Keep a copy of the signed rental terms for your records.
+        </p>
+        <a href="<?= htmlspecialchars($terms_download_url, ENT_QUOTES, 'UTF-8') ?>" class="btn-panda-outline">
+            <i class="fas fa-file-pdf"></i> Download Terms PDF
+        </a>
+    </div>
+    <?php endif; ?>
+
+    <div class="success-help-card">
+        <strong>Keep this page handy.</strong><br>
+        Use these booking numbers when you call, email, or check your order in the customer portal.
     </div>
 
     <?php if ($first_booking['payment_method'] !== 'stripe'): ?>

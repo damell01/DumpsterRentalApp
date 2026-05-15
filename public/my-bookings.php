@@ -55,15 +55,15 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' https://c
         }
         .page-hero h1 span { color: var(--orange); }
 
-        .page-container { max-width: 820px; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
+        .page-container { max-width: 900px; margin: 0 auto; padding: 3rem 1.1rem 4.75rem; }
 
         /* ── Card ──────────────────────────────────────────────────────────── */
         .book-card {
             background: var(--dark2);
             border: 1px solid var(--steel);
-            border-radius: 10px;
-            padding: 1.75rem;
-            margin-bottom: 1.5rem;
+            border-radius: 14px;
+            padding: 1.95rem;
+            margin-bottom: 1.7rem;
         }
         .book-card h2 {
             font-family: var(--font-cond);
@@ -103,12 +103,23 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' https://c
         .bk-card {
             background: var(--dark3);
             border: 1px solid var(--steel);
-            border-radius: 10px;
-            padding: 1.25rem 1.5rem;
-            margin-bottom: 1rem;
+            border-radius: 14px;
+            padding: 1.45rem 1.65rem;
+            margin-bottom: 1.1rem;
             position: relative;
+            overflow: hidden;
         }
         .bk-card + .bk-card { margin-top: 0; }
+        .bk-card::before {
+            content: '';
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 4px;
+            background: linear-gradient(180deg, rgba(249,115,22,.9), rgba(249,115,22,.18));
+        }
+        .bk-card.is-awaiting::before { background: linear-gradient(180deg, rgba(245,158,11,.9), rgba(245,158,11,.18)); }
+        .bk-card.is-paid::before { background: linear-gradient(180deg, rgba(34,197,94,.9), rgba(34,197,94,.18)); }
+        .bk-card.is-canceled::before { background: linear-gradient(180deg, rgba(239,68,68,.9), rgba(239,68,68,.18)); }
 
         .bk-number {
             font-family: var(--font-cond);
@@ -155,6 +166,47 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' https://c
             margin-top: .45rem;
             color: var(--gray-light);
             font-size: .78rem;
+        }
+        .bk-highlight-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: .7rem;
+            margin-top: .95rem;
+        }
+        .bk-highlight {
+            background: rgba(255,255,255,.03);
+            border: 1px solid rgba(255,255,255,.05);
+            border-radius: 9px;
+            padding: .75rem .8rem;
+        }
+        .bk-highlight-label {
+            font-size: .68rem;
+            color: var(--gray);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            font-family: var(--font-cond);
+        }
+        .bk-highlight-value {
+            margin-top: .32rem;
+            color: var(--white);
+            font-weight: 700;
+            font-size: .9rem;
+        }
+        .results-intro {
+            background: linear-gradient(135deg, rgba(249,115,22,.12), rgba(249,115,22,.04));
+            border: 1px solid rgba(249,115,22,.2);
+            border-radius: 10px;
+            padding: 1rem 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--gray-light);
+            font-size: .9rem;
+        }
+        .results-intro strong { color: var(--white); }
+        @media (max-width: 767px) {
+            .bk-highlight-row { grid-template-columns: 1fr; }
+            .page-container { padding: 2.15rem .9rem 3.75rem; }
+            .book-card { padding: 1.35rem; }
+            .bk-card { padding: 1.15rem 1.2rem 1.2rem 1.3rem; }
         }
 
         .status-badge {
@@ -286,6 +338,7 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' https://c
     <div id="results-wrap" style="display:none;">
         <div class="book-card">
             <h2><i class="fas fa-calendar-alt"></i> Your Bookings <span id="booking-count-badge" style="font-size:.85rem;color:var(--gray);font-weight:400;"></span></h2>
+            <div class="results-intro" id="results-intro-copy" style="display:none;"></div>
             <div id="bookings-list"></div>
         </div>
         <div class="text-center mt-2">
@@ -399,7 +452,11 @@ function lookupBookings() {
 function renderBookings(bookings) {
     var list = document.getElementById('bookings-list');
     var countBadge = document.getElementById('booking-count-badge');
+    var intro = document.getElementById('results-intro-copy');
     countBadge.textContent = '(' + bookings.length + ')';
+    intro.style.display = 'block';
+    intro.innerHTML = '<strong>' + bookings.length + ' booking' + (bookings.length === 1 ? '' : 's') + ' found.</strong> '
+        + 'Review status, payment details, and invoice actions below.';
     list.innerHTML = '';
 
     bookings.forEach(function(b) {
@@ -442,7 +499,28 @@ function renderBookings(bookings) {
                 + '<i class="fas fa-file-lines"></i> View Billing Portal</a>';
         }
 
-        var html = '<div class="bk-card">'
+        var cardClass = 'bk-card';
+        if (b.booking_status === 'canceled') {
+            cardClass += ' is-canceled';
+        } else if (b.payment_status === 'paid' || b.booking_status === 'confirmed' || b.booking_status === 'completed') {
+            cardClass += ' is-paid';
+        } else {
+            cardClass += ' is-awaiting';
+        }
+
+        var invoiceValue = invoice && invoice.number ? escHtml(invoice.number) : 'Pending';
+        var nextStep = 'Awaiting next update';
+        if (b.booking_status === 'pending') {
+            nextStep = 'Waiting for review';
+        } else if (invoice && invoice.payment_link && b.payment_status !== 'paid') {
+            nextStep = 'Invoice ready to pay';
+        } else if (b.payment_status === 'paid') {
+            nextStep = 'Paid and scheduled';
+        } else if (b.booking_status === 'canceled') {
+            nextStep = 'Order canceled';
+        }
+
+        var html = '<div class="' + cardClass + '">'
             + '<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">'
             +   '<div>'
             +     '<div class="bk-number">' + escHtml(b.booking_number) + '</div>'
@@ -455,6 +533,11 @@ function renderBookings(bookings) {
             + '</div>'
             + '<div class="bk-dates"><i class="fas fa-calendar-alt" style="color:var(--orange);width:14px;"></i> ' + escHtml(start) + ' → ' + escHtml(end) + ' &nbsp;·&nbsp; ' + escHtml(days) + '</div>'
             + '<div class="bk-meta">' + addr + '<i class="fas fa-dollar-sign" style="color:var(--orange);width:12px;"></i> ' + total + ' &nbsp;·&nbsp; ' + escHtml(pmLabel(b.payment_method)) + '</div>'
+            + '<div class="bk-highlight-row">'
+            +   '<div class="bk-highlight"><div class="bk-highlight-label">Invoice</div><div class="bk-highlight-value">' + invoiceValue + '</div></div>'
+            +   '<div class="bk-highlight"><div class="bk-highlight-label">Payment</div><div class="bk-highlight-value">' + escHtml(payStatus) + '</div></div>'
+            +   '<div class="bk-highlight"><div class="bk-highlight-label">Next Step</div><div class="bk-highlight-value">' + escHtml(nextStep) + '</div></div>'
+            + '</div>'
             + invoiceHtml
             + (actionsHtml ? '<div class="bk-actions">' + actionsHtml + '</div>' : '')
             + '</div>';
@@ -467,6 +550,7 @@ function resetLookup() {
     document.getElementById('no-results-wrap').style.display = 'none';
     document.getElementById('push-banner').style.display     = 'none';
     document.getElementById('lookup-error').style.display    = 'none';
+    document.getElementById('results-intro-copy').style.display = 'none';
     document.getElementById('identifier').value              = '';
     document.getElementById('lookup-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }

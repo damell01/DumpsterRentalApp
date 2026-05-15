@@ -313,6 +313,18 @@ foreach ($units_data as $ud) {
     $booking_numbers[] = $booking_number;
 }
 
+$primaryBookingId = $new_ids[0] ?? 0;
+if ($primaryBookingId > 0) {
+    log_activity(
+        $requires_approval ? 'booking_request_submitted' : 'booking_created',
+        ($requires_approval ? 'Customer submitted booking request ' : 'Customer created booking ')
+            . $booking_number . ' for ' . $customer_name . ' (' . count($new_ids) . ' unit' . (count($new_ids) === 1 ? '' : 's') . ').',
+        'booking',
+        $primaryBookingId,
+        0
+    );
+}
+
 // Push notification to admins for new booking(s) (best-effort)
 if ($push_loaded) {
     $pm_label  = ['stripe' => 'Card', 'cash' => 'Cash', 'check' => 'Check'][$payment_method] ?? $payment_method;
@@ -346,15 +358,13 @@ if ($push_loaded) {
 }
 
 if ($requires_approval) {
-    foreach ($new_ids as $bid) {
-        try {
-            $pending_booking = db_fetch('SELECT * FROM bookings WHERE id = ? LIMIT 1', [$bid]);
-            if ($pending_booking) {
-                notify_booking_request_received($pending_booking);
-            }
-        } catch (\Throwable $e) {
-            error_log('[Booking] notify_booking_request_received failed for booking ' . $bid . ': ' . $e->getMessage());
+    try {
+        $pending_booking = db_fetch('SELECT * FROM bookings WHERE id = ? LIMIT 1', [$primaryBookingId]);
+        if ($pending_booking) {
+            notify_booking_request_received($pending_booking);
         }
+    } catch (\Throwable $e) {
+        error_log('[Booking] notify_booking_request_received failed for booking ' . $primaryBookingId . ': ' . $e->getMessage());
     }
 }
 
@@ -362,7 +372,7 @@ if ($requires_approval) {
 // Use comma-joined IDs as the token base so all bookings are covered
 $ids_str = implode(',', $new_ids);
 $token   = hash_hmac('sha256', $ids_str, defined('PORTAL_SIGNING_KEY') ? PORTAL_SIGNING_KEY : 'booking-token-secret');
-$first_id = $new_ids[0];
+$first_id = $primaryBookingId;
 
 // Roll back newly created bookings and restore dumpster status on Stripe failure.
 function rollback_stripe_bookings(array $new_ids): void {
@@ -425,16 +435,18 @@ if (!$requires_approval && in_array($payment_method, ['stripe', 'ach'], true)) {
     }
 }
 
-// Cash / check or approval-mode requests — all dumpsters already marked reserved above.
-// Send booking confirmation emails (best-effort, non-blocking).
-foreach ($new_ids as $bid) {
+// Cash / check instant bookings are confirmed immediately and should receive
+// the standard confirmation email. Request-mode bookings are handled earlier
+// via notify_booking_request_received() and must not receive a confirmation
+// before staff approval.
+if (!$requires_approval) {
     try {
-        $confirmed_booking = db_fetch('SELECT * FROM bookings WHERE id = ? LIMIT 1', [$bid]);
+        $confirmed_booking = db_fetch('SELECT * FROM bookings WHERE id = ? LIMIT 1', [$first_id]);
         if ($confirmed_booking) {
             notify_booking_confirmed($confirmed_booking);
         }
     } catch (\Throwable $e) {
-        error_log('[Booking] notify_booking_confirmed failed for booking ' . $bid . ': ' . $e->getMessage());
+        error_log('[Booking] notify_booking_confirmed failed for booking ' . $first_id . ': ' . $e->getMessage());
     }
 }
 

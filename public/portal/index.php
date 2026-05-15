@@ -143,15 +143,21 @@ foreach ($payments as $payment) {
         .portal-shell {
             max-width: 1180px;
             margin: 0 auto;
-            padding: 2.25rem 1rem 4rem;
+            padding: 2.9rem 1.2rem 5rem;
         }
         .portal-hero {
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
             flex-wrap: wrap;
-            gap: 1.25rem;
-            margin-bottom: 1.75rem;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            background:
+                radial-gradient(circle at top right, rgba(249,115,22,.14), transparent 30%),
+                linear-gradient(135deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+            border: 1px solid var(--steel);
+            border-radius: 18px;
+            padding: 1.65rem 1.7rem;
         }
         .portal-overline {
             color: var(--gray-light);
@@ -167,9 +173,10 @@ foreach ($payments as $payment) {
         }
         .portal-title span { color: var(--orange); }
         .portal-subtitle {
-            margin-top: .65rem;
+            margin-top: .75rem;
             color: var(--gray-light);
             font-size: 1rem;
+            line-height: 1.7;
             max-width: 720px;
         }
         .portal-chip {
@@ -189,14 +196,14 @@ foreach ($payments as $payment) {
         .portal-kpis {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.25rem;
+            gap: 1.1rem;
+            margin-bottom: 1.45rem;
         }
         .portal-kpi {
             background: var(--dark2);
             border: 1px solid var(--steel);
-            border-radius: 16px;
-            padding: 1rem 1rem .95rem;
+            border-radius: 18px;
+            padding: 1.15rem 1.1rem 1.05rem;
         }
         .portal-kpi-label {
             color: var(--gray-light);
@@ -220,7 +227,7 @@ foreach ($payments as $payment) {
         .portal-grid {
             display: grid;
             grid-template-columns: repeat(12, minmax(0, 1fr));
-            gap: 1.25rem;
+            gap: 1.35rem;
         }
         .portal-span-12 { grid-column: span 12; }
         .portal-span-8 { grid-column: span 8; }
@@ -229,11 +236,11 @@ foreach ($payments as $payment) {
         .portal-panel {
             background: var(--dark2);
             border: 1px solid var(--steel);
-            border-radius: 16px;
-            padding: 1.35rem;
+            border-radius: 18px;
+            padding: 1.55rem;
         }
         .portal-panel-head {
-            margin-bottom: 1rem;
+            margin-bottom: 1.15rem;
         }
         .portal-panel-head h2 {
             margin: 0;
@@ -244,20 +251,21 @@ foreach ($payments as $payment) {
             text-transform: uppercase;
         }
         .portal-panel-head p {
-            margin: .3rem 0 0;
+            margin: .42rem 0 0;
             color: var(--gray-light);
-            font-size: .86rem;
+            font-size: .88rem;
+            line-height: 1.65;
         }
         .portal-list {
             display: flex;
             flex-direction: column;
-            gap: .95rem;
+            gap: 1rem;
         }
         .portal-item {
             background: var(--dark3);
             border: 1px solid var(--steel);
-            border-radius: 14px;
-            padding: 1rem;
+            border-radius: 16px;
+            padding: 1.1rem;
         }
         .portal-item-head {
             display: flex;
@@ -287,7 +295,7 @@ foreach ($payments as $payment) {
             display: flex;
             gap: .6rem;
             flex-wrap: wrap;
-            margin-top: .9rem;
+            margin-top: 1rem;
         }
         .portal-actions form { margin: 0; }
         .portal-empty {
@@ -301,10 +309,11 @@ foreach ($payments as $payment) {
         .portal-note-box {
             background: rgba(249,115,22,.1);
             border: 1px solid rgba(249,115,22,.25);
-            border-radius: 14px;
-            padding: 1rem;
+            border-radius: 16px;
+            padding: 1.15rem;
             color: var(--gray-light);
             font-size: .92rem;
+            line-height: 1.65;
         }
         .portal-note-box strong { color: var(--white); }
         .portal-footer-links {
@@ -334,8 +343,13 @@ foreach ($payments as $payment) {
                 grid-template-columns: 1fr;
             }
             .portal-shell {
-                padding-left: .85rem;
-                padding-right: .85rem;
+                padding: 2rem .9rem 4rem;
+            }
+            .portal-hero,
+            .portal-panel,
+            .portal-kpi {
+                padding-left: 1.15rem;
+                padding-right: 1.15rem;
             }
         }
     </style>

@@ -33,7 +33,7 @@ $TEMPLATE_DEFS = [
         'name'    => 'Booking Request Received',
         'desc'    => 'Sent to customer when their booking request is submitted (request/approval flow).',
         'vars'    => ['customer_name','booking_number','unit','rental_start','rental_end','total','payment_method'],
-        'default_subject'  => 'Booking Request Received — {{booking_number}}',
+        'default_subject'  => 'We received your booking request — {{booking_number}}',
         'default_body_html'=> '<p>Hello {{customer_name}},</p>
 <p>We received your dumpster rental request and it is now <strong>awaiting review</strong>.</p>
 <table width="100%" style="border-collapse:collapse;font-size:.95rem;margin:16px 0;">
@@ -43,13 +43,33 @@ $TEMPLATE_DEFS = [
   <tr><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Estimated Total</td><td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{total}}</td></tr>
   <tr style="background:#f9fafb;"><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Preferred Payment</td><td style="padding:10px 14px;border:1px solid #e5e7eb;">{{payment_method}}</td></tr>
 </table>
-<p>Our team will review availability and follow up with approval details and payment instructions if needed.</p>',
+<p>Our team will review availability and follow up with approval details and payment instructions if needed.</p>
+<p>We appreciate the opportunity to earn your business.</p>',
+    ],
+    'booking_approved' => [
+        'name'    => 'Booking Approved',
+        'desc'    => 'Sent to customer when a pending booking request is approved by staff.',
+        'vars'    => ['customer_name','booking_number','unit','rental_start','rental_end','rental_days','rental_days_s','total','payment_method','payment_message','invoice_number'],
+        'default_subject'  => 'Your booking is approved — {{booking_number}}',
+        'default_body_html'=> '<p>Hello {{customer_name}},</p>
+<p>Your dumpster rental request has been <strong>approved</strong>, and your order is now reserved.</p>
+<table width="100%" style="border-collapse:collapse;font-size:.95rem;margin:16px 0;">
+  <tr style="background:#f9fafb;"><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;width:40%;">Booking #</td><td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{booking_number}}</td></tr>
+  <tr><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Invoice #</td><td style="padding:10px 14px;border:1px solid #e5e7eb;">{{invoice_number}}</td></tr>
+  <tr style="background:#f9fafb;"><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Unit</td><td style="padding:10px 14px;border:1px solid #e5e7eb;">{{unit}}</td></tr>
+  <tr><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Rental Period</td><td style="padding:10px 14px;border:1px solid #e5e7eb;">{{rental_start}} → {{rental_end}} ({{rental_days}} day{{rental_days_s}})</td></tr>
+  <tr style="background:#f9fafb;"><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Total</td><td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{total}}</td></tr>
+  <tr><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Payment Preference</td><td style="padding:10px 14px;border:1px solid #e5e7eb;">{{payment_method}}</td></tr>
+</table>
+{{payment_message}}
+<p>Your signed terms PDF is attached for your records.</p>
+<p>If you need to make any changes before delivery, just reply to this email or contact us.</p>',
     ],
     'invoice_ready' => [
         'name'    => 'Invoice Ready',
         'desc'    => 'Sent to customer when an invoice is emailed to them.',
         'vars'    => ['customer_name','invoice_number','amount','due_date','notes_block'],
-        'default_subject'  => 'Invoice {{invoice_number}} from ' . get_setting('company_name', 'Trash Panda Roll-Offs'),
+        'default_subject'  => 'Your invoice is ready — {{invoice_number}}',
         'default_body_html'=> '<p>Hello {{customer_name}},</p>
 <p>Your invoice <strong>{{invoice_number}}</strong> is ready.</p>
 <table width="100%" style="border-collapse:collapse;font-size:.95rem;margin:16px 0;">
@@ -58,7 +78,8 @@ $TEMPLATE_DEFS = [
   <tr style="background:#f9fafb;"><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Due Date</td><td style="padding:10px 14px;border:1px solid #e5e7eb;">{{due_date}}</td></tr>
 </table>
 {{notes_block}}
-<p>You can review and pay this invoice using the link below.</p>',
+<p>You can review and pay this invoice using the link below.</p>
+<p>If you have any questions before paying, reply to this email and we’ll be happy to help.</p>',
     ],
     'delivery_tomorrow' => [
         'name'    => 'Delivery Tomorrow Reminder',
