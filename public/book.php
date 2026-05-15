@@ -205,6 +205,52 @@ $request_mode = $booking_flow_mode === 'request';
         .book-alert-error { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.4); color: #fca5a5; }
         .book-alert-info  { background: rgba(249,115,22,.12); border: 1px solid rgba(249,115,22,.35); color: #fdba74; }
 
+        /* Inline field errors */
+        .field-err { font-size:.78rem; color:#fca5a5; margin-top:.3rem; display:none; }
+        .field-err.show { display:block; }
+        input.input-err, textarea.input-err { border-color:#ef4444 !important; }
+
+        /* Sticky summary bar (step 2) */
+        #sticky-summary {
+            display: none;
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: var(--dark);
+            border-top: 2px solid var(--orange);
+            padding: .6rem 1.25rem;
+            z-index: 200;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+        }
+        #sticky-summary.show { display: flex; }
+        .ss-detail { color: var(--gray-light); font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ss-total  { color: var(--orange); font-weight: 700; font-family: var(--font-cond); font-size: 1.15rem; white-space: nowrap; }
+
+        /* Duration preset pills */
+        .preset-row { margin-bottom: 1.1rem; }
+        .preset-row .form-label { margin-bottom: .45rem; }
+        .preset-pills { display: flex; flex-wrap: wrap; gap: .45rem; }
+        .preset-pill {
+            background: var(--dark3);
+            border: 1px solid var(--steel2);
+            color: var(--gray-light);
+            border-radius: 20px;
+            padding: .32rem .85rem;
+            font-size: .82rem;
+            cursor: pointer;
+            transition: border-color .15s, background .15s, color .15s;
+            font-family: var(--font-body);
+            line-height: 1.5;
+        }
+        .preset-pill:hover { border-color: var(--orange); color: #fff; }
+        .preset-pill.active {
+            background: rgba(249,115,22,.15);
+            border-color: var(--orange);
+            color: var(--orange);
+            font-weight: 600;
+        }
+
         /* Terms modal */
         #termsModal { display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1050;align-items:center;justify-content:center;padding:1rem; }
         .terms-modal-box { background:var(--dark2);border:1px solid var(--steel);border-radius:12px;max-width:600px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5); }
@@ -375,16 +421,35 @@ $request_mode = $booking_flow_mode === 'request';
         <!-- Date selection -->
         <div class="book-card">
             <h2><i class="fas fa-calendar-alt"></i> Select Dates</h2>
+
+            <!-- Quick duration presets -->
+            <div class="preset-row">
+                <div class="form-label">Quick Duration</div>
+                <div class="preset-pills">
+                    <button type="button" class="preset-pill" data-weeks="1">1 Week</button>
+                    <button type="button" class="preset-pill" data-weeks="2">2 Weeks</button>
+                    <button type="button" class="preset-pill" data-months="1">1 Month</button>
+                    <button type="button" class="preset-pill" data-months="2">2 Months</button>
+                    <button type="button" class="preset-pill" data-months="3">3 Months</button>
+                    <button type="button" class="preset-pill" data-months="6">6 Months</button>
+                </div>
+            </div>
+
             <div class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label" for="rental_start">Start Date</label>
                     <input type="date" id="rental_start" class="form-control"
-                           min="<?= date('Y-m-d') ?>">
+                           min="<?= date('Y-m-d') ?>"
+                           value="<?= date('Y-m-d') ?>">
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label" for="rental_end">End Date</label>
+                    <label class="form-label" for="rental_end">
+                        End Date
+                        <span id="preset-active-label" style="font-size:.75rem;color:var(--orange);margin-left:.4rem;display:none;"></span>
+                    </label>
                     <input type="date" id="rental_end" class="form-control"
                            min="<?= date('Y-m-d', strtotime('+1 day')) ?>">
+                    <div id="rental-days-hint" style="font-size:.78rem;color:var(--gray);margin-top:.3rem;display:none;"></div>
                 </div>
             </div>
 
@@ -433,14 +498,17 @@ $request_mode = $booking_flow_mode === 'request';
                 <div class="col-md-6">
                     <label class="form-label" for="f_name">Full Name <span style="color:#f97316;">*</span></label>
                     <input type="text" id="f_name" class="form-control" placeholder="Jane Smith" required>
+                    <div class="field-err" id="err-f_name"></div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="f_phone">Phone</label>
-                    <input type="tel" id="f_phone" class="form-control" placeholder="(251) 555-1234">
+                    <input type="tel" id="f_phone" class="form-control" placeholder="(251) 555-1234" inputmode="numeric">
+                    <div class="field-err" id="err-f_phone"></div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="f_email">Email</label>
                     <input type="email" id="f_email" class="form-control" placeholder="you@example.com">
+                    <div class="field-err" id="err-f_email"></div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="f_city">City</label>
@@ -516,9 +584,19 @@ $request_mode = $booking_flow_mode === 'request';
             </button>
         </div>
 
+        <div style="height:64px;"></div><!-- sticky bar spacer -->
     </div><!-- /#step-2 -->
 
 </div><!-- /.book-container -->
+
+<!-- Sticky booking summary (step 2) -->
+<div id="sticky-summary">
+    <div class="ss-detail" id="ss-units"></div>
+    <div style="display:flex;align-items:center;gap:1rem;flex-shrink:0;">
+        <div class="ss-detail" id="ss-dates"></div>
+        <div class="ss-total"  id="ss-total"></div>
+    </div>
+</div>
 
 <script>
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -581,12 +659,86 @@ document.querySelectorAll('input[name="payment_method"]').forEach(function(radio
     if (radio.checked) radio.closest('label').classList.add('selected');
 });
 
-// ─── Date change ─────────────────────────────────────────────────────────────
-['rental_start', 'rental_end'].forEach(function(id) {
-    document.getElementById(id).addEventListener('change', function() {
-        computeTotal();
-        triggerAvailCheck();
+// ─── Duration presets ────────────────────────────────────────────────────────
+var _activePill = null;
+
+document.querySelectorAll('.preset-pill').forEach(function(pill) {
+    pill.addEventListener('click', function() {
+        document.querySelectorAll('.preset-pill').forEach(function(p) { p.classList.remove('active'); });
+        pill.classList.add('active');
+        _activePill = pill;
+        _applyPreset();
     });
+});
+
+function _applyPreset() {
+    if (!_activePill) return;
+    var startVal = document.getElementById('rental_start').value;
+    if (!startVal) return;
+
+    var start = new Date(startVal + 'T00:00:00');
+    var end   = new Date(start);
+
+    if (_activePill.dataset.weeks) {
+        end.setDate(end.getDate() + parseInt(_activePill.dataset.weeks, 10) * 7);
+    } else if (_activePill.dataset.months) {
+        end.setMonth(end.getMonth() + parseInt(_activePill.dataset.months, 10));
+    }
+
+    var yyyy = end.getFullYear();
+    var mm   = String(end.getMonth() + 1).padStart(2, '0');
+    var dd   = String(end.getDate()).padStart(2, '0');
+    document.getElementById('rental_end').value = yyyy + '-' + mm + '-' + dd;
+
+    _updatePresetLabel();
+    _updateDaysHint();
+    computeTotal();
+    triggerAvailCheck();
+}
+
+function _clearPreset() {
+    _activePill = null;
+    document.querySelectorAll('.preset-pill').forEach(function(p) { p.classList.remove('active'); });
+    document.getElementById('preset-active-label').style.display = 'none';
+    _updateDaysHint();
+}
+
+function _updatePresetLabel() {
+    var lbl = document.getElementById('preset-active-label');
+    if (_activePill) {
+        lbl.textContent = '(' + _activePill.textContent.trim() + ')';
+        lbl.style.display = 'inline';
+    } else {
+        lbl.style.display = 'none';
+    }
+}
+
+function _updateDaysHint() {
+    var hint  = document.getElementById('rental-days-hint');
+    var start = document.getElementById('rental_start').value;
+    var end   = document.getElementById('rental_end').value;
+    if (!start || !end) { hint.style.display = 'none'; return; }
+    var s = new Date(start + 'T00:00:00');
+    var e = new Date(end   + 'T00:00:00');
+    var days = Math.round((e - s) / 86400000);
+    if (days <= 0) { hint.style.display = 'none'; return; }
+    hint.textContent = days + ' day' + (days !== 1 ? 's' : '');
+    hint.style.display = 'block';
+}
+
+// ─── Date change ─────────────────────────────────────────────────────────────
+document.getElementById('rental_start').addEventListener('change', function() {
+    _applyPreset();   // recalculates end if a preset is active
+    _updateDaysHint();
+    computeTotal();
+    triggerAvailCheck();
+});
+
+document.getElementById('rental_end').addEventListener('change', function() {
+    _clearPreset();   // user manually picked end — deactivate preset
+    _updateDaysHint();
+    computeTotal();
+    triggerAvailCheck();
 });
 
 function calcUnitTotal(u, days) {
@@ -727,6 +879,66 @@ function checkAvailability() {
         });
 }
 
+// ─── Phone auto-format ───────────────────────────────────────────────────────
+document.getElementById('f_phone').addEventListener('input', function() {
+    var d = this.value.replace(/\D/g, '').substring(0, 10);
+    var out = '';
+    if (d.length > 0) out = '(' + d.substring(0, 3);
+    if (d.length >= 4) out += ') ' + d.substring(3, 6);
+    if (d.length >= 7) out += '-' + d.substring(6, 10);
+    this.value = out;
+});
+
+// ─── Inline field validation ──────────────────────────────────────────────────
+function _fieldErr(id, msg) {
+    var inp = document.getElementById(id);
+    var box = document.getElementById('err-' + id);
+    if (!box) return;
+    if (msg) {
+        box.textContent = msg;
+        box.classList.add('show');
+        inp.classList.add('input-err');
+    } else {
+        box.classList.remove('show');
+        inp.classList.remove('input-err');
+    }
+}
+
+document.getElementById('f_name').addEventListener('blur', function() {
+    _fieldErr('f_name', this.value.trim() === '' ? 'Name is required.' : '');
+});
+document.getElementById('f_name').addEventListener('input', function() {
+    if (this.value.trim()) _fieldErr('f_name', '');
+});
+
+document.getElementById('f_email').addEventListener('blur', function() {
+    var v = this.value.trim();
+    _fieldErr('f_email', v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Enter a valid email address.' : '');
+});
+document.getElementById('f_email').addEventListener('input', function() {
+    if (!this.value.trim()) _fieldErr('f_email', '');
+});
+
+document.getElementById('f_phone').addEventListener('blur', function() {
+    var d = this.value.replace(/\D/g, '');
+    _fieldErr('f_phone', d.length > 0 && d.length < 10 ? 'Enter a 10-digit phone number.' : '');
+});
+document.getElementById('f_phone').addEventListener('input', function() {
+    var d = this.value.replace(/\D/g, '');
+    if (d.length === 0 || d.length === 10) _fieldErr('f_phone', '');
+});
+
+// ─── Sticky summary bar ───────────────────────────────────────────────────────
+function _updateStickyBar(units, start, end, total) {
+    document.getElementById('ss-units').textContent = units.map(function(u) { return u.code; }).join(', ');
+    document.getElementById('ss-dates').textContent = start + ' – ' + end;
+    document.getElementById('ss-total').textContent = '$' + total.toFixed(2);
+    document.getElementById('sticky-summary').classList.add('show');
+}
+function _hideStickyBar() {
+    document.getElementById('sticky-summary').classList.remove('show');
+}
+
 // ─── Step navigation ─────────────────────────────────────────────────────────
 function goStep2() {
     var errEl = document.getElementById('step1-error');
@@ -766,10 +978,11 @@ function goStep2() {
     document.getElementById('sum-dates').textContent = start + ' – ' + end;
     document.getElementById('sum-total').textContent = '$' + grandTotal.toFixed(2);
 
+    _updateStickyBar(selectedUnits, start, end, grandTotal);
     setStep(2);
 }
 
-function goStep1() { setStep(1); }
+function goStep1() { _hideStickyBar(); setStep(1); }
 
 function setStep(n) {
     document.querySelectorAll('.step-panel').forEach(function(p) { p.classList.remove('active'); });
@@ -1009,5 +1222,9 @@ function printTerms() {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeTermsModal();
 });
+
+// ─── On load: start date already filled — compute total + check availability ─
+computeTotal();
+triggerAvailCheck();
 </script>
 </html>
