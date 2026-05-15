@@ -351,6 +351,12 @@ layout_start('Settings', 'settings');
                 <textarea id="invoice_footer" name="invoice_footer" class="form-control" rows="2"
                           placeholder="Footer text to appear on printed invoices (e.g. payment instructions, thank you message)…"><?= e(get_setting('invoice_footer')) ?></textarea>
             </div>
+            <div class="col-12">
+                <label class="form-label" for="booking_terms">Online Booking Terms</label>
+                <textarea id="booking_terms" name="booking_terms" class="form-control" rows="4"
+                          placeholder="Terms &amp; conditions shown to customers on the public booking page…"><?= e(get_setting('booking_terms', '')) ?></textarea>
+                <div class="form-text" style="color:var(--gy);">Displayed to customers on the booking page. They must scroll and agree before submitting.</div>
+            </div>
         </div>
 
         <div class="row g-3 mb-3">
@@ -735,11 +741,6 @@ layout_start('Settings', 'settings');
                     <option value="1" <?= get_setting('subscription_enabled', '1') === '1' ? 'selected' : '' ?>>Enabled</option>
                     <option value="0" <?= get_setting('subscription_enabled', '1') === '0' ? 'selected' : '' ?>>Disabled</option>
                 </select>
-            </div>
-            <div class="col-12">
-                <label class="form-label" for="booking_terms">Online Booking Terms</label>
-                <textarea id="booking_terms" name="booking_terms" class="form-control" rows="3"
-                          placeholder="Terms shown to customers during online booking…"><?= e(get_setting('booking_terms', '')) ?></textarea>
             </div>
         </div>
 
