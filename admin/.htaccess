@@ -9,6 +9,7 @@ Options -Indexes
 # Block access to sensitive server-side directories
 <IfModule mod_rewrite.c>
   RewriteEngine On
+  RewriteRule ^cron/run\.php$ - [L]
   RewriteRule ^(includes|config|cron)/.*$ - [F,L]
 </IfModule>
 
