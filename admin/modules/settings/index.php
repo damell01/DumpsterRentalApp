@@ -167,6 +167,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ],
     ];
 
+    // ── Regenerate cron key ──────────────────────────────────────────────────
+    if ($action === 'regenerate_cron_key') {
+        $new_key = bin2hex(random_bytes(24));
+        set_setting('cron_key', $new_key);
+        log_activity('update', 'Regenerated cron key.', 'settings', 0);
+        flash_success('Cron key regenerated.');
+        redirect('index.php#settings-email');
+    }
+
     // Fall back to saving all fields if unknown action
     $fields = $section_fields[$action] ?? array_merge(...array_values($section_fields));
 
@@ -535,11 +544,21 @@ layout_start('Settings', 'settings');
                     <input type="text" class="form-control font-monospace" readonly
                            value="<?= e($cron_key) ?>"
                            id="cronKeyField"
-                           style="font-size:.82rem;color:var(--gy);">
+                           style="font-size:.82rem;color:var(--gy);"
+                           placeholder="Click Regenerate to create a key">
                     <button type="button" class="btn btn-outline-secondary btn-sm"
-                            onclick="navigator.clipboard.writeText(document.getElementById('cronKeyField').value).then(()=>{this.textContent='Copied!';setTimeout(()=>{this.textContent='Copy'},1500)})">
+                            onclick="navigator.clipboard.writeText(document.getElementById('cronKeyField').value).then(()=>{this.textContent='Copied!';setTimeout(()=>{this.textContent='Copy'},1500)})"
+                            <?= $cron_key === '' ? 'disabled' : '' ?>>
                         Copy
                     </button>
+                    <form method="POST" action="index.php" style="display:inline;">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="action" value="regenerate_cron_key">
+                        <button type="submit" class="btn btn-outline-warning btn-sm"
+                                onclick="return confirm('Regenerate the cron key? Any existing cron job URL using the old key will stop working until updated.')">
+                            <i class="fa-solid fa-rotate"></i> <?= $cron_key === '' ? 'Generate Key' : 'Regenerate' ?>
+                        </button>
+                    </form>
                 </div>
                 <div class="form-text" style="color:var(--gy);">
                     Daily cron URL:
