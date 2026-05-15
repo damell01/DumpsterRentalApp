@@ -147,10 +147,10 @@ layout_start('New Work Order', 'work_orders');
 <style>
 .wo-section-title {
     font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
-    color:var(--muted,#6b7280);padding-bottom:.5rem;margin-bottom:1rem;
-    border-bottom:1px solid var(--st,#2a2f3e);
+    color:var(--gy,#6b7280);padding-bottom:.5rem;margin-bottom:1rem;
+    border-bottom:1px solid var(--st,#e5e7eb);
 }
-.tp-form-card { background:var(--card-bg,#1e2230);border:1px solid var(--st,#2a2f3e);border-radius:10px;padding:1.25rem 1.5rem;margin-bottom:1rem; }
+.tp-form-card { background:var(--dk1,#fff);border:1px solid var(--st,#e5e7eb);border-radius:10px;padding:1.25rem 1.5rem;margin-bottom:1rem; }
 @media(max-width:576px){ .tp-form-card{padding:1rem;} }
 </style>
 

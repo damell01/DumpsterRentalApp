@@ -204,13 +204,13 @@ layout_start('Settings', 'settings');
 <style>
 .settings-shell { max-width: 980px; }
 .settings-intro {
-    background: linear-gradient(135deg, rgba(249,115,22,.12), rgba(15,23,42,.95));
-    border: 1px solid rgba(249,115,22,.22);
+    background: rgba(249,115,22,.06);
+    border: 1px solid rgba(249,115,22,.25);
     border-radius: 14px;
     padding: 1rem 1.1rem;
     margin-bottom: 1rem;
 }
-.settings-intro p { margin: 0; color: var(--gl); }
+.settings-intro p { margin: 0; color: var(--gy,#6b7280); }
 .settings-checklist {
     margin-top: .9rem;
     display: grid;
@@ -219,8 +219,8 @@ layout_start('Settings', 'settings');
 }
 .settings-checkitem {
     display: block;
-    background: rgba(15,23,42,.72);
-    border: 1px solid rgba(148,163,184,.18);
+    background: var(--dk1,#fff);
+    border: 1px solid var(--st,#e5e7eb);
     border-radius: 12px;
     padding: .85rem .95rem;
     text-decoration: none;
@@ -229,8 +229,8 @@ layout_start('Settings', 'settings');
 .settings-checkitem:hover,
 .settings-checkitem:focus {
     transform: translateY(-1px);
-    border-color: rgba(249,115,22,.35);
-    background: rgba(30,41,59,.92);
+    border-color: rgba(249,115,22,.5);
+    background: var(--dk2,#f3f4f6);
     text-decoration: none;
 }
 .settings-checkitem:focus-visible {
@@ -239,12 +239,12 @@ layout_start('Settings', 'settings');
 }
 .settings-checkitem strong {
     display: block;
-    color: var(--wh);
+    color: #111827;
     font-size: .9rem;
     margin-bottom: .3rem;
 }
 .settings-checkitem span {
-    color: var(--gl);
+    color: var(--gy,#6b7280);
     font-size: .83rem;
     line-height: 1.45;
 }

@@ -126,7 +126,7 @@ try {
     );
 } catch (\Throwable $e) { /* table may not exist yet */ }
 
-$upload_base = APP_URL . '/uploads/wo_photos/' . $id . '/';
+$upload_base = '/uploads/wo_photos/' . $id . '/';
 
 layout_start('Edit WO: ' . $wo['wo_number'], 'work_orders');
 ?>
@@ -135,22 +135,22 @@ layout_start('Edit WO: ' . $wo['wo_number'], 'work_orders');
 /* ── Edit form tweaks ── */
 .wo-section-title {
     font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
-    color:var(--muted, #6b7280);padding-bottom:.5rem;margin-bottom:1rem;
-    border-bottom:1px solid var(--st, #2a2f3e);
+    color:var(--gy,#6b7280);padding-bottom:.5rem;margin-bottom:1rem;
+    border-bottom:1px solid var(--st,#e5e7eb);
 }
-.tp-form-card { background:var(--card-bg,#1e2230);border:1px solid var(--st,#2a2f3e);border-radius:10px;padding:1.25rem 1.5rem;margin-bottom:1rem; }
+.tp-form-card { background:var(--dk1,#fff);border:1px solid var(--st,#e5e7eb);border-radius:10px;padding:1.25rem 1.5rem;margin-bottom:1rem; }
 @media(max-width:576px){
     .tp-form-card{padding:1rem;}
     .wo-actions-bar .btn-tp-ghost,.wo-actions-bar .btn-tp-primary{font-size:.75rem;padding:.35rem .65rem;}
 }
 /* Photo grid */
 .photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.75rem;margin-bottom:1rem;}
-.photo-thumb{position:relative;border-radius:6px;overflow:hidden;background:#111827;}
+.photo-thumb{position:relative;border-radius:6px;overflow:hidden;background:var(--dk3,#e9ecef);}
 .photo-thumb img{width:100%;height:120px;object-fit:cover;cursor:pointer;display:block;transition:opacity .15s;}
 .photo-thumb img:hover{opacity:.85;}
-.photo-caption{position:absolute;bottom:0;left:0;right:0;padding:4px 6px;background:rgba(0,0,0,.6);font-size:.7rem;color:#e5e7eb;}
+.photo-caption{position:absolute;bottom:0;left:0;right:0;padding:4px 6px;background:rgba(0,0,0,.55);font-size:.7rem;color:#fff;}
 .photo-del{position:absolute;top:4px;right:4px;}
-.drop-zone{border:2px dashed #374151;border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;}
+.drop-zone{border:2px dashed var(--st2,#d1d5db);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;}
 .drop-zone:hover,.drop-zone.dragover{border-color:#f97316;background:rgba(249,115,22,.05);}
 </style>
 

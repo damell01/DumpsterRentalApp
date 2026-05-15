@@ -423,13 +423,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
 <?php else: ?>
 <!-- ── Template list ── -->
+<script>
+var _tplData = {};
+<?php foreach ($TEMPLATE_DEFS as $slug => $def):
+    $curr = $saved[$slug] ?? null; ?>
+_tplData[<?= json_encode($slug) ?>] = {
+    subject: <?= json_encode($curr ? $curr['subject'] : $def['default_subject']) ?>,
+    body: <?= json_encode($curr ? $curr['body_html'] : $def['default_body_html']) ?>
+};
+<?php endforeach; ?>
+</script>
 <div class="row g-3">
     <?php foreach ($TEMPLATE_DEFS as $slug => $def): ?>
-    <?php
-        $curr        = $saved[$slug] ?? null;
-        $list_subj   = $curr ? $curr['subject']   : $def['default_subject'];
-        $list_body   = $curr ? $curr['body_html']  : $def['default_body_html'];
-    ?>
+    <?php $curr = $saved[$slug] ?? null; ?>
     <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body d-flex flex-column">
@@ -463,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 <div class="d-flex gap-2 mt-auto flex-wrap">
                     <button type="button" class="btn btn-sm btn-outline-info"
-                            onclick="openListPreview(<?= json_encode($list_subj) ?>, <?= json_encode($list_body) ?>)">
+                            onclick="openListPreview('<?= e($slug) ?>')">
                         <i class="fas fa-eye me-1"></i> Preview
                     </button>
                     <a href="?edit=<?= urlencode($slug) ?>" class="btn btn-sm btn-outline-primary">
@@ -550,9 +556,10 @@ function _buildEmailWrapper(title, bodyHtml) {
 </table></td></tr></table></body></html>`;
 }
 
-function openListPreview(subject, bodyHtml) {
-    const filled = _replaceSamples(bodyHtml);
-    const html   = _buildEmailWrapper(subject, filled);
+function openListPreview(slug) {
+    var tpl    = _tplData[slug] || { subject: 'Preview', body: '' };
+    var filled = _replaceSamples(tpl.body);
+    var html   = _buildEmailWrapper(tpl.subject, filled);
     document.getElementById('listPreviewFrame').srcdoc = html;
     new bootstrap.Modal(document.getElementById('listPreviewModal')).show();
 }
