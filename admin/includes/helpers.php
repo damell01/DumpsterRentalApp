@@ -296,7 +296,7 @@ function flash_warning(string $msg): void
 }
 
 /**
- * Output Bootstrap dismissible alerts for queued flash messages, then clear them.
+ * Output Bootstrap toasts for queued flash messages, then clear them.
  */
 function render_flash(): void
 {
@@ -305,19 +305,36 @@ function render_flash(): void
     }
 
     $typeMap = [
-        'success' => 'alert-success',
-        'error'   => 'alert-danger',
-        'info'    => 'alert-info',
-        'warning' => 'alert-warning',
+        'success' => ['#16a34a', 'fa-circle-check'],
+        'error'   => ['#dc2626', 'fa-circle-xmark'],
+        'info'    => ['#2563eb', 'fa-circle-info'],
+        'warning' => ['#d97706', 'fa-triangle-exclamation'],
     ];
 
+    echo '<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index:1060;">';
     foreach ($_SESSION['flash'] as $flash) {
-        $alertClass = $typeMap[$flash['type']] ?? 'alert-secondary';
-        echo '<div class="alert ' . $alertClass . ' alert-dismissible fade show" role="alert">'
-            . e($flash['msg'])
-            . '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>'
-            . '</div>';
+        [$bg, $icon] = $typeMap[$flash['type']] ?? $typeMap['info'];
+        $uid = 'tp-toast-' . uniqid();
+        echo '<div id="' . $uid . '" class="toast align-items-center text-white border-0 mb-2"
+                   role="alert" aria-live="assertive" aria-atomic="true"
+                   data-bs-autohide="true" data-bs-delay="4500"
+                   style="background:' . $bg . ';min-width:280px;box-shadow:0 4px 16px rgba(0,0,0,.4);">
+                <div class="d-flex">
+                    <div class="toast-body d-flex align-items-center gap-2">
+                        <i class="fa-solid ' . $icon . '"></i>
+                        ' . e($flash['msg']) . '
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                            data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>';
     }
+    echo '</div>';
+    echo '<script>document.addEventListener("DOMContentLoaded",function(){
+        document.querySelectorAll(".toast[data-bs-autohide]").forEach(function(el){
+            new bootstrap.Toast(el).show();
+        });
+    });</script>';
 
     unset($_SESSION['flash']);
 }

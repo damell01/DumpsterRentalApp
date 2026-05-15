@@ -273,7 +273,7 @@ layout_start('Edit Customer', 'customers');
             <?php if (has_role('admin', 'office')): ?>
             <a href="<?= APP_URL ?>/modules/customers/delete.php?id=<?= (int)$cust['id'] ?>"
                class="btn-tp-ghost text-danger ms-auto"
-               onclick="return confirm('Delete this customer?')">
+               data-confirm="Delete this customer? This cannot be undone.">
                 <i class="fa-solid fa-trash"></i> Delete Customer
             </a>
             <?php endif; ?>

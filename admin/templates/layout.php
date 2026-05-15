@@ -502,12 +502,12 @@ function layout_start(string $page_title, string $active_nav = ''): void
             <a href="<?= htmlspecialchars($app_url, ENT_QUOTES, 'UTF-8') ?>/modules/bookings/create.php"
                class="btn-tp-ghost btn-tp-sm no-print">
                 <i class="fa-solid fa-plus"></i>
-                New Booking
+                <span class="d-none d-sm-inline">New Booking</span>
             </a>
             <a href="<?= htmlspecialchars($app_url, ENT_QUOTES, 'UTF-8') ?>/modules/work_orders/create.php"
                class="btn-tp-primary btn-tp-sm no-print">
                 <i class="fa-solid fa-plus"></i>
-                New Work Order
+                <span class="d-none d-sm-inline">New Work Order</span>
             </a>
         </div>
     </div><!-- /.tp-topbar -->
@@ -632,6 +632,47 @@ document.addEventListener('submit', function(e) {
         if (btn.disabled) { btn.disabled = false; btn.innerHTML = origHtml; btn.style.minWidth = ''; }
     }, 12000);
 });
+
+/* ── Confirm modal ───────────────────────────────────────── */
+(function () {
+    var _modal = null, _pending = null;
+    function getM() {
+        if (!_modal) _modal = new bootstrap.Modal(document.getElementById('tpConfirmModal'));
+        return _modal;
+    }
+    document.addEventListener('click', function (e) {
+        var el = e.target.closest('[data-confirm]');
+        if (!el) return;
+        e.preventDefault();
+        e.stopPropagation();
+        _pending = el;
+        document.getElementById('tpConfirmMsg').textContent = el.dataset.confirm;
+        getM().show();
+    });
+    document.addEventListener('DOMContentLoaded', function () {
+        var ok = document.getElementById('tpConfirmOk');
+        if (!ok) return;
+        ok.addEventListener('click', function () {
+            getM().hide();
+            if (!_pending) return;
+            var el = _pending;
+            _pending = null;
+            if (el.tagName === 'A') {
+                window.location.href = el.href;
+            } else {
+                var form = el.closest('form') || el.form;
+                if (form) {
+                    if (el.name) {
+                        var h = document.createElement('input');
+                        h.type = 'hidden'; h.name = el.name; h.value = el.value || '';
+                        form.appendChild(h);
+                    }
+                    form.submit();
+                }
+            }
+        });
+    });
+})();
 </script>
 
 <!-- App scripts (cache-busted by file mtime) -->
@@ -710,6 +751,28 @@ if ('serviceWorker' in navigator) {
     }
 })();
 </script>
+
+<!-- ── Reusable confirmation modal ── -->
+<div class="modal fade" id="tpConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:380px;">
+        <div class="modal-content" style="background:var(--card-bg,#1e2230);border:1px solid var(--st,#2a2f3e);border-radius:12px;">
+            <div class="modal-body text-center pt-4 pb-2 px-4">
+                <div style="font-size:2.2rem;color:var(--or,#f97316);margin-bottom:.75rem;">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <p id="tpConfirmMsg" style="font-size:.95rem;line-height:1.5;margin-bottom:0;"></p>
+            </div>
+            <div class="modal-footer border-0 justify-content-center pb-4 gap-2">
+                <button type="button" class="btn-tp-ghost btn-tp-sm" data-bs-dismiss="modal">
+                    <i class="fa-solid fa-xmark"></i> Cancel
+                </button>
+                <button type="button" id="tpConfirmOk" class="btn-tp-primary btn-tp-sm">
+                    <i class="fa-solid fa-check"></i> Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 </body>
 </html>

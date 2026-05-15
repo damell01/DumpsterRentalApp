@@ -160,15 +160,15 @@ layout_start('Customers', 'customers');
                     <th>Name / Company</th>
                     <th>Phone / Email</th>
                     <th>Type</th>
-                    <th>City</th>
-                    <th class="text-center">Work Orders</th>
-                    <th>Created</th>
+                    <th class="d-none d-md-table-cell">City</th>
+                    <th class="d-none d-lg-table-cell text-center">Work Orders</th>
+                    <th class="d-none d-lg-table-cell">Created</th>
                     <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($customers as $cust): ?>
-                <tr>
+                <tr data-href="<?= APP_URL ?>/modules/customers/view.php?id=<?= (int)$cust['id'] ?>">
                     <td>
                         <a href="<?= APP_URL ?>/modules/customers/view.php?id=<?= (int)$cust['id'] ?>"
                            class="fw-semibold text-decoration-none">
@@ -185,11 +185,11 @@ layout_start('Customers', 'customers');
                         <?php endif; ?>
                     </td>
                     <td><?= customer_type_badge($cust['type'] ?? 'residential') ?></td>
-                    <td><?= e($cust['city'] ?? '—') ?></td>
-                    <td class="text-center">
+                    <td class="d-none d-md-table-cell"><?= e($cust['city'] ?? '—') ?></td>
+                    <td class="d-none d-lg-table-cell text-center">
                         <span class="tp-badge badge-active"><?= (int)$cust['wo_count'] ?></span>
                     </td>
-                    <td>
+                    <td class="d-none d-lg-table-cell">
                         <span title="<?= e(fmt_datetime($cust['created_at'])) ?>">
                             <?= e(fmt_date($cust['created_at'])) ?>
                         </span>
@@ -211,7 +211,7 @@ layout_start('Customers', 'customers');
                             </a>
                             <a href="<?= APP_URL ?>/modules/customers/delete.php?id=<?= (int)$cust['id'] ?>"
                                class="btn-tp-ghost btn-tp-sm text-danger" title="Delete"
-                               onclick="return confirm('Delete customer <?= e(addslashes($cust['name'])) ?>? This cannot be undone.')">
+                               data-confirm="Delete customer <?= e($cust['name']) ?>? This cannot be undone.">
                                 <i class="fa-solid fa-trash"></i> Delete
                             </a>
                             <?php endif; ?>

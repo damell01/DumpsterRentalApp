@@ -144,242 +144,228 @@ $drivers = $drivers_stmt->fetchAll(PDO::FETCH_ASSOC);
 layout_start('New Work Order', 'work_orders');
 ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0">New Work Order</h1>
-    <a href="index.php" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-left me-1"></i>Back to Work Orders
+<style>
+.wo-section-title {
+    font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--muted,#6b7280);padding-bottom:.5rem;margin-bottom:1rem;
+    border-bottom:1px solid var(--st,#2a2f3e);
+}
+.tp-form-card { background:var(--card-bg,#1e2230);border:1px solid var(--st,#2a2f3e);border-radius:10px;padding:1.25rem 1.5rem;margin-bottom:1rem; }
+@media(max-width:576px){ .tp-form-card{padding:1rem;} }
+</style>
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h5 class="mb-0">New Work Order</h5>
+    <a href="index.php" class="btn-tp-ghost btn-tp-sm">
+        <i class="fa-solid fa-arrow-left"></i> <span class="d-none d-sm-inline">Back</span>
     </a>
 </div>
 
 <?php if ($from_quote): ?>
-<div class="alert alert-info">
-    <i class="fas fa-info-circle me-2"></i>
+<div class="alert alert-info mb-3">
+    <i class="fa-solid fa-circle-info me-2"></i>
     Pre-filled from Quote <strong><?= htmlspecialchars($from_quote['quote_number']) ?></strong>.
 </div>
 <?php endif; ?>
 
 <?php if (!empty($errors)): ?>
-<div class="alert alert-danger">
-    <strong>Please fix the following errors:</strong>
-    <ul class="mb-0 mt-1">
-        <?php foreach ($errors as $e): ?>
-            <li><?= htmlspecialchars($e) ?></li>
+<div class="alert alert-danger mb-3">
+    <ul class="mb-0 ps-3">
+        <?php foreach ($errors as $err): ?>
+            <li><?= htmlspecialchars($err) ?></li>
         <?php endforeach; ?>
     </ul>
 </div>
 <?php endif; ?>
 
-<form method="post" action="">
+<form method="post" action="" id="wo-create-form">
     <?= csrf_field() ?>
     <?php if ($quote_id): ?>
         <input type="hidden" name="quote_id" value="<?= (int)$quote_id ?>">
     <?php endif; ?>
 
-    <div class="row g-4">
-        <!-- Left Column -->
-        <div class="col-lg-7">
-
-            <!-- Customer Information -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="fas fa-user me-2"></i>Customer Information</h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label for="cust_name" class="form-label">Customer Name <span class="text-danger">*</span></label>
-                        <input type="text" id="cust_name" name="cust_name" class="form-control"
-                               value="<?= htmlspecialchars($old['cust_name']) ?>" required>
-                    </div>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label for="cust_phone" class="form-label">Phone</label>
-                            <input type="text" id="cust_phone" name="cust_phone" class="form-control"
-                                   value="<?= htmlspecialchars($old['cust_phone']) ?>">
-                        </div>
-                        <div class="col-md-6">
-                            <label for="cust_email" class="form-label">Email</label>
-                            <input type="email" id="cust_email" name="cust_email" class="form-control"
-                                   value="<?= htmlspecialchars($old['cust_email']) ?>">
-                        </div>
-                    </div>
-                </div>
+    <!-- ── Customer Information ── -->
+    <div class="tp-form-card">
+        <div class="wo-section-title"><i class="fa-solid fa-user me-1"></i> Customer Information</div>
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label" for="cust_name">Customer Name <span class="text-danger">*</span></label>
+                <input type="text" id="cust_name" name="cust_name" class="form-control"
+                       value="<?= htmlspecialchars($old['cust_name']) ?>" required>
             </div>
-
-            <!-- Service Location -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="fas fa-map-marker-alt me-2"></i>Service Location</h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label for="service_address" class="form-label">Service Address <span class="text-danger">*</span></label>
-                        <input type="text" id="service_address" name="service_address" class="form-control"
-                               value="<?= htmlspecialchars($old['service_address']) ?>" required>
-                    </div>
-                    <div class="row g-3">
-                        <div class="col-md-5">
-                            <label for="service_city" class="form-label">City</label>
-                            <input type="text" id="service_city" name="service_city" class="form-control"
-                                   value="<?= htmlspecialchars($old['service_city']) ?>">
-                        </div>
-                        <div class="col-md-3">
-                            <label for="service_state" class="form-label">State</label>
-                            <input type="text" id="service_state" name="service_state" class="form-control"
-                                   value="<?= htmlspecialchars($old['service_state']) ?>" maxlength="2" placeholder="e.g. TX">
-                        </div>
-                        <div class="col-md-4">
-                            <label for="service_zip" class="form-label">ZIP Code</label>
-                            <input type="text" id="service_zip" name="service_zip" class="form-control"
-                                   value="<?= htmlspecialchars($old['service_zip']) ?>">
-                        </div>
-                    </div>
-                </div>
+            <div class="col-sm-6">
+                <label class="form-label" for="cust_phone">Phone</label>
+                <input type="text" id="cust_phone" name="cust_phone" class="form-control"
+                       value="<?= htmlspecialchars($old['cust_phone']) ?>">
             </div>
-
-            <!-- Notes -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="fas fa-sticky-note me-2"></i>Notes</h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label for="internal_notes" class="form-label">Internal Notes</label>
-                        <textarea id="internal_notes" name="internal_notes" class="form-control" rows="3"><?= htmlspecialchars($old['internal_notes']) ?></textarea>
-                        <div class="form-text">Not visible to the customer.</div>
-                    </div>
-                    <div>
-                        <label for="footer_notes" class="form-label">Footer / Work Order Notes</label>
-                        <textarea id="footer_notes" name="footer_notes" class="form-control" rows="3"><?= htmlspecialchars($old['footer_notes']) ?></textarea>
-                        <div class="form-text">Printed on the work order document.</div>
-                    </div>
-                </div>
+            <div class="col-sm-6">
+                <label class="form-label" for="cust_email">Email</label>
+                <input type="email" id="cust_email" name="cust_email" class="form-control"
+                       value="<?= htmlspecialchars($old['cust_email']) ?>">
             </div>
-
-        </div>
-
-        <!-- Right Column -->
-        <div class="col-lg-5">
-
-            <!-- Job Details -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="fas fa-dumpster me-2"></i>Job Details</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label for="size" class="form-label">Dumpster Size</label>
-                            <select id="size" name="size" class="form-select">
-                                <option value="">— Select Size —</option>
-                                <?php foreach ($sizes as $sz): ?>
-                                    <option value="<?= htmlspecialchars($sz) ?>"
-                                        <?= $old['size'] === $sz ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($sz) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="project_type" class="form-label">Project Type</label>
-                            <select id="project_type" name="project_type" class="form-select">
-                                <option value="">— Select Type —</option>
-                                <?php foreach ($project_types as $pt): ?>
-                                    <option value="<?= htmlspecialchars($pt) ?>"
-                                        <?= $old['project_type'] === $pt ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($pt) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="mt-3">
-                        <label for="dumpster_id" class="form-label">Assign Dumpster</label>
-                        <select id="dumpster_id" name="dumpster_id" class="form-select">
-                            <option value="">— Unassigned —</option>
-                            <?php foreach ($dumpsters as $d): ?>
-                                <option value="<?= (int)$d['id'] ?>"
-                                    <?= (string)$old['dumpster_id'] === (string)$d['id'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($d['unit_code']) ?>
-                                    (<?= htmlspecialchars($d['size'] ?? 'unknown') ?>)
-                                    — <?= ucfirst($d['status']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Scheduling -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="fas fa-calendar me-2"></i>Scheduling</h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label for="delivery_date" class="form-label">Delivery Date <span class="text-danger">*</span></label>
-                        <input type="date" id="delivery_date" name="delivery_date" class="form-control"
-                               value="<?= htmlspecialchars($old['delivery_date']) ?>" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="pickup_date" class="form-label">Scheduled Pickup Date</label>
-                        <input type="date" id="pickup_date" name="pickup_date" class="form-control"
-                               value="<?= htmlspecialchars($old['pickup_date']) ?>">
-                    </div>
-                    <div>
-                        <label for="assigned_driver" class="form-label">Assigned Driver</label>
-                        <select id="assigned_driver" name="assigned_driver" class="form-select">
-                            <option value="">— Unassigned —</option>
-                            <?php foreach ($drivers as $drv): ?>
-                                <option value="<?= (int)$drv['id'] ?>"
-                                    <?= (string)$old['assigned_driver'] === (string)$drv['id'] ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($drv['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Amount & Priority -->
-            <div class="card shadow-sm mb-4">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="fas fa-dollar-sign me-2"></i>Amount &amp; Priority</h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label for="amount" class="form-label">Amount</label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" id="amount" name="amount" class="form-control"
-                                   step="0.01" min="0"
-                                   value="<?= htmlspecialchars($old['amount']) ?>">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="form-label">Priority</label>
-                        <div class="d-flex gap-3">
-                            <?php foreach (['normal' => 'Normal', 'high' => 'High', 'urgent' => 'Urgent'] as $pv => $pl): ?>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="priority"
-                                       id="priority_<?= $pv ?>" value="<?= $pv ?>"
-                                    <?= $old['priority'] === $pv ? 'checked' : '' ?>>
-                                <label class="form-check-label" for="priority_<?= $pv ?>"><?= $pl ?></label>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="d-grid gap-2">
-                <button type="submit" class="btn btn-primary btn-lg">
-                    <i class="fas fa-save me-1"></i>Create Work Order
-                </button>
-                <a href="index.php" class="btn btn-outline-secondary">Cancel</a>
-            </div>
-
         </div>
     </div>
+
+    <!-- ── Service Location ── -->
+    <div class="tp-form-card">
+        <div class="wo-section-title"><i class="fa-solid fa-map-location-dot me-1"></i> Service Location</div>
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label" for="service_address">Service Address <span class="text-danger">*</span></label>
+                <input type="text" id="service_address" name="service_address" class="form-control"
+                       value="<?= htmlspecialchars($old['service_address']) ?>" required>
+            </div>
+            <div class="col-sm-5">
+                <label class="form-label" for="service_city">City</label>
+                <input type="text" id="service_city" name="service_city" class="form-control"
+                       value="<?= htmlspecialchars($old['service_city']) ?>">
+            </div>
+            <div class="col-sm-3">
+                <label class="form-label" for="service_state">State</label>
+                <input type="text" id="service_state" name="service_state" class="form-control"
+                       value="<?= htmlspecialchars($old['service_state']) ?>" maxlength="2" placeholder="TX">
+            </div>
+            <div class="col-sm-4">
+                <label class="form-label" for="service_zip">ZIP</label>
+                <input type="text" id="service_zip" name="service_zip" class="form-control"
+                       value="<?= htmlspecialchars($old['service_zip']) ?>">
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Job Details ── -->
+    <div class="tp-form-card">
+        <div class="wo-section-title"><i class="fa-solid fa-dumpster me-1"></i> Job Details</div>
+        <div class="row g-3">
+            <div class="col-sm-6">
+                <label class="form-label" for="size">Dumpster Size</label>
+                <select id="size" name="size" class="form-select">
+                    <option value="">— Select Size —</option>
+                    <?php foreach ($sizes as $sz): ?>
+                        <option value="<?= htmlspecialchars($sz) ?>" <?= $old['size'] === $sz ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($sz) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-sm-6">
+                <label class="form-label" for="project_type">Project Type</label>
+                <select id="project_type" name="project_type" class="form-select">
+                    <option value="">— Select Type —</option>
+                    <?php foreach ($project_types as $pt): ?>
+                        <option value="<?= htmlspecialchars($pt) ?>" <?= $old['project_type'] === $pt ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($pt) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="dumpster_id">Assign Dumpster</label>
+                <select id="dumpster_id" name="dumpster_id" class="form-select">
+                    <option value="">— Unassigned —</option>
+                    <?php foreach ($dumpsters as $d): ?>
+                        <option value="<?= (int)$d['id'] ?>"
+                            <?= (string)$old['dumpster_id'] === (string)$d['id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($d['unit_code']) ?> (<?= htmlspecialchars($d['size'] ?? 'unknown') ?>) — <?= ucfirst($d['status']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Scheduling & Assignment ── -->
+    <div class="tp-form-card">
+        <div class="wo-section-title"><i class="fa-solid fa-calendar-days me-1"></i> Scheduling &amp; Assignment</div>
+        <div class="row g-3">
+            <div class="col-sm-6">
+                <label class="form-label" for="delivery_date">Delivery Date <span class="text-danger">*</span></label>
+                <input type="date" id="delivery_date" name="delivery_date" class="form-control"
+                       value="<?= htmlspecialchars($old['delivery_date']) ?>" required>
+            </div>
+            <div class="col-sm-6">
+                <label class="form-label" for="pickup_date">Scheduled Pickup Date</label>
+                <input type="date" id="pickup_date" name="pickup_date" class="form-control"
+                       value="<?= htmlspecialchars($old['pickup_date']) ?>">
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="assigned_driver">Assigned Driver</label>
+                <select id="assigned_driver" name="assigned_driver" class="form-select">
+                    <option value="">— Unassigned —</option>
+                    <?php foreach ($drivers as $drv): ?>
+                        <option value="<?= (int)$drv['id'] ?>"
+                            <?= (string)$old['assigned_driver'] === (string)$drv['id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($drv['name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Amount & Priority ── -->
+    <div class="tp-form-card">
+        <div class="wo-section-title"><i class="fa-solid fa-dollar-sign me-1"></i> Amount &amp; Priority</div>
+        <div class="row g-3">
+            <div class="col-sm-6">
+                <label class="form-label" for="amount">Amount</label>
+                <div class="input-group">
+                    <span class="input-group-text" style="background:var(--dk3,#111827);border-color:var(--input-border,#374151);color:var(--muted,#6b7280);">$</span>
+                    <input type="number" id="amount" name="amount" class="form-control"
+                           step="0.01" min="0" value="<?= htmlspecialchars($old['amount']) ?>">
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <label class="form-label">Priority</label>
+                <div class="d-flex gap-3 pt-1">
+                    <?php foreach (['normal' => 'Normal', 'high' => 'High', 'urgent' => 'Urgent'] as $pv => $pl): ?>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="priority"
+                               id="priority_<?= $pv ?>" value="<?= $pv ?>"
+                            <?= $old['priority'] === $pv ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="priority_<?= $pv ?>"><?= $pl ?></label>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Notes ── -->
+    <div class="tp-form-card">
+        <div class="wo-section-title"><i class="fa-solid fa-note-sticky me-1"></i> Notes</div>
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label" for="internal_notes">Internal Notes</label>
+                <textarea id="internal_notes" name="internal_notes" class="form-control" rows="3"
+                          placeholder="Not visible to the customer."><?= htmlspecialchars($old['internal_notes']) ?></textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="footer_notes">Footer / Work Order Notes</label>
+                <textarea id="footer_notes" name="footer_notes" class="form-control" rows="3"
+                          placeholder="Printed on the work order document."><?= htmlspecialchars($old['footer_notes']) ?></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Save buttons (desktop) ── -->
+    <div class="d-flex gap-2 flex-wrap mb-4">
+        <button type="submit" class="btn-tp-primary btn-tp-sm" style="padding:.6rem 1.5rem;font-size:.95rem;">
+            <i class="fa-solid fa-floppy-disk"></i> Create Work Order
+        </button>
+        <a href="index.php" class="btn-tp-ghost btn-tp-sm">Cancel</a>
+    </div>
+
+    <!-- ── Sticky save bar (mobile only) ── -->
+    <div class="tp-sticky-bar">
+        <button type="submit" class="btn-tp-primary btn-tp-sm flex-grow-1" style="justify-content:center;">
+            <i class="fa-solid fa-floppy-disk"></i> Create Work Order
+        </button>
+        <a href="index.php" class="btn-tp-ghost btn-tp-sm">Cancel</a>
+    </div>
+    <div class="tp-sticky-bar-spacer"></div>
+
 </form>
 
 <?php layout_end(); ?>

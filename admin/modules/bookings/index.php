@@ -270,7 +270,7 @@ layout_start('Bookings', 'bookings');
                             <?= csrf_field() ?>
                             <input type="hidden" name="id" value="<?= (int)$b['id'] ?>">
                             <button type="submit" class="btn-tp-primary btn-tp-xs"
-                                    onclick="return confirm('Approve booking <?= e($b['booking_number']) ?>? A work order and invoice will be created.')">
+                                    data-confirm="Approve booking <?= e($b['booking_number']) ?>? A work order and invoice will be created.">
                                 <i class="fa-solid fa-circle-check"></i> Approve
                             </button>
                         </form>
@@ -282,7 +282,7 @@ layout_start('Bookings', 'bookings');
                             <input type="hidden" name="action" value="mark_paid_cash">
                             <input type="hidden" name="redirect_to" value="index.php<?= e('?' . http_build_query(array_filter(['filter' => $filter, 'q' => $q, 'date_qs' => $date_qs, 'page' => $page]))) ?>">
                             <button type="submit" class="btn-tp-ghost btn-tp-xs" title="Mark paid — cash"
-                                    onclick="return confirm('Mark booking <?= e($b['booking_number']) ?> as paid (cash)?')">
+                                    data-confirm="Mark booking <?= e($b['booking_number']) ?> as paid (cash)?">
                                 <i class="fa-solid fa-money-bill"></i> Cash
                             </button>
                         </form>
@@ -292,14 +292,14 @@ layout_start('Bookings', 'bookings');
                             <input type="hidden" name="action" value="mark_paid_check">
                             <input type="hidden" name="redirect_to" value="index.php<?= e('?' . http_build_query(array_filter(['filter' => $filter, 'q' => $q, 'date_qs' => $date_qs, 'page' => $page]))) ?>">
                             <button type="submit" class="btn-tp-ghost btn-tp-xs" title="Mark paid — check"
-                                    onclick="return confirm('Mark booking <?= e($b['booking_number']) ?> as paid (check)?')">
+                                    data-confirm="Mark booking <?= e($b['booking_number']) ?> as paid (check)?">
                                 <i class="fa-solid fa-money-check"></i> Check
                             </button>
                         </form>
                         <?php endif; ?>
                         <?php if (has_role('admin')): ?>
                         <a href="delete.php?id=<?= (int)$b['id'] ?>" class="btn-tp-ghost btn-tp-xs text-danger"
-                           onclick="return confirm('Permanently delete booking <?= e($b['booking_number']) ?>? This cannot be undone.')">
+                           data-confirm="Permanently delete booking <?= e($b['booking_number']) ?>? This cannot be undone.">
                             <i class="fa-solid fa-trash"></i> Delete
                         </a>
                         <?php endif; ?>

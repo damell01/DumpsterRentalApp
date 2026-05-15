@@ -121,15 +121,15 @@ layout_start('Invoices', 'invoices');
                     <th>Customer</th>
                     <th>Amount</th>
                     <th>Status</th>
-                    <th>Due Date</th>
-                    <th>Payment Link</th>
-                    <th>Created</th>
+                    <th class="d-none d-lg-table-cell">Due Date</th>
+                    <th class="d-none d-md-table-cell">Payment Link</th>
+                    <th class="d-none d-md-table-cell">Created</th>
                     <th class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
             <?php foreach ($invoices as $inv): ?>
-                <tr>
+                <tr data-href="view.php?id=<?= (int)$inv['id'] ?>">
                     <td>
                         <a href="view.php?id=<?= (int)$inv['id'] ?>" style="font-weight:600;">
                             <?= e($inv['invoice_number']) ?>
@@ -138,8 +138,8 @@ layout_start('Invoices', 'invoices');
                     <td><?= e($inv['cust_name']) ?></td>
                     <td><?= e(fmt_money($inv['total'] ?? 0)) ?></td>
                     <td><?= status_badge($inv['status'] ?? 'draft') ?></td>
-                    <td><?= $inv['due_date'] ? e(fmt_date($inv['due_date'])) : '<span class="text-muted">—</span>' ?></td>
-                    <td>
+                    <td class="d-none d-lg-table-cell"><?= $inv['due_date'] ? e(fmt_date($inv['due_date'])) : '<span class="text-muted">—</span>' ?></td>
+                    <td class="d-none d-md-table-cell">
                         <?php if (!empty($inv['stripe_payment_link'])): ?>
                             <a href="<?= e($inv['stripe_payment_link']) ?>" target="_blank"
                                class="btn-tp-ghost btn-tp-xs" title="Open payment link">
@@ -149,7 +149,7 @@ layout_start('Invoices', 'invoices');
                             <span class="text-muted">—</span>
                         <?php endif; ?>
                     </td>
-                    <td><?= e(fmt_date($inv['created_at'])) ?></td>
+                    <td class="d-none d-md-table-cell"><?= e(fmt_date($inv['created_at'])) ?></td>
                     <td class="text-end">
                         <div class="d-flex gap-1 justify-content-end">
                             <a href="view.php?id=<?= (int)$inv['id'] ?>"
@@ -163,7 +163,7 @@ layout_start('Invoices', 'invoices');
                             </a>
                             <a href="delete.php?id=<?= (int)$inv['id'] ?>"
                                class="btn-tp-ghost btn-tp-sm text-danger" title="Delete"
-                               onclick="return confirm('Delete invoice <?= e($inv['invoice_number']) ?>? This cannot be undone.')">
+                               data-confirm="Delete invoice <?= e($inv['invoice_number']) ?>? This cannot be undone.">
                                 <i class="fa-solid fa-trash"></i> Delete
                             </a>
                             <?php endif; ?>

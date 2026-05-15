@@ -638,7 +638,7 @@ layout_start('WO: ' . $wo['wo_number'], 'work_orders');
                 <?php endif; ?>
 
                 <a href="delete.php?id=<?= $id ?>" class="btn btn-outline-danger"
-                   onclick="return confirm('Delete this work order? This cannot be undone.')">
+                   data-confirm="Delete this work order? This cannot be undone.">
                     <i class="fas fa-trash me-1"></i>Delete Work Order
                 </a>
             </div>
