@@ -467,6 +467,7 @@ $request_mode = $booking_flow_mode === 'request';
                 Continue <i class="fas fa-arrow-right"></i>
             </button>
         </div>
+        <div style="height:64px;"></div><!-- mobile bottom chrome spacer -->
 
     </div><!-- /#step-1 -->
 
