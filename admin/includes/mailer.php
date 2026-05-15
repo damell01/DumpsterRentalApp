@@ -771,8 +771,26 @@ function notify_delivery_tomorrow(): void
         $subject = render_email_vars($tpl['subject'], $vars);
         $body    = render_email_vars($tpl['body_html'], $vars);
 
+        // Skip if already sent today for this work order
+        $already = db_fetchone(
+            "SELECT id FROM activity_log
+             WHERE action = 'delivery_reminder_emailed'
+               AND entity_type = 'work_order'
+               AND entity_id = ?
+               AND created_at >= CURDATE()
+             LIMIT 1",
+            [$wo['id']]
+        );
+        if ($already) {
+            continue;
+        }
+
         $html = email_template('Delivery Reminder', $body);
-        send_email($email, $subject, $html);
+        $sent = send_email($email, $subject, $html);
+
+        if ($sent) {
+            log_activity('delivery_reminder_emailed', 'Delivery reminder sent to ' . $email . '.', 'work_order', $wo['id']);
+        }
 
         // Push notification to customer
         if (function_exists('push_notify_customer')) {
@@ -838,8 +856,24 @@ function notify_pickup_overdue(): void
   <tbody>' . $rows . '</tbody>
 </table>';
 
+    // Only send once per day
+    $already = db_fetchone(
+        "SELECT id FROM activity_log
+         WHERE action = 'overdue_pickup_emailed'
+           AND created_at >= CURDATE()
+         LIMIT 1",
+        []
+    );
+    if ($already) {
+        return;
+    }
+
     $html = email_template('Overdue Pickup Alert', $body);
-    send_email($company_email, 'Overdue Pickup Alert — ' . count($wos) . ' Work Orders', $html);
+    $sent = send_email($company_email, 'Overdue Pickup Alert — ' . count($wos) . ' Work Orders', $html);
+
+    if ($sent) {
+        log_activity('overdue_pickup_emailed', 'Overdue pickup alert sent to ' . $company_email . ' (' . count($wos) . ' work orders).');
+    }
 }
 
 /**
