@@ -254,6 +254,11 @@ layout_start('Work Orders', 'work_orders');
                                class="btn-tp-ghost btn-tp-xs" title="Add Photo">
                                 <i class="fa-solid fa-camera"></i>
                             </a>
+                            <a href="delete.php?id=<?= (int)$wo['id'] ?>"
+                               class="btn-tp-ghost btn-tp-xs text-danger" title="Delete"
+                               data-confirm="Delete work order <?= e($wo['wo_number']) ?>? This cannot be undone.">
+                                <i class="fa-solid fa-trash"></i>
+                            </a>
                         </div>
                     </td>
                 </tr>

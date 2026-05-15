@@ -874,6 +874,19 @@ if (table_exists($pdo, 'bookings')) {
 }
 
 // =============================================================================
+// UPGRADE 33 — work_orders: make service_address nullable
+// =============================================================================
+echo "\n--- Upgrade 33: work_orders.service_address nullable ---\n";
+
+if (table_exists($pdo, 'work_orders')) {
+    run_step($pdo, 'work_orders.service_address nullable',
+        "ALTER TABLE `work_orders`
+         MODIFY COLUMN `service_address` VARCHAR(200) DEFAULT NULL");
+} else {
+    $log[] = '[SKIP] work_orders.service_address (table missing)';
+}
+
+// =============================================================================
 // Summary
 // =============================================================================
 echo "\n" . str_repeat('=', 60) . "\n";

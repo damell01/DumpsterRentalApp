@@ -169,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'cust_name'       => $customer_name,
                 'cust_phone'      => $customer_phone ?: null,
                 'cust_email'      => $customer_email ?: null,
-                'service_address' => $customer_address ?: null,
+                'service_address' => $customer_address ?: '',
                 'service_city'    => $customer_city ?: null,
                 'service_state'   => null,
                 'service_zip'     => null,
