@@ -586,15 +586,9 @@ function layout_end(): void
 tr[data-href] { cursor: pointer; }
 tr[data-href]:hover > td { background: rgba(249,115,22,.05) !important; }
 
-/* ── Sticky form action bar (mobile only) ── */
-.tp-sticky-bar {
-    display: none;
-}
+/* ── Sticky form action bar ── */
 @media (max-width: 767px) {
     .tp-sticky-bar {
-        display: flex;
-        align-items: center;
-        gap: .5rem;
         position: fixed;
         bottom: 0; left: 0; right: 0;
         z-index: 1040;
@@ -602,6 +596,7 @@ tr[data-href]:hover > td { background: rgba(249,115,22,.05) !important; }
         border-top: 1px solid #2a2f3e;
         padding: .65rem 1rem;
         box-shadow: 0 -6px 20px rgba(0,0,0,.4);
+        margin: 0;
     }
     .tp-sticky-bar-spacer { display: block; height: 68px; }
 }
