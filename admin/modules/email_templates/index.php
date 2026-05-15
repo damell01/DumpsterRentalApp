@@ -115,6 +115,45 @@ $TEMPLATE_DEFS = [
 <p>If you believe this was done in error or have questions, please contact us.</p>
 <p>Thank you for your business.</p>',
     ],
+    'work_order_delivered' => [
+        'name'    => 'Dumpster Delivered',
+        'desc'    => 'Sent to customer when their work order is marked Delivered.',
+        'vars'    => ['customer_name','service_address','unit_size'],
+        'default_subject'  => 'Your Dumpster Has Been Delivered!',
+        'default_body_html'=> '<p>Hello {{customer_name}},</p>
+<p>Your dumpster has been delivered to <strong>{{service_address}}</strong>. You are all set to start your project!</p>
+<p><strong>Unit Size:</strong> {{unit_size}}</p>
+<p>When you are ready for pickup, just give us a call and we will get it scheduled.</p>
+<p>Thank you for choosing us!</p>',
+    ],
+    'work_order_completed' => [
+        'name'    => 'Pickup Complete',
+        'desc'    => 'Sent to customer when their work order is marked Picked Up or Completed.',
+        'vars'    => ['customer_name'],
+        'default_subject'  => 'Pickup Complete — Thanks for Choosing Us!',
+        'default_body_html'=> '<p>Hello {{customer_name}},</p>
+<p>Your dumpster has been picked up and your rental is now complete. Thank you for choosing us for your project!</p>
+<p>We hope everything went smoothly. If you need a dumpster again in the future, we would love to help.</p>',
+    ],
+    'invoice_overdue' => [
+        'name'    => 'Invoice Overdue Reminder',
+        'desc'    => 'Sent to customer when an invoice is past its due date (daily cron).',
+        'vars'    => ['customer_name','invoice_number','amount','due_date'],
+        'default_subject'  => 'Invoice {{invoice_number}} — Payment Past Due',
+        'default_body_html'=> '<p>Hello {{customer_name}},</p>
+<p>This is a reminder that invoice <strong>{{invoice_number}}</strong> for <strong>{{amount}}</strong> was due on <strong>{{due_date}}</strong> and remains outstanding.</p>
+<p>Please remit payment at your earliest convenience. If you have already paid or have any questions, please contact us and we will sort it out right away.</p>
+<p>Thank you for your prompt attention.</p>',
+    ],
+    'lead_received' => [
+        'name'    => 'Contact Form Auto-Response',
+        'desc'    => 'Sent to the customer automatically when they submit the public contact/quote form.',
+        'vars'    => ['customer_name','company_name'],
+        'default_subject'  => 'We received your request — {{company_name}}',
+        'default_body_html'=> '<p>Hi {{customer_name}},</p>
+<p>Thanks for reaching out! We received your request and someone from our team will be in touch shortly.</p>
+<p>We appreciate your interest in {{company_name}}!</p>',
+    ],
 ];
 
 // ── POST handler ──────────────────────────────────────────────────────────────
