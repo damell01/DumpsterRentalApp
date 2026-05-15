@@ -1,6 +1,6 @@
 /* shared-components.js - injects nav, footer, ticker, and live dumpster sizes */
 
-const LOGO_SRC = 'assets/logo.jpeg';
+const LOGO_SRC = 'assets/logo.jpeg?v=2';
 const FONT_CSS_HREF = 'https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Barlow+Condensed:ital,wght@0,300;0,400;0,600;0,700;0,800;0,900;1,700&family=Barlow:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap';
 
 if (!document.querySelector('link[href*="fonts.googleapis.com/css2?family=Black+Han+Sans"]')) {
