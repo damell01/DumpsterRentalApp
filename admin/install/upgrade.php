@@ -746,18 +746,24 @@ if (table_exists($pdo, 'customers')) {
 }
 
 // =============================================================================
-// UPGRADE 27 — bookings: add customer_id FK so bookings link to the customers
-//              table (enables deduplication on public booking form).
+// UPGRADE 27 — bookings: add customer_id column, then FK (split so the column
+//              is always added even when customers table doesn't exist yet).
 // =============================================================================
 echo "\n--- Upgrade 27: bookings.customer_id ---\n";
 
 if (table_exists($pdo, 'bookings') && !column_exists($pdo, 'bookings', 'customer_id')) {
-    run_step($pdo, 'bookings.customer_id',
+    // Add the column first — no FK so this never fails due to missing customers table.
+    run_step($pdo, 'bookings.customer_id (column)',
         "ALTER TABLE `bookings`
          ADD COLUMN `customer_id` INT(11) DEFAULT NULL
-         COMMENT 'FK to customers table — set by findOrCreateByBooking()' AFTER `booking_number`,
-         ADD CONSTRAINT `fk_bookings_customer_id`
-           FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL");
+         COMMENT 'FK to customers table — set by findOrCreateByBooking()' AFTER `booking_number`");
+    // Add FK separately only when customers table is present.
+    if (table_exists($pdo, 'customers') && !index_exists($pdo, 'bookings', 'fk_bookings_customer_id')) {
+        run_step($pdo, 'bookings.customer_id (FK)',
+            "ALTER TABLE `bookings`
+             ADD CONSTRAINT `fk_bookings_customer_id`
+               FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL");
+    }
 } else {
     $log[] = "[SKIP] bookings.customer_id (already exists or bookings table missing)";
 }
