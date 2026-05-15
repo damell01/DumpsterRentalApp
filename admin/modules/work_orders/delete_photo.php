@@ -24,4 +24,7 @@ if (is_file($path)) {
 
 db_execute('DELETE FROM work_order_photos WHERE id = ?', [$photo_id]);
 flash_success('Photo deleted.');
-redirect('view.php?id=' . $wo_id . '#photos');
+
+$back = trim($_POST['back'] ?? '');
+$dest = ($back === 'edit') ? 'edit.php' : 'view.php';
+redirect($dest . '?id=' . $wo_id . '#photos');

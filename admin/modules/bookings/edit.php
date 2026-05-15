@@ -170,16 +170,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 layout_start('Edit Booking', 'bookings');
 ?>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="mb-0">Edit Booking — <span class="text-muted"><?= e($booking['booking_number']) ?></span></h5>
-    <a href="view.php?id=<?= $id ?>" class="btn-tp-ghost btn-tp-sm">
-        <i class="fa-solid fa-arrow-left"></i> Back
-    </a>
+<style>
+.bk-section-title {
+    font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;
+    color:var(--muted,#6b7280);padding-bottom:.5rem;margin-bottom:1rem;
+    border-bottom:1px solid var(--st,#2a2f3e);
+}
+.bk-form-card { background:var(--card-bg,#1e2230);border:1px solid var(--st,#2a2f3e);border-radius:10px;padding:1.25rem 1.5rem;margin-bottom:1rem; }
+@media(max-width:576px){ .bk-form-card{padding:1rem;} }
+</style>
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h5 class="mb-0">
+        Edit Booking
+        <span style="color:var(--accent,#f97316);font-weight:600;"><?= e($booking['booking_number']) ?></span>
+    </h5>
+    <div class="d-flex gap-2">
+        <a href="view.php?id=<?= $id ?>" class="btn-tp-ghost btn-tp-sm">
+            <i class="fa-solid fa-eye"></i> <span class="d-none d-sm-inline">View</span>
+        </a>
+        <a href="index.php" class="btn-tp-ghost btn-tp-sm">
+            <i class="fa-solid fa-arrow-left"></i> <span class="d-none d-sm-inline">Back</span>
+        </a>
+    </div>
 </div>
 
 <?php if (!empty($errors)): ?>
-<div class="alert alert-danger">
-    <ul class="mb-0">
+<div class="alert alert-danger mb-3">
+    <ul class="mb-0 ps-3">
         <?php foreach ($errors as $err): ?>
             <li><?= e($err) ?></li>
         <?php endforeach; ?>
@@ -187,56 +206,49 @@ layout_start('Edit Booking', 'bookings');
 </div>
 <?php endif; ?>
 
-<div class="tp-card" style="max-width:760px;">
-    <form method="POST" action="edit.php">
-        <?= csrf_field() ?>
-        <input type="hidden" name="id" value="<?= $id ?>">
+<form method="POST" action="edit.php" id="bk-edit-form">
+    <?= csrf_field() ?>
+    <input type="hidden" name="id" value="<?= $id ?>">
 
-        <h6 class="mb-3" style="font-weight:600;border-bottom:1px solid var(--st);padding-bottom:.5rem;">
-            Customer Information
-        </h6>
-
-        <div class="row g-3 mb-4">
-            <div class="col-md-6">
-                <label class="form-label" for="customer_name">
-                    Customer Name <span class="text-danger">*</span>
-                </label>
+    <!-- ── Customer Information ── -->
+    <div class="bk-form-card">
+        <div class="bk-section-title"><i class="fa-solid fa-user me-1"></i> Customer Information</div>
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label" for="customer_name">Customer Name <span class="text-danger">*</span></label>
                 <input type="text" id="customer_name" name="customer_name" class="form-control"
                        value="<?= e($booking['customer_name']) ?>" required>
             </div>
-            <div class="col-md-6">
+            <div class="col-sm-6">
                 <label class="form-label" for="customer_phone">Phone</label>
                 <input type="text" id="customer_phone" name="customer_phone" class="form-control"
                        value="<?= e($booking['customer_phone'] ?? '') ?>">
             </div>
-            <div class="col-md-6">
+            <div class="col-sm-6">
                 <label class="form-label" for="customer_email">Email</label>
                 <input type="email" id="customer_email" name="customer_email" class="form-control"
                        value="<?= e($booking['customer_email'] ?? '') ?>">
             </div>
-            <div class="col-md-6">
-                <label class="form-label" for="customer_city">City</label>
-                <input type="text" id="customer_city" name="customer_city" class="form-control"
-                       value="<?= e($booking['customer_city'] ?? '') ?>">
-            </div>
-            <div class="col-12">
+            <div class="col-sm-6">
                 <label class="form-label" for="customer_address">Address</label>
                 <input type="text" id="customer_address" name="customer_address" class="form-control"
                        value="<?= e($booking['customer_address'] ?? '') ?>">
             </div>
+            <div class="col-sm-6">
+                <label class="form-label" for="customer_city">City</label>
+                <input type="text" id="customer_city" name="customer_city" class="form-control"
+                       value="<?= e($booking['customer_city'] ?? '') ?>">
+            </div>
         </div>
+    </div>
 
-        <h6 class="mb-3" style="font-weight:600;border-bottom:1px solid var(--st);padding-bottom:.5rem;">
-            Unit &amp; Dates
-        </h6>
-
-        <div class="row g-3 mb-4">
+    <!-- ── Unit & Dates ── -->
+    <div class="bk-form-card">
+        <div class="bk-section-title"><i class="fa-solid fa-dumpster me-1"></i> Unit &amp; Dates</div>
+        <div class="row g-3">
             <div class="col-12">
-                <label class="form-label" for="dumpster_id">
-                    Unit <span class="text-danger">*</span>
-                </label>
-                <select id="dumpster_id" name="dumpster_id" class="form-select" required
-                        onchange="updateTotal()">
+                <label class="form-label" for="dumpster_id">Unit <span class="text-danger">*</span></label>
+                <select id="dumpster_id" name="dumpster_id" class="form-select" required onchange="updateTotal()">
                     <option value="">— Select unit —</option>
                     <?php foreach ($units as $u): ?>
                     <option value="<?= (int)$u['id'] ?>"
@@ -245,8 +257,7 @@ layout_start('Edit Booking', 'bookings');
                             data-incl="<?= (int)($u['rental_days'] ?? 7) ?>"
                             data-extra="<?= e($u['extra_day_price'] ?? '') ?>"
                             <?= (int)$booking['dumpster_id'] === (int)$u['id'] ? 'selected' : '' ?>>
-                        <?= e($u['unit_code']) ?> — <?= e($u['size']) ?>
-                        (<?= e(ucfirst($u['type'])) ?>)
+                        <?= e($u['unit_code']) ?> — <?= e($u['size']) ?> (<?= e(ucfirst($u['type'])) ?>)
                         <?php if ((float)($u['base_price'] ?? 0) > 0): ?>
                             — <?= e(fmt_money($u['base_price'])) ?> / <?= (int)($u['rental_days'] ?? 7) ?> days
                         <?php else: ?>
@@ -256,36 +267,29 @@ layout_start('Edit Booking', 'bookings');
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-4">
-                <label class="form-label" for="rental_start">
-                    Start Date <span class="text-danger">*</span>
-                </label>
+            <div class="col-sm-4">
+                <label class="form-label" for="rental_start">Start Date <span class="text-danger">*</span></label>
                 <input type="date" id="rental_start" name="rental_start" class="form-control"
-                       value="<?= e($booking['rental_start']) ?>" required
-                       onchange="updateTotal()">
+                       value="<?= e($booking['rental_start']) ?>" required onchange="updateTotal()">
             </div>
-            <div class="col-md-4">
-                <label class="form-label" for="rental_end">
-                    End Date <span class="text-danger">*</span>
-                </label>
+            <div class="col-sm-4">
+                <label class="form-label" for="rental_end">End Date <span class="text-danger">*</span></label>
                 <input type="date" id="rental_end" name="rental_end" class="form-control"
-                       value="<?= e($booking['rental_end']) ?>" required
-                       onchange="updateTotal()">
+                       value="<?= e($booking['rental_end']) ?>" required onchange="updateTotal()">
             </div>
-            <div class="col-md-4">
+            <div class="col-sm-4">
                 <label class="form-label">Estimated Total</label>
-                <div id="totalDisplay" class="form-control" style="background:var(--dk3);color:var(--or);font-weight:700;">
-                    —
-                </div>
+                <div id="totalDisplay" class="form-control"
+                     style="background:var(--dk3,#111827);color:var(--or,#f97316);font-weight:700;">—</div>
             </div>
         </div>
+    </div>
 
-        <h6 class="mb-3" style="font-weight:600;border-bottom:1px solid var(--st);padding-bottom:.5rem;">
-            Payment &amp; Notes
-        </h6>
-
+    <!-- ── Payment & Notes ── -->
+    <div class="bk-form-card">
+        <div class="bk-section-title"><i class="fa-solid fa-credit-card me-1"></i> Payment &amp; Notes</div>
         <div class="row g-3">
-            <div class="col-md-6">
+            <div class="col-sm-6 col-md-4">
                 <label class="form-label" for="payment_method">Payment Method</label>
                 <select id="payment_method" name="payment_method" class="form-select">
                     <option value="stripe" <?= $booking['payment_method'] === 'stripe' ? 'selected' : '' ?>>Stripe (Online)</option>
@@ -293,21 +297,32 @@ layout_start('Edit Booking', 'bookings');
                     <option value="check"  <?= $booking['payment_method'] === 'check'  ? 'selected' : '' ?>>Check</option>
                 </select>
             </div>
-
             <div class="col-12">
                 <label class="form-label" for="notes">Notes</label>
-                <textarea id="notes" name="notes" class="form-control" rows="3"><?= e($booking['notes'] ?? '') ?></textarea>
-            </div>
-            <div class="col-12 d-flex gap-2">
-                <button type="submit" class="btn-tp-primary">
-                    <i class="fa-solid fa-floppy-disk"></i> Save Changes
-                </button>
-                <a href="view.php?id=<?= $id ?>" class="btn-tp-ghost">Cancel</a>
+                <textarea id="notes" name="notes" class="form-control" rows="3"
+                          placeholder="Internal notes…"><?= e($booking['notes'] ?? '') ?></textarea>
             </div>
         </div>
+    </div>
 
-    </form>
-</div>
+    <!-- ── Save buttons (desktop) ── -->
+    <div class="d-flex gap-2 flex-wrap mb-4">
+        <button type="submit" class="btn-tp-primary btn-tp-sm" style="padding:.6rem 1.5rem;font-size:.95rem;">
+            <i class="fa-solid fa-floppy-disk"></i> Save Changes
+        </button>
+        <a href="view.php?id=<?= $id ?>" class="btn-tp-ghost btn-tp-sm">Cancel</a>
+    </div>
+
+    <!-- ── Sticky save bar (mobile only) ── -->
+    <div class="tp-sticky-bar">
+        <button type="submit" class="btn-tp-primary btn-tp-sm flex-grow-1" style="justify-content:center;">
+            <i class="fa-solid fa-floppy-disk"></i> Save Changes
+        </button>
+        <a href="view.php?id=<?= $id ?>" class="btn-tp-ghost btn-tp-sm">Cancel</a>
+    </div>
+    <div class="tp-sticky-bar-spacer"></div>
+
+</form>
 
 <script>
 function updateTotal() {

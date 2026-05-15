@@ -191,12 +191,12 @@ layout_start('Bookings', 'bookings');
                 <tr>
                     <th>Booking #</th>
                     <th>Customer</th>
-                    <th>Unit</th>
+                    <th class="d-none d-md-table-cell">Unit</th>
                     <th>Dates</th>
-                    <th class="text-center">Days</th>
+                    <th class="d-none d-lg-table-cell text-center">Days</th>
                     <th class="text-end">Total</th>
-                    <th>Method</th>
-                    <th>Payment</th>
+                    <th class="d-none d-lg-table-cell">Method</th>
+                    <th class="d-none d-md-table-cell">Payment</th>
                     <th>Status</th>
                     <th class="text-end">Actions</th>
                 </tr>
@@ -210,7 +210,7 @@ layout_start('Bookings', 'bookings');
                 }
                 $is_unpaid = in_array($b['payment_status'], ['unpaid','pending','pending_cash','pending_check'], true);
             ?>
-            <tr>
+            <tr data-href="view.php?id=<?= (int)$b['id'] ?>">
                 <td>
                     <a href="view.php?id=<?= (int)$b['id'] ?>" class="fw-semibold text-decoration-none">
                         <?= e($b['booking_number']) ?>
@@ -222,7 +222,7 @@ layout_start('Bookings', 'bookings');
                     <div style="font-size:.8rem;color:var(--gy);"><?= e($b['customer_email']) ?></div>
                     <?php endif; ?>
                 </td>
-                <td>
+                <td class="d-none d-md-table-cell">
                     <?php if ($b['unit_code']): ?>
                     <div class="fw-semibold">
                         <?= e($b['unit_code']) ?>
@@ -242,10 +242,10 @@ layout_start('Bookings', 'bookings');
                     <div><?= e(fmt_date($b['rental_start'])) ?></div>
                     <div style="font-size:.8rem;color:var(--gy);">→ <?= e(fmt_date($b['rental_end'])) ?></div>
                 </td>
-                <td class="text-center"><?= (int)$b['rental_days'] ?></td>
+                <td class="d-none d-lg-table-cell text-center"><?= (int)$b['rental_days'] ?></td>
                 <td class="text-end fw-semibold"><?= e(fmt_money($b['total_amount'])) ?></td>
-                <td><?= e(ucfirst($b['payment_method'])) ?></td>
-                <td>
+                <td class="d-none d-lg-table-cell"><?= e(ucfirst($b['payment_method'])) ?></td>
+                <td class="d-none d-md-table-cell">
                     <?= payment_badge($b['payment_status']) ?>
                     <?php if (($b['payment_method'] ?? '') === 'stripe' && !empty($stripeLink)): ?>
                     <div style="margin-top:.35rem;">

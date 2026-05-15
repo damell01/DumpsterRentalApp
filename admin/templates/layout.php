@@ -579,6 +579,61 @@ function layout_end(): void
         integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
         crossorigin="anonymous"></script>
 
+<style>
+/* ── Clickable table rows ── */
+tr[data-href] { cursor: pointer; }
+tr[data-href]:hover > td { background: rgba(249,115,22,.05) !important; }
+
+/* ── Sticky form action bar (mobile only) ── */
+.tp-sticky-bar {
+    display: none;
+}
+@media (max-width: 767px) {
+    .tp-sticky-bar {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        z-index: 1040;
+        background: #151820;
+        border-top: 1px solid #2a2f3e;
+        padding: .65rem 1rem;
+        box-shadow: 0 -6px 20px rgba(0,0,0,.4);
+    }
+    .tp-sticky-bar-spacer { display: block; height: 68px; }
+}
+</style>
+
+<script>
+/* ── Clickable table rows ────────────────────────────────────────── */
+document.addEventListener('click', function(e) {
+    var row = e.target.closest('tr[data-href]');
+    if (!row) return;
+    /* Ignore clicks inside interactive elements */
+    if (e.target.closest('a, button, form, input, select, textarea, label, .btn, [role="button"]')) return;
+    window.location.href = row.dataset.href;
+});
+
+/* ── Submit button loading state ────────────────────────────────── */
+document.addEventListener('submit', function(e) {
+    var form = e.target;
+    if (form.dataset.noLoading !== undefined) return;
+    var btn = form.querySelector('button[type="submit"]:not([data-no-loading]), input[type="submit"]:not([data-no-loading])');
+    if (!btn || btn.disabled) return;
+    var origHtml = btn.innerHTML;
+    var origW    = btn.offsetWidth;
+    /* Lock width so button doesn't resize */
+    btn.style.minWidth = origW + 'px';
+    btn.disabled  = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="width:.85em;height:.85em;border-width:.15em;"></span> Saving…';
+    /* Safety re-enable after 12 s (covers slow connections) */
+    setTimeout(function() {
+        if (btn.disabled) { btn.disabled = false; btn.innerHTML = origHtml; btn.style.minWidth = ''; }
+    }, 12000);
+});
+</script>
+
 <!-- App scripts (cache-busted by file mtime) -->
 <?php
 $js_file = defined('ROOT_PATH') ? ROOT_PATH . '/assets/js/app.js' : '';

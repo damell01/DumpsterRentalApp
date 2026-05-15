@@ -425,10 +425,14 @@ document.addEventListener('DOMContentLoaded', function () {
 <!-- ── Template list ── -->
 <div class="row g-3">
     <?php foreach ($TEMPLATE_DEFS as $slug => $def): ?>
-    <?php $curr = $saved[$slug] ?? null; ?>
+    <?php
+        $curr        = $saved[$slug] ?? null;
+        $list_subj   = $curr ? $curr['subject']   : $def['default_subject'];
+        $list_body   = $curr ? $curr['body_html']  : $def['default_body_html'];
+    ?>
     <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
+            <div class="card-body d-flex flex-column">
                 <div class="d-flex align-items-start justify-content-between mb-2">
                     <div>
                         <h6 class="mb-1 fw-bold"><?= e($def['name']) ?></h6>
@@ -457,14 +461,102 @@ document.addEventListener('DOMContentLoaded', function () {
                     <?php endforeach; ?>
                 </div>
 
-                <a href="?edit=<?= urlencode($slug) ?>" class="btn btn-sm btn-outline-primary">
-                    <i class="fas fa-pen me-1"></i> <?= $curr ? 'Edit' : 'Customize' ?>
-                </a>
+                <div class="d-flex gap-2 mt-auto flex-wrap">
+                    <button type="button" class="btn btn-sm btn-outline-info"
+                            onclick="openListPreview(<?= json_encode($list_subj) ?>, <?= json_encode($list_body) ?>)">
+                        <i class="fas fa-eye me-1"></i> Preview
+                    </button>
+                    <a href="?edit=<?= urlencode($slug) ?>" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-pen me-1"></i> <?= $curr ? 'Edit' : 'Customize' ?>
+                    </a>
+                </div>
             </div>
         </div>
     </div>
     <?php endforeach; ?>
 </div>
+
+<!-- List preview modal -->
+<div class="modal fade" id="listPreviewModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content" style="background:#1a1d27;">
+            <div class="modal-header" style="border-color:#2d3148;">
+                <h5 class="modal-title" style="color:#f97316;">
+                    <i class="fas fa-eye me-2"></i>Email Preview
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <iframe id="listPreviewFrame"
+                        style="width:100%;height:600px;border:0;display:block;"
+                        sandbox="allow-same-origin"></iframe>
+            </div>
+            <div class="modal-footer" style="border-color:#2d3148;">
+                <small class="text-muted">Preview uses sample values for <code>{{variables}}</code>.</small>
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<?php
+$preview_logo = get_setting('logo_url', '') ?: get_setting('logo_path', '');
+?>
+<script>
+const _co = {
+    name:    <?= json_encode($preview_company) ?>,
+    phone:   <?= json_encode($preview_phone) ?>,
+    email:   <?= json_encode($preview_email_s) ?>,
+    address: <?= json_encode($preview_address) ?>,
+    logo:    <?= json_encode($preview_logo) ?>,
+};
+
+const _samples = {
+    customer_name:'John Smith', booking_number:'BK-0001', invoice_number:'INV-0001',
+    unit:'TP-01 — 10 Yard', unit_size:'10 Yard',
+    rental_start:'Monday, June 2, 2025', rental_end:'Monday, June 9, 2025',
+    rental_days:'7', rental_days_s:'s', total:'$350.00', amount:'$350.00',
+    due_date:'June 9, 2025', payment_method:'Card',
+    delivery_date:'Wednesday, June 4, 2025', delivery_address:'123 Main St, Mobile, AL',
+    notes_block:'',
+    phone_block: _co.phone ? '<p>Call us at <strong>' + _co.phone + '</strong>.</p>' : '<p>Please contact us.</p>',
+};
+
+function _escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function _replaceSamples(html) {
+    return html.replace(/\{\{(\w+)\}\}/g, (m, key) => _samples[key] !== undefined ? _samples[key] : m);
+}
+function _buildEmailWrapper(title, bodyHtml) {
+    const footerParts = [_co.name, _co.phone, _co.email, _co.address].filter(Boolean);
+    const footerText  = footerParts.join(' &bull; ');
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:30px 0;">
+<tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+<tr><td style="background:#1a1d27;padding:24px 32px;border-radius:8px 8px 0 0;">
+  ${_co.logo
+    ? `<img src="${_escHtml(_co.logo)}" alt="${_escHtml(_co.name)}" style="max-height:55px;max-width:200px;object-fit:contain;display:block;margin-bottom:8px;">`
+    : `<h1 style="margin:0 0 6px;color:#f97316;font-size:1.5rem;font-weight:700;">${_escHtml(_co.name)}</h1>`}
+  <p style="margin:0;color:#9ca3af;font-size:.85rem;">${_escHtml(title)}</p>
+</td></tr>
+<tr><td style="background:#fff;padding:32px;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">
+  ${bodyHtml}
+</td></tr>
+<tr><td style="background:#f9fafb;padding:20px 32px;border:1px solid #e5e7eb;border-radius:0 0 8px 8px;color:#9ca3af;font-size:.75rem;text-align:center;">
+  ${footerText}<br><span style="color:#d1d5db;">Powered by Trash Panda Roll-Offs Manager</span>
+</td></tr>
+</table></td></tr></table></body></html>`;
+}
+
+function openListPreview(subject, bodyHtml) {
+    const filled = _replaceSamples(bodyHtml);
+    const html   = _buildEmailWrapper(subject, filled);
+    document.getElementById('listPreviewFrame').srcdoc = html;
+    new bootstrap.Modal(document.getElementById('listPreviewModal')).show();
+}
+</script>
 
 <?php endif; ?>
 

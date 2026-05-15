@@ -182,13 +182,13 @@ layout_start('Work Orders', 'work_orders');
                 <tr>
                     <th>WO #</th>
                     <th>Customer</th>
-                    <th>Service Address</th>
-                    <th>Size</th>
-                    <th>Dumpster</th>
+                    <th class="d-none d-md-table-cell">Service Address</th>
+                    <th class="d-none d-lg-table-cell">Size</th>
+                    <th class="d-none d-lg-table-cell">Dumpster</th>
                     <th>Delivery</th>
-                    <th>Pickup</th>
+                    <th class="d-none d-md-table-cell">Pickup</th>
                     <th>Status</th>
-                    <th>Priority</th>
+                    <th class="d-none d-lg-table-cell">Priority</th>
                     <th class="text-end">Actions</th>
                 </tr>
             </thead>
@@ -202,7 +202,7 @@ layout_start('Work Orders', 'work_orders');
                 </tr>
             <?php else: ?>
                 <?php foreach ($work_orders as $wo): ?>
-                <tr>
+                <tr data-href="view.php?id=<?= (int)$wo['id'] ?>">
                     <td>
                         <a href="view.php?id=<?= (int)$wo['id'] ?>" class="fw-semibold text-decoration-none">
                             <?= htmlspecialchars($wo['wo_number']) ?>
@@ -214,14 +214,14 @@ layout_start('Work Orders', 'work_orders');
                             <br><small class="text-muted"><?= htmlspecialchars($wo['cust_phone']) ?></small>
                         <?php endif; ?>
                     </td>
-                    <td>
+                    <td class="d-none d-md-table-cell">
                         <?= htmlspecialchars($wo['service_address'] ?? '—') ?>
                         <?php if (!empty($wo['service_city'])): ?>
                             <br><small class="text-muted"><?= htmlspecialchars($wo['service_city']) ?></small>
                         <?php endif; ?>
                     </td>
-                    <td><?= htmlspecialchars($wo['size'] ?? '—') ?></td>
-                    <td>
+                    <td class="d-none d-lg-table-cell"><?= htmlspecialchars($wo['size'] ?? '—') ?></td>
+                    <td class="d-none d-lg-table-cell">
                         <?php if (!empty($wo['dumpster_code'])): ?>
                             <span class="tp-badge badge-available"><?= htmlspecialchars($wo['dumpster_code']) ?></span>
                         <?php else: ?>
@@ -233,15 +233,15 @@ layout_start('Work Orders', 'work_orders');
                             ? htmlspecialchars(date('m/d/Y', strtotime($wo['delivery_date'])))
                             : '<span class="text-muted">—</span>' ?>
                     </td>
-                    <td>
+                    <td class="d-none d-md-table-cell">
                         <?= !empty($wo['pickup_date'])
                             ? htmlspecialchars(date('m/d/Y', strtotime($wo['pickup_date'])))
                             : '<span class="text-muted">—</span>' ?>
                     </td>
                     <td><?= wo_status_badge($wo['status']) ?></td>
-                    <td><?= wo_priority_badge($wo['priority'] ?? 'normal') ?></td>
+                    <td class="d-none d-lg-table-cell"><?= wo_priority_badge($wo['priority'] ?? 'normal') ?></td>
                     <td class="text-end">
-                        <div class="d-flex gap-1 justify-content-end">
+                        <div class="d-flex gap-1 justify-content-end flex-wrap">
                             <a href="view.php?id=<?= (int)$wo['id'] ?>"
                                class="btn-tp-ghost btn-tp-xs" title="View">
                                 <i class="fa-solid fa-eye"></i> View
@@ -249,6 +249,10 @@ layout_start('Work Orders', 'work_orders');
                             <a href="edit.php?id=<?= (int)$wo['id'] ?>"
                                class="btn-tp-ghost btn-tp-xs" title="Edit">
                                 <i class="fa-solid fa-pencil"></i> Edit
+                            </a>
+                            <a href="edit.php?id=<?= (int)$wo['id'] ?>#photos"
+                               class="btn-tp-ghost btn-tp-xs" title="Add Photo">
+                                <i class="fa-solid fa-camera"></i>
                             </a>
                         </div>
                     </td>
