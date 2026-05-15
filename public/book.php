@@ -682,7 +682,7 @@ function _applyPreset() {
     if (_activePill.dataset.weeks) {
         end.setDate(end.getDate() + parseInt(_activePill.dataset.weeks, 10) * 7);
     } else if (_activePill.dataset.months) {
-        end.setMonth(end.getMonth() + parseInt(_activePill.dataset.months, 10));
+        end.setDate(end.getDate() + parseInt(_activePill.dataset.months, 10) * 30);
     }
 
     var yyyy = end.getFullYear();
