@@ -315,14 +315,18 @@ foreach ($units_data as $ud) {
 
 $primaryBookingId = $new_ids[0] ?? 0;
 if ($primaryBookingId > 0) {
-    log_activity(
-        $requires_approval ? 'booking_request_submitted' : 'booking_created',
-        ($requires_approval ? 'Customer submitted booking request ' : 'Customer created booking ')
-            . $booking_number . ' for ' . $customer_name . ' (' . count($new_ids) . ' unit' . (count($new_ids) === 1 ? '' : 's') . ').',
-        'booking',
-        $primaryBookingId,
-        0
-    );
+    try {
+        log_activity(
+            $requires_approval ? 'booking_request_submitted' : 'booking_created',
+            ($requires_approval ? 'Customer submitted booking request ' : 'Customer created booking ')
+                . $booking_number . ' for ' . $customer_name . ' (' . count($new_ids) . ' unit' . (count($new_ids) === 1 ? '' : 's') . ').',
+            'booking',
+            $primaryBookingId,
+            0
+        );
+    } catch (\Throwable $e) {
+        error_log('[Booking] log_activity failed for booking ' . $primaryBookingId . ': ' . $e->getMessage());
+    }
 }
 
 // Push notification to admins for new booking(s) (best-effort)

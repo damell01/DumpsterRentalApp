@@ -501,6 +501,16 @@ function layout_start(string $page_title, string $active_nav = ''): void
 
         <!-- Right-side quick actions -->
         <div class="d-flex gap-2 align-items-center">
+            <?php if ($page_guide): ?>
+            <button type="button"
+                    class="tp-guide-trigger no-print"
+                    id="tpGuideTrigger"
+                    aria-expanded="false"
+                    aria-controls="tpPageGuide"
+                    title="Page Guide">
+                <i class="fa-solid fa-compass-drafting"></i>
+            </button>
+            <?php endif; ?>
             <a href="<?= htmlspecialchars($app_url, ENT_QUOTES, 'UTF-8') ?>/modules/bookings/create.php"
                class="btn-tp-ghost btn-tp-sm no-print">
                 <i class="fa-solid fa-plus"></i>
@@ -523,15 +533,6 @@ function layout_start(string $page_title, string $active_nav = ''): void
         <!-- Page body (opened here, closed by layout_end) -->
         <div class="tp-content-inner">
         <?php if ($page_guide): ?>
-        <button type="button"
-                class="tp-guide-trigger no-print"
-                id="tpGuideTrigger"
-                aria-expanded="false"
-                aria-controls="tpPageGuide">
-            <i class="fa-solid fa-compass-drafting"></i>
-            <span>Page Guide</span>
-        </button>
-
         <aside class="tp-page-guide no-print" id="tpPageGuide" aria-hidden="true">
             <div class="tp-page-guide-head">
                 <div>

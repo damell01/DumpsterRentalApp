@@ -612,7 +612,7 @@ function log_activity(string $action, string $desc, string $type = '', int $id =
     $ip = $_SERVER['REMOTE_ADDR'] ?? '';
 
     db_insert('activity_log', [
-        'user_id'     => $uid,
+        'user_id'     => $uid > 0 ? $uid : null,
         'action'      => $action,
         'description' => $desc,
         'entity_type' => $type,
