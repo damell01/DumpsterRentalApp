@@ -706,7 +706,7 @@ function send_customer_portal_link_email(array $customer): bool
 
     $token = billing_portal_access_service()->issueTokenForCustomer($customerId, (int)get_setting('portal_link_ttl_minutes', '30'));
     $basePublicUrl = preg_replace('#/admin$#', '', APP_URL);
-    $portalUrl = rtrim((string)$basePublicUrl, '/') . '/public/portal/index.php?customer_id=' . $customerId . '&token=' . urlencode($token);
+    $portalUrl = rtrim((string)$basePublicUrl, '/') . '/portal/index.php?customer_id=' . $customerId . '&token=' . urlencode($token);
     $html = email_template(
         'Customer Billing Portal',
         '<p>Your secure Trash Panda billing portal link is ready.</p><p>This link expires automatically.</p>',

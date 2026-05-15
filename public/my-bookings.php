@@ -557,7 +557,7 @@ function renderBookings(bookings) {
         }
 
         var actionsHtml = '';
-        if (invoice && invoice.payment_link) {
+        if (invoice && invoice.payment_link && invoice.status !== 'paid') {
             actionsHtml += '<a class="btn-panda" href="' + escHtml(invoice.payment_link) + '" target="_blank" rel="noopener">'
                 + '<i class="fas fa-credit-card"></i> Pay Invoice</a>';
         }
@@ -566,10 +566,11 @@ function renderBookings(bookings) {
                 + '<i class="fas fa-file-lines"></i> View Billing Portal</a>';
         }
 
+        var invoicePaid = invoice && invoice.status === 'paid';
         var cardClass = 'bk-card';
         if (b.booking_status === 'canceled') {
             cardClass += ' is-canceled';
-        } else if (b.payment_status === 'paid' || b.booking_status === 'confirmed' || b.booking_status === 'completed') {
+        } else if (b.payment_status === 'paid' || invoicePaid || b.booking_status === 'confirmed' || b.booking_status === 'completed') {
             cardClass += ' is-paid';
         } else {
             cardClass += ' is-awaiting';
@@ -577,14 +578,14 @@ function renderBookings(bookings) {
 
         var invoiceValue = invoice && invoice.number ? escHtml(invoice.number) : 'Pending';
         var nextStep = 'Awaiting next update';
-        if (b.booking_status === 'pending') {
-            nextStep = 'Waiting for review';
-        } else if (invoice && invoice.payment_link && b.payment_status !== 'paid') {
-            nextStep = 'Invoice ready to pay';
-        } else if (b.payment_status === 'paid') {
-            nextStep = 'Paid and scheduled';
-        } else if (b.booking_status === 'canceled') {
+        if (b.booking_status === 'canceled') {
             nextStep = 'Order canceled';
+        } else if (b.payment_status === 'paid' || invoicePaid) {
+            nextStep = 'Paid and scheduled';
+        } else if (b.booking_status === 'pending') {
+            nextStep = 'Waiting for review';
+        } else if (invoice && invoice.payment_link && invoice.status !== 'paid') {
+            nextStep = 'Invoice ready to pay';
         }
 
         var html = '<div class="' + cardClass + '">'
@@ -602,7 +603,7 @@ function renderBookings(bookings) {
             + '<div class="bk-meta">' + addr + '<i class="fas fa-dollar-sign" style="color:var(--orange);width:12px;"></i> ' + total + ' &nbsp;·&nbsp; ' + escHtml(pmLabel(b.payment_method)) + '</div>'
             + '<div class="bk-highlight-row">'
             +   '<div class="bk-highlight"><div class="bk-highlight-label">Invoice</div><div class="bk-highlight-value">' + invoiceValue + '</div></div>'
-            +   '<div class="bk-highlight"><div class="bk-highlight-label">Payment</div><div class="bk-highlight-value">' + escHtml(payStatus) + '</div></div>'
+            +   '<div class="bk-highlight"><div class="bk-highlight-label">Payment</div><div class="bk-highlight-value">' + escHtml(invoicePaid ? 'Paid' : payStatus) + '</div></div>'
             +   '<div class="bk-highlight"><div class="bk-highlight-label">Next Step</div><div class="bk-highlight-value">' + escHtml(nextStep) + '</div></div>'
             + '</div>'
             + invoiceHtml

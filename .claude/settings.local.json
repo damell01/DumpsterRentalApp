@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git stash *)",
+      "Bash(php -r \"define\\('DB_HOST','x'\\);define\\('DB_NAME','x'\\);define\\('DB_USER','x'\\);define\\('DB_PASS','x'\\);define\\('DB_CHARSET','utf8mb4'\\);require 'admin/config/config.php';\")"
+    ]
+  }
+}

@@ -2,6 +2,7 @@
 
 $_admin_root = dirname(__DIR__, 2) . '/admin';
 require_once $_admin_root . '/config/config.php';
+require_once INC_PATH . '/db.php';
 require_once INC_PATH . '/helpers.php';
 
 $company_name = get_setting('company_name', 'Trash Panda Roll-Offs');

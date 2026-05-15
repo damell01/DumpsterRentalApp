@@ -127,9 +127,10 @@ class WebhookService
                 $isAsync = ($session->payment_status ?? 'paid') === 'unpaid';
                 $paymentMethod = $this->resolveSessionPaymentMethod($session);
                 $paymentStatus = $isAsync ? 'processing' : 'paid';
+                $invoiceStatus = $paymentMethod === 'ach' ? 'open' : 'paid';
                 \db_update('invoices', [
                     'payment_method' => $paymentMethod,
-                    'status' => $paymentMethod === 'ach' ? 'open' : 'paid',
+                    'status' => $invoiceStatus,
                     'stripe_session_id' => $session->id,
                     'updated_at' => date('Y-m-d H:i:s'),
                     'paid_at' => $paymentMethod === 'ach' ? null : date('Y-m-d H:i:s'),
@@ -145,6 +146,17 @@ class WebhookService
                     'stripe_payment_intent_id' => is_string($session->payment_intent ?? null) ? $session->payment_intent : null,
                     'stripe_customer_id' => is_string($session->customer ?? null) ? $session->customer : null,
                 ]);
+                // Sync payment_status on any booking linked via invoice notes
+                if ($invoiceStatus === 'paid') {
+                    $notes = (string)($invoice['notes'] ?? '');
+                    if (preg_match('/\bBooking\s+(\S+)/i', $notes, $m)) {
+                        \db_execute(
+                            "UPDATE bookings SET payment_status = 'paid', updated_at = NOW()
+                             WHERE booking_number = ? AND payment_status != 'paid'",
+                            [$m[1]]
+                        );
+                    }
+                }
             }
             return ['entity_type' => 'invoice', 'entity_id' => $invoiceId];
         }

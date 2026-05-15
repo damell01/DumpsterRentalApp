@@ -2,10 +2,10 @@
 Options -Indexes
 
 # Only allow access to specific PHP API files
-<FilesMatch "^(contact|availability|available-dumpsters|batch-availability|create-booking|lookup-bookings|push-subscribe|request-portal-link|stripe-webhook)\.php$">
+<FilesMatch "^(contact|availability|available-dumpsters|batch-availability|create-booking|lookup-bookings|push-subscribe|request-portal-link|site-config|stripe-webhook)\.php$">
   Require all granted
 </FilesMatch>
 
-<FilesMatch "^(?!(contact|availability|available-dumpsters|batch-availability|create-booking|lookup-bookings|push-subscribe|request-portal-link|stripe-webhook)\.php$)">
+<FilesMatch "^(?!(contact|availability|available-dumpsters|batch-availability|create-booking|lookup-bookings|push-subscribe|request-portal-link|site-config|stripe-webhook)\.php$)">
   Require all denied
 </FilesMatch>
