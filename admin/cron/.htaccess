@@ -1,1 +1,6 @@
-Require all denied
+<Files "run.php">
+    Require all granted
+</Files>
+<FilesMatch "^(?!run\.php$)">
+    Require all denied
+</FilesMatch>
