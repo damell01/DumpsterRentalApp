@@ -402,13 +402,13 @@ layout_start('Edit WO: ' . $wo['wo_number'], 'work_orders');
                 <?php endif; ?>
                 <div style="color:#9ca3af;"><?= e(date('m/d/Y', strtotime($photo['created_at']))) ?></div>
             </div>
-            <form method="POST" action="delete_photo.php" class="photo-del"
-                  onsubmit="return confirm('Delete this photo?')">
+            <form method="POST" action="delete_photo.php" class="photo-del">
                 <?= csrf_field() ?>
                 <input type="hidden" name="photo_id" value="<?= (int)$photo['id'] ?>">
                 <input type="hidden" name="wo_id"    value="<?= $id ?>">
                 <input type="hidden" name="back"     value="edit">
                 <button type="submit"
+                        data-confirm="Delete this photo?"
                         style="background:rgba(0,0,0,.65);color:#f87171;border:none;border-radius:4px;padding:2px 6px;line-height:1.4;"
                         title="Delete photo">
                     <i class="fa-solid fa-trash" style="font-size:.65rem;"></i>
@@ -424,7 +424,8 @@ layout_start('Edit WO: ' . $wo['wo_number'], 'work_orders');
     <!-- Upload form -->
     <form method="POST" action="upload_photo.php" enctype="multipart/form-data" id="photo-upload-form">
         <?= csrf_field() ?>
-        <input type="hidden" name="wo_id" value="<?= $id ?>">
+        <input type="hidden" name="wo_id"  value="<?= $id ?>">
+        <input type="hidden" name="back"   value="edit">
 
         <div class="drop-zone mb-2" id="dropZone"
              onclick="document.getElementById('photo-file-input').click()">

@@ -163,7 +163,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'stripe_mode', 'stripe_publishable_key', 'stripe_secret_key', 'stripe_webhook_secret',
             'portal_signing_key', 'portal_link_ttl_minutes', 'stripe_statement_descriptor',
             'billing_retry_days', 'booking_flow_mode', 'ach_enabled', 'subscription_enabled',
-            'approval_auto_send_invoice',
+            'approval_auto_send_invoice', 'tax_rate',
         ],
     ];
 
@@ -743,6 +743,35 @@ layout_start('Settings', 'settings');
             </div>
         </div>
 
+        <!-- Tax Rate -->
+        <div class="row g-3 mb-4 mt-0" style="border-top:1px solid var(--st,#2a2f3e);padding-top:1.25rem;">
+            <div class="col-12">
+                <h6 class="mb-0" style="font-weight:600;color:var(--or,#f97316);">
+                    <i class="fa-solid fa-percent me-1"></i> Tax Rate
+                </h6>
+                <div class="form-text mt-0 mb-2" style="color:var(--gy);">
+                    Applied to printed work order invoices. Stripe handles tax automatically for online payments.
+                </div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="tax_rate">Tax Rate (%)</label>
+                <div class="input-group">
+                    <input type="number" id="tax_rate" name="tax_rate" class="form-control"
+                           step="0.001" min="0" max="100"
+                           value="<?= e(get_setting('tax_rate', '0')) ?>"
+                           placeholder="0.000">
+                    <button type="button" class="btn btn-outline-secondary" id="syncTaxRateBtn"
+                            onclick="syncStripeRate()" title="Pull rate from your Stripe Tax rates">
+                        <i class="fa-solid fa-rotate me-1"></i> Sync from Stripe
+                    </button>
+                </div>
+                <div id="stripeRateList" class="mt-2" style="display:none;"></div>
+                <div class="form-text" style="color:var(--gy);">
+                    Set manually or click <strong>Sync from Stripe</strong> to pull your Stripe Tax rates.
+                </div>
+            </div>
+        </div>
+
         <div class="d-flex gap-2 flex-wrap">
             <button type="submit" class="btn-tp-primary">
                 <i class="fa-solid fa-floppy-disk"></i> Save Stripe Settings
@@ -753,6 +782,51 @@ layout_start('Settings', 'settings');
         </div>
 
     </form>
+
+<script>
+function syncStripeRate() {
+    var btn  = document.getElementById('syncTaxRateBtn');
+    var list = document.getElementById('stripeRateList');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    list.style.display = 'none';
+    fetch('<?= e(APP_URL) ?>/api/stripe-tax-rates.php', { credentials: 'same-origin' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.error) {
+                list.innerHTML = '<small class="text-danger"><i class="fa-solid fa-circle-xmark me-1"></i>' + data.error + '</small>';
+                list.style.display = 'block';
+                return;
+            }
+            if (!data.rates || !data.rates.length) {
+                list.innerHTML = '<small class="text-warning">No active tax rates found in Stripe. '
+                    + '<a href="https://dashboard.stripe.com/tax-rates" target="_blank" rel="noopener">Create one in Stripe &rarr;</a></small>';
+                list.style.display = 'block';
+                return;
+            }
+            var html = '<div class="d-flex flex-wrap gap-1">';
+            data.rates.forEach(function(r) {
+                html += '<button type="button" class="btn btn-sm btn-outline-warning" onclick="applyTaxRate(' + r.percentage + ',\'' + r.display_name.replace(/'/g,'') + '\')">'
+                      + r.display_name + ' &mdash; ' + r.percentage + '%</button>';
+            });
+            html += '</div>';
+            list.innerHTML = html;
+            list.style.display = 'block';
+        })
+        .catch(function(e) {
+            list.innerHTML = '<small class="text-danger">Request failed: ' + e.message + '</small>';
+            list.style.display = 'block';
+        })
+        .finally(function() {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-rotate me-1"></i> Sync from Stripe';
+        });
+}
+function applyTaxRate(pct, name) {
+    document.getElementById('tax_rate').value = pct;
+    document.getElementById('stripeRateList').style.display = 'none';
+}
+</script>
 </div>
 
 <!-- ── Database Maintenance ──────────────────────────────────────────────── -->

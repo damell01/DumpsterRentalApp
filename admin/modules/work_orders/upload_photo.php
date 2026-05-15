@@ -35,9 +35,12 @@ $errors   = [];
 $uploaded = 0;
 
 $files = $_FILES['photos'] ?? [];
+$back = trim($_POST['back'] ?? '');
+$dest = ($back === 'edit') ? 'edit.php' : 'view.php';
+
 if (empty($files['name'])) {
     flash_error('No files were selected.');
-    redirect('view.php?id=' . $wo_id . '#photos');
+    redirect($dest . '?id=' . $wo_id . '#photos');
 }
 
 // Normalise to arrays for single-file submissions
@@ -98,4 +101,4 @@ if ($uploaded > 0) {
     flash_error('No photos were uploaded.');
 }
 
-redirect('view.php?id=' . $wo_id . '#photos');
+redirect($dest . '?id=' . $wo_id . '#photos');

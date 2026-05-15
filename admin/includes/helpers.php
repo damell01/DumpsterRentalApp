@@ -330,11 +330,6 @@ function render_flash(): void
             </div>';
     }
     echo '</div>';
-    echo '<script>document.addEventListener("DOMContentLoaded",function(){
-        document.querySelectorAll(".toast[data-bs-autohide]").forEach(function(el){
-            new bootstrap.Toast(el).show();
-        });
-    });</script>';
 
     unset($_SESSION['flash']);
 }

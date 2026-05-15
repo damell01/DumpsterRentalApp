@@ -633,6 +633,13 @@ document.addEventListener('submit', function(e) {
     }, 12000);
 });
 
+/* ── Flash toasts ────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.toast[data-bs-autohide]').forEach(function (el) {
+        new bootstrap.Toast(el).show();
+    });
+});
+
 /* ── Confirm modal ───────────────────────────────────────── */
 (function () {
     var _modal = null, _pending = null;
