@@ -67,7 +67,7 @@ if ($print_mode):
            onerror="this.style.display='none';">
       <br>
       <?php else: ?>
-      <div class="inv-logo-text">🗑 <span><?= e($company_name) ?></span></div>
+      <div class="inv-logo-text"><span><?= e($company_name) ?></span></div>
       <?php endif; ?>
       <div style="font-size:.95rem;font-weight:600;"><?= e($company_name) ?></div>
       <?php if ($company_phone):   ?><div style="font-size:.85rem;"><?= e($company_phone) ?></div><?php endif; ?>
@@ -214,9 +214,11 @@ layout_start('Invoice ' . $inv['invoice_number'], 'invoices');
                          style="max-height:55px;max-width:180px;object-fit:contain;margin-bottom:.4rem;display:block;"
                          onerror="this.style.display='none';">
                     <?php endif; ?>
+                    <?php if (empty($logo_url)): ?>
                     <div style="font-family:var(--font-display);font-size:1.1rem;">
-                        🗑 <?= e($company_name) ?>
+                        <?= e($company_name) ?>
                     </div>
+                    <?php endif; ?>
                     <?php if ($company_phone):   ?><div style="color:var(--gl);font-size:.88rem;"><?= e($company_phone) ?></div><?php endif; ?>
                     <?php if ($company_email):   ?><div style="color:var(--gl);font-size:.88rem;"><?= e($company_email) ?></div><?php endif; ?>
                     <?php if ($company_address): ?><div style="color:var(--gl);font-size:.88rem;"><?= e($company_address) ?></div><?php endif; ?>

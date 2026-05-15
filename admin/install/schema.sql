@@ -446,6 +446,20 @@ CREATE TABLE IF NOT EXISTS `rate_limit_locks` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
+-- work_order_photos
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `work_order_photos` (
+  `id`          INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `wo_id`       INT(11)          NOT NULL,
+  `filename`    VARCHAR(255)     NOT NULL,
+  `caption`     VARCHAR(255)              DEFAULT NULL,
+  `uploaded_by` INT(11)                   DEFAULT NULL,
+  `created_at`  DATETIME         NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_wo_photos_wo_id` (`wo_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
 -- email_templates
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `email_templates` (
@@ -457,6 +471,21 @@ CREATE TABLE IF NOT EXISTS `email_templates` (
   `updated_at` DATETIME         NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_email_templates_slug` (`slug`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
+-- password_resets
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `password_resets` (
+  `id`         INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `email`      VARCHAR(180)     NOT NULL,
+  `token`      VARCHAR(64)      NOT NULL,
+  `expires_at` DATETIME         NOT NULL,
+  `used_at`    DATETIME                  DEFAULT NULL,
+  `created_at` DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_pw_reset_token` (`token`),
+  KEY `idx_pw_reset_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

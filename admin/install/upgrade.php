@@ -744,9 +744,30 @@ if (table_exists($pdo, 'bookings') && !column_exists($pdo, 'bookings', 'customer
 }
 
 // =============================================================================
-// UPGRADE 28 — notifications: add seen_at for unread badge tracking
+// UPGRADE 28 — work_order_photos table for delivery/pickup photo attachments
 // =============================================================================
-echo "\n--- Upgrade 28: notifications.seen_at ---\n";
+echo "\n--- Upgrade 28: work_order_photos table ---\n";
+
+if (!table_exists($pdo, 'work_order_photos')) {
+    run_step($pdo, 'work_order_photos CREATE',
+        "CREATE TABLE `work_order_photos` (
+          `id`          INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+          `wo_id`       INT(11)          NOT NULL,
+          `filename`    VARCHAR(255)     NOT NULL,
+          `caption`     VARCHAR(255)              DEFAULT NULL,
+          `uploaded_by` INT(11)                   DEFAULT NULL,
+          `created_at`  DATETIME         NOT NULL,
+          PRIMARY KEY (`id`),
+          KEY `idx_wo_photos_wo_id` (`wo_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+} else {
+    $log[] = '[SKIP] work_order_photos (already exists)';
+}
+
+// =============================================================================
+// UPGRADE 29 — notifications: add seen_at for unread badge tracking
+// =============================================================================
+echo "\n--- Upgrade 29: notifications.seen_at ---\n";
 
 if (table_exists($pdo, 'notifications') && !column_exists($pdo, 'notifications', 'seen_at')) {
     run_step($pdo, 'notifications.seen_at',
@@ -756,9 +777,9 @@ if (table_exists($pdo, 'notifications') && !column_exists($pdo, 'notifications',
 }
 
 // =============================================================================
-// UPGRADE 29 — email_templates table for admin-editable notification templates
+// UPGRADE 30 — email_templates: table for admin-editable notification templates
 // =============================================================================
-echo "\n--- Upgrade 29: email_templates table ---\n";
+echo "\n--- Upgrade 30: email_templates table ---\n";
 
 if (!table_exists($pdo, 'email_templates')) {
     run_step($pdo, 'email_templates CREATE',
@@ -774,6 +795,28 @@ if (!table_exists($pdo, 'email_templates')) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 } else {
     $log[] = '[SKIP] email_templates (already exists)';
+}
+
+// =============================================================================
+// UPGRADE 31 — password_resets table for self-service password reset flow
+// =============================================================================
+echo "\n--- Upgrade 31: password_resets table ---\n";
+
+if (!table_exists($pdo, 'password_resets')) {
+    run_step($pdo, 'password_resets CREATE',
+        "CREATE TABLE `password_resets` (
+          `id`         INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+          `email`      VARCHAR(180)     NOT NULL,
+          `token`      VARCHAR(64)      NOT NULL,
+          `expires_at` DATETIME         NOT NULL,
+          `used_at`    DATETIME                  DEFAULT NULL,
+          `created_at` DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (`id`),
+          UNIQUE KEY `uq_pw_reset_token` (`token`),
+          KEY `idx_pw_reset_email` (`email`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+} else {
+    $log[] = '[SKIP] password_resets (already exists)';
 }
 
 // =============================================================================

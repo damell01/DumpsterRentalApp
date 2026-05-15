@@ -123,9 +123,18 @@ if ($is_print):
     <div style="background:#0f2a44;color:#e5e7eb;padding:28px 36px;">
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
             <div>
+                <?php
+                $inv_logo = get_setting('logo_url', '') ?: get_setting('logo_path', '');
+                if (!empty($inv_logo)):
+                ?>
+                <img src="<?= e($inv_logo) ?>" alt="<?= e($company_name) ?>"
+                     style="max-height:55px;max-width:200px;object-fit:contain;display:block;margin-bottom:8px;"
+                     onerror="this.style.display='none';">
+                <?php else: ?>
                 <h2 style="color:#f97316;font-size:1.5rem;font-weight:700;margin:0 0 4px;">
-                    🗑 <?= e($company_name) ?>
+                    <?= e($company_name) ?>
                 </h2>
+                <?php endif; ?>
                 <?php if ($company_address): ?><div style="font-size:.85rem;color:#9ca3af;"><?= e($company_address) ?></div><?php endif; ?>
                 <?php if ($company_phone): ?><div style="font-size:.85rem;color:#9ca3af;">📞 <?= e($company_phone) ?></div><?php endif; ?>
                 <?php if ($company_email): ?><div style="font-size:.85rem;color:#9ca3af;">✉ <?= e($company_email) ?></div><?php endif; ?>

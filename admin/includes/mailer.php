@@ -192,6 +192,37 @@ function render_email_vars(string $template, array $vars): string
 }
 
 /**
+ * Send a password reset email to an admin user.
+ *
+ * @param string $to        Recipient email address
+ * @param string $name      Recipient display name
+ * @param string $reset_url Full URL with token
+ * @return bool
+ */
+function send_password_reset_email(string $to, string $name, string $reset_url): bool
+{
+    $body = '<p>Hello ' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . ',</p>
+<p>We received a request to reset the password for your admin account. Click the button below to choose a new password.</p>
+<p style="text-align:center;padding:20px 0;">
+  <a href="' . htmlspecialchars($reset_url, ENT_QUOTES, 'UTF-8') . '"
+     style="background:#f97316;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:6px;font-weight:700;font-size:1rem;display:inline-block;">
+    Reset My Password
+  </a>
+</p>
+<p style="font-size:.85rem;color:#6b7280;">
+  This link expires in <strong>1 hour</strong>. If you did not request a password reset, you can safely ignore this email — your password will not change.
+</p>
+<p style="font-size:.85rem;color:#6b7280;">
+  If the button above does not work, copy and paste this URL into your browser:<br>
+  <a href="' . htmlspecialchars($reset_url, ENT_QUOTES, 'UTF-8') . '" style="color:#f97316;word-break:break-all;">'
+    . htmlspecialchars($reset_url, ENT_QUOTES, 'UTF-8') . '</a>
+</p>';
+
+    $html = email_template('Password Reset Request', $body);
+    return send_email($to, 'Reset Your Password', $html);
+}
+
+/**
  * Generate a full HTML email template.
  *
  * @param string $title
@@ -235,12 +266,14 @@ function email_template(string $title, string $body_html, string $cta_text = '',
 
           <!-- Header -->
           <tr>
-            <td style="background:#1a1d27;padding:24px 32px;border-radius:8px 8px 0 0;">
-              <h1 style="margin:0;color:#f97316;font-size:1.5rem;font-weight:700;letter-spacing:.04em;">
-                <span style="font-size:1.3rem;">&#128465;</span>
-                ' . htmlspecialchars($company_name, ENT_QUOTES, 'UTF-8') . '
-              </h1>
-              <p style="margin:4px 0 0;color:#9ca3af;font-size:.85rem;">'
+            <td style="background:#1a1d27;padding:24px 32px;border-radius:8px 8px 0 0;">' .
+              (($logo = get_setting('logo_url', '') ?: get_setting('logo_path', ''))
+                ? '<img src="' . htmlspecialchars($logo, ENT_QUOTES, 'UTF-8') . '"
+                        alt="' . htmlspecialchars($company_name, ENT_QUOTES, 'UTF-8') . '"
+                        style="max-height:55px;max-width:200px;object-fit:contain;display:block;margin-bottom:10px;">'
+                : '<h1 style="margin:0 0 6px;color:#f97316;font-size:1.5rem;font-weight:700;letter-spacing:.04em;">'
+                  . htmlspecialchars($company_name, ENT_QUOTES, 'UTF-8') . '</h1>') . '
+              <p style="margin:0;color:#9ca3af;font-size:.85rem;">'
                 . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</p>
             </td>
           </tr>

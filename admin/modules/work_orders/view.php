@@ -28,6 +28,16 @@ if (!$wo) {
     redirect('index.php');
 }
 
+// ── Fetch photos ─────────────────────────────────────────────────────────────
+$photos = db_fetchall(
+    'SELECT p.*, u.name AS uploader_name
+     FROM work_order_photos p
+     LEFT JOIN users u ON p.uploaded_by = u.id
+     WHERE p.wo_id = ?
+     ORDER BY p.created_at ASC',
+    [$id]
+);
+
 // ── Fetch notes timeline ──────────────────────────────────────────────────────
 $notes_stmt = $pdo->prepare(
     'SELECT wn.*, u.name AS author_name
@@ -387,6 +397,98 @@ layout_start('WO: ' . $wo['wo_number'], 'work_orders');
             </div>
         </div>
 
+        <!-- Photos -->
+        <div class="card shadow-sm mb-4" id="photos">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-camera me-2"></i>Photos
+                    <?php if (!empty($photos)): ?>
+                    <span class="badge bg-secondary ms-1"><?= count($photos) ?></span>
+                    <?php endif; ?>
+                </h5>
+            </div>
+            <div class="card-body">
+
+                <?php if (!empty($photos)): ?>
+                <div class="row g-2 mb-4">
+                    <?php foreach ($photos as $idx => $photo): ?>
+                    <?php $photo_url = '/uploads/wo_photos/' . $wo['id'] . '/' . rawurlencode($photo['filename']); ?>
+                    <div class="col-6 col-md-4 col-lg-3">
+                        <div class="position-relative" style="border-radius:6px;overflow:hidden;background:#1a1d27;">
+                            <img src="<?= e($photo_url) ?>"
+                                 alt="<?= e($photo['caption'] ?? 'Photo ' . ($idx + 1)) ?>"
+                                 class="img-fluid w-100"
+                                 style="height:140px;object-fit:cover;cursor:pointer;display:block;"
+                                 onclick="openLightbox('<?= e($photo_url) ?>', '<?= e(addslashes($photo['caption'] ?? '')) ?>')"
+                                 loading="lazy">
+                            <div class="position-absolute bottom-0 start-0 end-0 px-2 py-1"
+                                 style="background:rgba(0,0,0,.55);font-size:.72rem;color:#e5e7eb;">
+                                <?php if (!empty($photo['caption'])): ?>
+                                <div class="text-truncate"><?= e($photo['caption']) ?></div>
+                                <?php endif; ?>
+                                <div style="color:#9ca3af;"><?= e(date('m/d/Y', strtotime($photo['created_at']))) ?>
+                                    <?php if (!empty($photo['uploader_name'])): ?>&nbsp;· <?= e($photo['uploader_name']) ?><?php endif; ?>
+                                </div>
+                            </div>
+                            <!-- Delete button -->
+                            <form method="POST" action="delete_photo.php"
+                                  class="position-absolute top-0 end-0 m-1"
+                                  onsubmit="return confirm('Delete this photo?')">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="photo_id" value="<?= (int)$photo['id'] ?>">
+                                <input type="hidden" name="wo_id"    value="<?= $id ?>">
+                                <button type="submit"
+                                        class="btn btn-sm"
+                                        style="background:rgba(0,0,0,.6);color:#f87171;border:none;padding:2px 6px;line-height:1.2;"
+                                        title="Delete photo">
+                                    <i class="fas fa-trash" style="font-size:.7rem;"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <?php else: ?>
+                <p class="text-muted mb-3" style="font-size:.9rem;">No photos yet. Upload delivery, placement, or pickup photos below.</p>
+                <?php endif; ?>
+
+                <!-- Upload Form -->
+                <form method="POST" action="upload_photo.php" enctype="multipart/form-data" id="photo-upload-form">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="wo_id" value="<?= $id ?>">
+
+                    <div class="upload-drop-zone mb-2" id="dropZone"
+                         onclick="document.getElementById('photo-file-input').click()"
+                         style="border:2px dashed #374151;border-radius:8px;padding:24px;text-align:center;cursor:pointer;transition:border-color .2s;">
+                        <i class="fas fa-cloud-upload-alt fa-2x mb-2" style="color:#6b7280;"></i>
+                        <div style="color:#9ca3af;font-size:.9rem;">
+                            Click to select photos, or drag &amp; drop here<br>
+                            <small>JPEG, PNG, WebP, GIF &bull; Up to 15 MB each &bull; Multiple allowed</small>
+                        </div>
+                        <div id="photo-file-names" class="mt-2" style="color:#f97316;font-size:.85rem;display:none;"></div>
+                    </div>
+
+                    <input type="file" id="photo-file-input" name="photos[]"
+                           accept="image/*" multiple
+                           class="d-none"
+                           onchange="showFileNames(this)">
+
+                    <div class="row g-2 mt-1">
+                        <div class="col-md-8">
+                            <input type="text" name="caption" class="form-control form-control-sm"
+                                   placeholder="Caption (optional — applies to all photos in this upload)">
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary btn-sm w-100" id="upload-btn" disabled>
+                                <i class="fas fa-upload me-1"></i> Upload
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+
         <!-- Notes Timeline -->
         <div class="card shadow-sm mb-4">
             <div class="card-header">
@@ -611,5 +713,69 @@ layout_start('WO: ' . $wo['wo_number'], 'work_orders');
 
     </div>
 </div>
+
+<!-- Lightbox Modal -->
+<div class="modal fade" id="lightboxModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content" style="background:#0d0f1a;border:none;">
+            <div class="modal-header" style="border-color:#1f2337;padding:.75rem 1rem;">
+                <span id="lightboxCaption" class="text-muted" style="font-size:.9rem;"></span>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-2 text-center">
+                <img id="lightboxImg" src="" alt="" style="max-width:100%;max-height:80vh;object-fit:contain;border-radius:4px;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openLightbox(src, caption) {
+    document.getElementById('lightboxImg').src = src;
+    document.getElementById('lightboxCaption').textContent = caption || '';
+    new bootstrap.Modal(document.getElementById('lightboxModal')).show();
+}
+
+function showFileNames(input) {
+    const files = Array.from(input.files);
+    const nameEl = document.getElementById('photo-file-names');
+    const btn    = document.getElementById('upload-btn');
+    if (files.length) {
+        nameEl.textContent = files.length === 1
+            ? files[0].name
+            : files.length + ' files selected';
+        nameEl.style.display = '';
+        btn.disabled = false;
+        document.getElementById('dropZone').style.borderColor = '#f97316';
+    } else {
+        nameEl.style.display = 'none';
+        btn.disabled = true;
+        document.getElementById('dropZone').style.borderColor = '#374151';
+    }
+}
+
+// Drag & drop support
+(function() {
+    const zone  = document.getElementById('dropZone');
+    const input = document.getElementById('photo-file-input');
+    if (!zone || !input) return;
+
+    zone.addEventListener('dragover', e => {
+        e.preventDefault();
+        zone.style.borderColor = '#f97316';
+    });
+    zone.addEventListener('dragleave', () => {
+        if (!input.files.length) zone.style.borderColor = '#374151';
+    });
+    zone.addEventListener('drop', e => {
+        e.preventDefault();
+        const dt = e.dataTransfer;
+        if (dt && dt.files.length) {
+            input.files = dt.files;
+            showFileNames(input);
+        }
+    });
+})();
+</script>
 
 <?php layout_end(); ?>

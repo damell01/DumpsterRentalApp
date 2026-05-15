@@ -359,6 +359,13 @@ $asset_path = defined('ASSET_PATH') ? ASSET_PATH : '';
         </button>
     </form>
 
+    <div style="margin-top:1.25rem;text-align:center;">
+        <a href="<?= e(APP_URL) ?>/forgot_password.php"
+           style="color:#6b7280;font-size:.85rem;text-decoration:none;">
+            Forgot your password?
+        </a>
+    </div>
+
 </div><!-- /.login-card -->
 
 <!-- Bootstrap JS (for any future use) -->

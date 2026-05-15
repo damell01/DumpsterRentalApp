@@ -346,8 +346,10 @@ function _buildEmailWrapper(title, bodyHtml) {
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
         <tr><td style="background:#1a1d27;padding:24px 32px;border-radius:8px 8px 0 0;">
-          <h1 style="margin:0;color:#f97316;font-size:1.5rem;font-weight:700;">&#128465; ${_escHtml(_co.name)}</h1>
-          <p style="margin:4px 0 0;color:#9ca3af;font-size:.85rem;">${_escHtml(title)}</p>
+          ${_co.logo
+            ? `<img src="${_escHtml(_co.logo)}" alt="${_escHtml(_co.name)}" style="max-height:55px;max-width:200px;object-fit:contain;display:block;margin-bottom:8px;">`
+            : `<h1 style="margin:0 0 6px;color:#f97316;font-size:1.5rem;font-weight:700;">${_escHtml(_co.name)}</h1>`}
+          <p style="margin:0;color:#9ca3af;font-size:.85rem;">${_escHtml(title)}</p>
         </td></tr>
         <tr><td style="background:#ffffff;padding:32px;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">
           ${bodyHtml}
