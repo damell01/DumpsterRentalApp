@@ -134,6 +134,56 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' https://c
             font-size: 1.05rem;
             color: var(--white);
         }
+        .bk-unit-stack {
+            display: grid;
+            gap: .65rem;
+            margin-top: .55rem;
+        }
+        .bk-unit-item {
+            background:
+                linear-gradient(135deg, rgba(255,255,255,.05), rgba(255,255,255,.02)),
+                rgba(255,255,255,.025);
+            border: 1px solid rgba(249,115,22,.12);
+            border-radius: 12px;
+            padding: .9rem 1rem;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+            position: relative;
+            overflow: hidden;
+        }
+        .bk-unit-item::before {
+            content: '';
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 3px;
+            background: linear-gradient(180deg, rgba(249,115,22,.95), rgba(249,115,22,.15));
+        }
+        .bk-unit-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+            flex-wrap: wrap;
+        }
+        .bk-unit-code {
+            font-family: var(--font-cond);
+            font-size: 1.03rem;
+            font-weight: 700;
+            color: var(--white);
+            letter-spacing: .02em;
+        }
+        .bk-unit-size {
+            color: var(--gray-light);
+            font-size: .82rem;
+            margin-top: .24rem;
+        }
+        .bk-unit-dates {
+            color: var(--gray);
+            font-size: .77rem;
+            margin-top: .55rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: .75rem;
+        }
         .bk-dates { font-size: .85rem; color: var(--gray-light); }
         .bk-meta  { font-size: .8rem;  color: var(--gray); margin-top: .15rem; }
         .bk-actions {
@@ -207,6 +257,7 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' https://c
             .page-container { padding: 2.15rem .9rem 3.75rem; }
             .book-card { padding: 1.35rem; }
             .bk-card { padding: 1.15rem 1.2rem 1.2rem 1.3rem; }
+            .bk-unit-item { padding: .8rem .82rem; }
         }
 
         .status-badge {
@@ -453,13 +504,14 @@ function renderBookings(bookings) {
     var list = document.getElementById('bookings-list');
     var countBadge = document.getElementById('booking-count-badge');
     var intro = document.getElementById('results-intro-copy');
-    countBadge.textContent = '(' + bookings.length + ')';
+    var groupedBookings = groupBookings(bookings);
+    countBadge.textContent = '(' + groupedBookings.length + ')';
     intro.style.display = 'block';
-    intro.innerHTML = '<strong>' + bookings.length + ' booking' + (bookings.length === 1 ? '' : 's') + ' found.</strong> '
-        + 'Review status, payment details, and invoice actions below.';
+    intro.innerHTML = '<strong>' + groupedBookings.length + ' booking' + (groupedBookings.length === 1 ? '' : 's') + ' found.</strong> '
+        + 'Units booked together are grouped into a single card so each order is easier to review.';
     list.innerHTML = '';
 
-    bookings.forEach(function(b) {
+    groupedBookings.forEach(function(b) {
         var bkStatus  = statusLabel(b.booking_status);
         var payStatus = payLabel(b.payment_status);
         var invoice = b.invoice || null;
@@ -472,13 +524,28 @@ function renderBookings(bookings) {
         var portalUrl = b.customer_email ? '/portal/request-link.php?email=' + encodeURIComponent(b.customer_email) : '/portal/request-link.php';
 
         // Build unit line — show sibling units if this is part of a group
-        var unitHtml = '<div class="bk-unit">' + escHtml(b.unit) + '</div>';
-        if (b.group_units && b.group_units.length > 0) {
-            unitHtml += '<div style="font-size:.78rem;color:var(--gray);margin-top:.15rem;">'
-                + '<i class="fas fa-layer-group" style="color:var(--orange);font-size:.7rem;margin-right:.3rem;"></i>'
-                + 'Also in group: ' + b.group_units.map(escHtml).join(', ')
+        var unitSummary = b.units.length === 1
+            ? b.units[0].label
+            : b.units.length + ' units booked together';
+        var unitHtml = '<div class="bk-unit">' + escHtml(unitSummary) + '</div>';
+        unitHtml += '<div class="bk-unit-stack">';
+        b.units.forEach(function(unit) {
+            unitHtml += '<div class="bk-unit-item">'
+                + '<div class="bk-unit-top">'
+                +   '<div>'
+                +     '<div class="bk-unit-code">' + escHtml(unit.code || 'Booked Unit') + '</div>'
+                +     '<div class="bk-unit-size">' + escHtml(unit.size || 'Dumpster rental') + '</div>'
+                +   '</div>'
+                +   '<span class="status-badge status-' + escHtml(unit.booking_status) + '">' + escHtml(statusLabel(unit.booking_status)) + '</span>'
+                + '</div>'
+                + '<div class="bk-unit-dates">'
+                +   '<span><i class="fas fa-calendar-alt" style="color:var(--orange);margin-right:.3rem;"></i>' + escHtml(formatDate(unit.rental_start)) + ' → ' + escHtml(formatDate(unit.rental_end)) + '</span>'
+                +   '<span><i class="fas fa-arrows-left-right-to-line" style="color:var(--orange);margin-right:.3rem;"></i>' + escHtml(unit.days_label) + '</span>'
+                +   '<span><i class="fas fa-dollar-sign" style="color:var(--orange);margin-right:.3rem;"></i>$' + parseFloat(unit.total_amount).toFixed(2) + '</span>'
+                + '</div>'
                 + '</div>';
-        }
+        });
+        unitHtml += '</div>';
 
         var invoiceHtml = '';
         if (invoice && invoice.number) {
@@ -556,6 +623,93 @@ function resetLookup() {
 }
 
 // ── Formatters ─────────────────────────────────────────────────────────────────
+function groupBookings(bookings) {
+    var grouped = {};
+
+    bookings.forEach(function(booking) {
+        var key = booking.booking_number || ('row-' + (booking.id || Math.random()));
+        if (!grouped[key]) {
+            grouped[key] = {
+                id: booking.id,
+                booking_number: booking.booking_number,
+                booking_status: booking.booking_status,
+                payment_status: booking.payment_status,
+                payment_method: booking.payment_method,
+                rental_start: booking.rental_start,
+                rental_end: booking.rental_end,
+                rental_days: booking.rental_days,
+                total_amount: parseFloat(booking.total_amount || 0),
+                address: booking.address,
+                customer_email: booking.customer_email,
+                invoice: booking.invoice || null,
+                units: []
+            };
+        } else {
+            grouped[key].total_amount += parseFloat(booking.total_amount || 0);
+            grouped[key].rental_start = minDate(grouped[key].rental_start, booking.rental_start);
+            grouped[key].rental_end = maxDate(grouped[key].rental_end, booking.rental_end);
+            grouped[key].rental_days = calcRentalDays(grouped[key].rental_start, grouped[key].rental_end);
+
+            if ((!grouped[key].invoice || !grouped[key].invoice.number) && booking.invoice) {
+                grouped[key].invoice = booking.invoice;
+            }
+            if (grouped[key].payment_status !== 'paid' && booking.payment_status === 'paid') {
+                grouped[key].payment_status = booking.payment_status;
+            }
+            if (grouped[key].booking_status === 'pending' && booking.booking_status !== 'pending') {
+                grouped[key].booking_status = booking.booking_status;
+            }
+        }
+
+        grouped[key].units.push({
+            code: booking.unit_code || '',
+            size: booking.unit_size || booking.unit || '',
+            rental_start: booking.rental_start,
+            rental_end: booking.rental_end,
+            booking_status: booking.booking_status,
+            total_amount: parseFloat(booking.total_amount || 0),
+            days_label: unitDaysLabel(booking.rental_days, booking.rental_start, booking.rental_end),
+            label: booking.unit || ((booking.unit_code || '') + ((booking.unit_size || '') ? ' - ' + booking.unit_size : ''))
+        });
+    });
+
+    return Object.keys(grouped).map(function(key) {
+        grouped[key].total_amount = grouped[key].total_amount.toFixed(2);
+        grouped[key].units.sort(function(a, b) {
+            return String(a.code || '').localeCompare(String(b.code || ''));
+        });
+        return grouped[key];
+    });
+}
+
+function minDate(a, b) {
+    if (!a) return b || '';
+    if (!b) return a;
+    return a < b ? a : b;
+}
+
+function maxDate(a, b) {
+    if (!a) return b || '';
+    if (!b) return a;
+    return a > b ? a : b;
+}
+
+function calcRentalDays(start, end) {
+    if (!start || !end) return 1;
+    var startDate = new Date(start + 'T00:00:00');
+    var endDate = new Date(end + 'T00:00:00');
+    var diff = Math.round((endDate - startDate) / 86400000) + 1;
+    return diff > 0 ? diff : 1;
+}
+
+function unitDaysLabel(rentalDays, start, end) {
+    var days = parseInt(rentalDays, 10);
+    if (!days || days < 1) {
+        days = calcRentalDays(start, end);
+    }
+    return days === 1 ? '1 day' : days + ' days';
+}
+
 function statusLabel(s) {
     var map = { confirmed: 'Confirmed', pending: 'Pending', canceled: 'Canceled', completed: 'Completed', paid: 'Paid' };
     return map[s] || s;

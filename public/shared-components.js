@@ -265,9 +265,6 @@ function renderSizesPage(sizes) {
       const featured = index === featuredIndex;
       const available = Number(size.available_count || 0);
       const total = Number(size.unit_count || 0);
-      const reserved = Number(size.reserved_count || 0);
-      const inUse = Number(size.in_use_count || 0);
-      const maintenance = Number(size.maintenance_count || 0);
       const unitCodes = Array.isArray(size.unit_codes) ? size.unit_codes.filter(Boolean).join(', ') : '';
       const description = escapeHtml(summarizeSizeUse(size.size, size.description));
       const priceLine = escapeHtml(buildPricingLine(size) || 'Call for pricing');
@@ -307,15 +304,6 @@ function renderSizesPage(sizes) {
                   <li><i class="fas fa-check-circle"></i>${priceLine}</li>
                   <li><i class="fas fa-check-circle"></i>${escapeHtml(rentalLabel(size.rental_days))}</li>
                   <li><i class="fas fa-check-circle"></i>${escapeHtml(unitCodes ? `Units: ${unitCodes}` : 'Units are assigned when booked.')}</li>
-                </ul>
-              </div>
-              <div>
-                <div class="size-col-label">Current Status Mix</div>
-                <ul class="use-list">
-                  <li><i class="fas fa-info-circle"></i>${available} available</li>
-                  <li><i class="fas fa-info-circle"></i>${reserved} reserved</li>
-                  <li><i class="fas fa-info-circle"></i>${inUse} in use</li>
-                  <li><i class="fas fa-info-circle"></i>${maintenance} in maintenance</li>
                 </ul>
               </div>
             </div>

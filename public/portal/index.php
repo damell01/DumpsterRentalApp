@@ -45,7 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $customer) {
     csrf_check();
     $action = trim((string)($_POST['action'] ?? ''));
     try {
-        if ($action === 'pause_subscription') {
+        if (in_array($action, ['pause_subscription', 'resume_subscription', 'cancel_subscription'], true) && !$subscriptionBillingAvailable) {
+            throw new RuntimeException($subscriptionBillingMessage);
+        } elseif ($action === 'pause_subscription') {
             stripe_pause_subscription((int)$_POST['subscription_id']);
         } elseif ($action === 'resume_subscription') {
             stripe_resume_subscription((int)$_POST['subscription_id']);
@@ -77,6 +79,10 @@ $subscriptions = $customer ? db_fetchall('SELECT * FROM subscriptions WHERE cust
 $invoices = $customer ? db_fetchall('SELECT * FROM invoices WHERE customer_id = ? ORDER BY created_at DESC LIMIT 50', [(int)$customer['id']]) : [];
 $payments = $customer ? db_fetchall('SELECT * FROM payments WHERE customer_id = ? ORDER BY created_at DESC LIMIT 50', [(int)$customer['id']]) : [];
 $paymentMethods = $customer ? db_fetchall('SELECT * FROM payment_methods WHERE customer_id = ? ORDER BY is_default DESC, updated_at DESC', [(int)$customer['id']]) : [];
+$subscriptionBillingAvailable = stripe_sdk_available() && trim((string)get_setting('stripe_secret_key', '')) !== '';
+$subscriptionBillingMessage = $subscriptionBillingAvailable
+    ? ''
+    : 'Subscription changes are temporarily unavailable because secure Stripe billing is not installed or configured on this server yet.';
 
 $active_subscription_count = 0;
 foreach ($subscriptions as $subscription) {
@@ -468,6 +474,12 @@ foreach ($payments as $payment) {
                 <h2>Subscriptions</h2>
                 <p>Pause, resume, or cancel recurring services on your account.</p>
             </div>
+            <?php if (!$subscriptionBillingAvailable): ?>
+            <div class="portal-note-box" style="margin-bottom:1rem;">
+                <strong>Subscription billing actions are unavailable right now.</strong><br>
+                <?= e($subscriptionBillingMessage) ?>
+            </div>
+            <?php endif; ?>
             <?php if (!$subscriptions): ?>
             <p class="portal-empty">No subscriptions found.</p>
             <?php else: ?>
@@ -487,14 +499,14 @@ foreach ($payments as $payment) {
                             <?= csrf_field() ?>
                             <input type="hidden" name="subscription_id" value="<?= (int)$subscription['id'] ?>">
                             <input type="hidden" name="action" value="<?= $subscription['status'] === 'paused' ? 'resume_subscription' : 'pause_subscription' ?>">
-                            <button class="btn-ghost" type="submit"><?= $subscription['status'] === 'paused' ? 'Resume Service' : 'Pause Service' ?></button>
+                            <button class="btn-ghost" type="submit" <?= $subscriptionBillingAvailable ? '' : 'disabled aria-disabled="true" title="Stripe billing actions are unavailable"' ?>><?= $subscription['status'] === 'paused' ? 'Resume Service' : 'Pause Service' ?></button>
                         </form>
                         <?php if ($subscription['status'] !== 'canceled'): ?>
                         <form method="POST" onsubmit="return confirm('Cancel this subscription?');">
                             <?= csrf_field() ?>
                             <input type="hidden" name="subscription_id" value="<?= (int)$subscription['id'] ?>">
                             <input type="hidden" name="action" value="cancel_subscription">
-                            <button class="btn-ghost" type="submit">Cancel Subscription</button>
+                            <button class="btn-ghost" type="submit" <?= $subscriptionBillingAvailable ? '' : 'disabled aria-disabled="true" title="Stripe billing actions are unavailable"' ?>>Cancel Subscription</button>
                         </form>
                         <?php endif; ?>
                     </div>

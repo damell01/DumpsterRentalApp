@@ -495,7 +495,13 @@ function pdf_wrap_lines(string $text, int $lineLength = 88): array
     $lines = preg_split("/\r\n|\n|\r/", $text) ?: [];
     $wrapped = [];
     foreach ($lines as $line) {
-        $parts = explode("\n", wordwrap($line, $lineLength, "\n", true));
+        $normalized = rtrim($line);
+        if ($normalized === '') {
+            $wrapped[] = ' ';
+            continue;
+        }
+
+        $parts = explode("\n", wordwrap($normalized, $lineLength, "\n", false));
         foreach ($parts as $part) {
             $wrapped[] = $part === '' ? ' ' : $part;
         }
@@ -517,98 +523,158 @@ function booking_terms_pdf_attachment(array $booking): ?array
     $customerName = (string)($booking['customer_name'] ?? 'Customer');
     $bookingNumber = (string)($booking['booking_number'] ?? '');
 
-    $content = [];
-    $content[] = '0.08 0.1 0.16 rg 0 0 612 792 re f';
-    $content[] = '0.97 0.45 0.09 rg 0 708 612 84 re f';
-    $content[] = '1 1 1 rg';
-    $content[] = 'BT /F2 24 Tf 48 752 Td (' . pdf_escape_text('Terms & Conditions') . ') Tj ET';
-    $content[] = 'BT /F1 11 Tf 48 730 Td (' . pdf_escape_text($companyName) . ') Tj ET';
-
     $logo = booking_terms_logo_jpeg();
-    $imageObject = '';
-    $imageObjectNumber = 0;
-    $contentObjectNumber = 6;
-    $resourceExtra = '';
-    if ($logo !== null) {
-        $maxWidth = 132.0;
-        $scale = min(1.0, $maxWidth / max(1, (float)$logo['width']));
-        $displayW = round($logo['width'] * $scale, 2);
-        $displayH = round($logo['height'] * $scale, 2);
-        $x = round(612 - 48 - $displayW, 2);
-        $y = round(720 + ((72 - $displayH) / 2), 2);
-        $content[] = 'q ' . $displayW . ' 0 0 ' . $displayH . ' ' . $x . ' ' . $y . ' cm /Im1 Do Q';
-        $imageBinary = $logo['binary'];
-        $imageObjectNumber = 6;
-        $contentObjectNumber = 7;
-        $imageObject = $imageObjectNumber . " 0 obj\n<< /Type /XObject /Subtype /Image /Width {$logo['width']} /Height {$logo['height']} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " . strlen($imageBinary) . " >>\nstream\n" . $imageBinary . "\nendstream\nendobj\n";
-        $resourceExtra = ' /XObject << /Im1 ' . $imageObjectNumber . ' 0 R >>';
-    }
-
-    // Main white card
-    $content[] = '1 1 1 rg 36 54 540 624 re f';
-    $content[] = '0.87 0.89 0.93 RG 1 w 36 54 540 624 re S';
-
-    // Booking details strip
-    $content[] = '0.95 0.96 0.98 rg 54 592 504 64 re f';
-    $content[] = '0.9 0.92 0.95 RG 1 w 54 592 504 64 re S';
-    $content[] = '0.15 0.18 0.24 rg';
-    $content[] = 'BT /F2 10 Tf 70 632 Td (' . pdf_escape_text('Accepted Date') . ') Tj ET';
-    $content[] = 'BT /F1 11 Tf 70 615 Td (' . pdf_escape_text($acceptedDate) . ') Tj ET';
-    $content[] = 'BT /F2 10 Tf 250 632 Td (' . pdf_escape_text('Customer') . ') Tj ET';
-    $content[] = 'BT /F1 11 Tf 250 615 Td (' . pdf_escape_text($customerName) . ') Tj ET';
-    $content[] = 'BT /F2 10 Tf 430 632 Td (' . pdf_escape_text('Booking #') . ') Tj ET';
-    $content[] = 'BT /F1 11 Tf 430 615 Td (' . pdf_escape_text($bookingNumber !== '' ? $bookingNumber : 'N/A') . ') Tj ET';
-
-    // Intro copy
-    $content[] = '0.11 0.13 0.18 rg';
-    $content[] = 'BT /F2 13 Tf 54 565 Td (' . pdf_escape_text('Agreement Summary') . ') Tj ET';
-    $introLines = [
-        'This document records the Terms and Conditions accepted for this dumpster rental booking.',
-        'Please keep this copy with your booking records for future reference.',
-    ];
-    $y = 545;
-    foreach ($introLines as $line) {
-        $content[] = 'BT /F1 10.5 Tf 54 ' . $y . ' Td (' . pdf_escape_text($line) . ') Tj ET';
-        $y -= 15;
-    }
-
-    // Terms section container
-    $content[] = '0.99 0.99 1 rg 54 92 504 420 re f';
-    $content[] = '0.9 0.92 0.95 RG 1 w 54 92 504 420 re S';
-    $content[] = '0.97 0.45 0.09 rg 54 482 504 30 re f';
-    $content[] = '1 1 1 rg';
-    $content[] = 'BT /F2 12 Tf 68 493 Td (' . pdf_escape_text('Accepted Terms') . ') Tj ET';
-
-    $content[] = '0.16 0.18 0.24 rg';
     $textLines = pdf_wrap_lines($termsText, 84);
-    $y = 463;
-    foreach ($textLines as $line) {
-        if ($y < 112) {
-            break;
-        }
-        $content[] = 'BT /F1 9.6 Tf 68 ' . $y . ' Td (' . pdf_escape_text($line) . ') Tj ET';
-        $y -= 12.5;
+    $firstPageLines = 29;
+    $continuationPageLines = 43;
+    $lineChunks = array_chunk($textLines, $firstPageLines);
+    if (!empty($lineChunks)) {
+        $firstChunk = array_shift($lineChunks);
+    } else {
+        $firstChunk = [' '];
     }
 
-    // Footer note
-    $content[] = '0.45 0.49 0.56 rg';
-    $content[] = 'BT /F1 8.5 Tf 54 70 Td (' . pdf_escape_text('Generated automatically by ' . $companyName . ' on ' . date('F j, Y')) . ') Tj ET';
+    $pageLineSets = [$firstChunk];
+    foreach ($lineChunks as $chunk) {
+        foreach (array_chunk($chunk, $continuationPageLines) as $continuedChunk) {
+            $pageLineSets[] = $continuedChunk;
+        }
+    }
 
-    $stream = implode("\n", $content) . "\n";
+    $totalPages = count($pageLineSets);
+    $pageStreams = [];
+
+    foreach ($pageLineSets as $pageIndex => $pageLines) {
+        $isFirstPage = $pageIndex === 0;
+        $pageNumber = $pageIndex + 1;
+        $content = [];
+        $content[] = '0.08 0.1 0.16 rg 0 0 612 792 re f';
+        $content[] = '0.97 0.45 0.09 rg 0 708 612 84 re f';
+        $content[] = '1 1 1 rg';
+        $content[] = 'BT /F2 24 Tf 48 752 Td (' . pdf_escape_text('Terms & Conditions') . ') Tj ET';
+        $content[] = 'BT /F1 11 Tf 48 730 Td (' . pdf_escape_text($companyName) . ') Tj ET';
+
+        if ($isFirstPage && $logo !== null) {
+            $maxWidth = 132.0;
+            $scale = min(1.0, $maxWidth / max(1, (float)$logo['width']));
+            $displayW = round($logo['width'] * $scale, 2);
+            $displayH = round($logo['height'] * $scale, 2);
+            $x = round(612 - 48 - $displayW, 2);
+            $y = round(720 + ((72 - $displayH) / 2), 2);
+            $content[] = 'q ' . $displayW . ' 0 0 ' . $displayH . ' ' . $x . ' ' . $y . ' cm /Im1 Do Q';
+        }
+
+        if ($isFirstPage) {
+            $content[] = '1 1 1 rg 36 54 540 624 re f';
+            $content[] = '0.87 0.89 0.93 RG 1 w 36 54 540 624 re S';
+
+            $content[] = '0.95 0.96 0.98 rg 54 592 504 64 re f';
+            $content[] = '0.9 0.92 0.95 RG 1 w 54 592 504 64 re S';
+            $content[] = '0.15 0.18 0.24 rg';
+            $content[] = 'BT /F2 10 Tf 70 632 Td (' . pdf_escape_text('Accepted Date') . ') Tj ET';
+            $content[] = 'BT /F1 11 Tf 70 615 Td (' . pdf_escape_text($acceptedDate) . ') Tj ET';
+            $content[] = 'BT /F2 10 Tf 250 632 Td (' . pdf_escape_text('Customer') . ') Tj ET';
+            $content[] = 'BT /F1 11 Tf 250 615 Td (' . pdf_escape_text($customerName) . ') Tj ET';
+            $content[] = 'BT /F2 10 Tf 430 632 Td (' . pdf_escape_text('Booking #') . ') Tj ET';
+            $content[] = 'BT /F1 11 Tf 430 615 Td (' . pdf_escape_text($bookingNumber !== '' ? $bookingNumber : 'N/A') . ') Tj ET';
+
+            $content[] = '0.11 0.13 0.18 rg';
+            $content[] = 'BT /F2 13 Tf 54 565 Td (' . pdf_escape_text('Agreement Summary') . ') Tj ET';
+            $introLines = [
+                'This document records the Terms and Conditions accepted for this dumpster rental booking.',
+                'Please keep this copy with your booking records for future reference.',
+            ];
+            $introY = 545;
+            foreach ($introLines as $line) {
+                $content[] = 'BT /F1 10.5 Tf 54 ' . $introY . ' Td (' . pdf_escape_text($line) . ') Tj ET';
+                $introY -= 15;
+            }
+
+            $content[] = '0.99 0.99 1 rg 54 92 504 420 re f';
+            $content[] = '0.9 0.92 0.95 RG 1 w 54 92 504 420 re S';
+            $content[] = '0.97 0.45 0.09 rg 54 482 504 30 re f';
+            $content[] = '1 1 1 rg';
+            $content[] = 'BT /F2 12 Tf 68 493 Td (' . pdf_escape_text('Accepted Terms') . ') Tj ET';
+
+            $content[] = '0.16 0.18 0.24 rg';
+            $textY = 463;
+            foreach ($pageLines as $line) {
+                $content[] = 'BT /F1 9.6 Tf 68 ' . $textY . ' Td (' . pdf_escape_text($line) . ') Tj ET';
+                $textY -= 12.5;
+            }
+        } else {
+            $content[] = '1 1 1 rg 36 54 540 624 re f';
+            $content[] = '0.87 0.89 0.93 RG 1 w 36 54 540 624 re S';
+            $content[] = '0.99 0.99 1 rg 54 92 504 564 re f';
+            $content[] = '0.9 0.92 0.95 RG 1 w 54 92 504 564 re S';
+            $content[] = '0.97 0.45 0.09 rg 54 626 504 30 re f';
+            $content[] = '1 1 1 rg';
+            $content[] = 'BT /F2 12 Tf 68 637 Td (' . pdf_escape_text('Accepted Terms (Continued)') . ') Tj ET';
+            $content[] = '0.16 0.18 0.24 rg';
+
+            $textY = 608;
+            foreach ($pageLines as $line) {
+                $content[] = 'BT /F1 9.6 Tf 68 ' . $textY . ' Td (' . pdf_escape_text($line) . ') Tj ET';
+                $textY -= 12.5;
+            }
+        }
+
+        $content[] = '0.45 0.49 0.56 rg';
+        $content[] = 'BT /F1 8.5 Tf 54 70 Td (' . pdf_escape_text('Generated automatically by ' . $companyName . ' on ' . date('F j, Y')) . ') Tj ET';
+        $content[] = 'BT /F1 8.5 Tf 500 70 Td (' . pdf_escape_text('Page ' . $pageNumber . ' of ' . $totalPages) . ') Tj ET';
+
+        $pageStreams[] = implode("\n", $content) . "\n";
+    }
 
     $pdf = "%PDF-1.4\n";
     $offsets = [];
-    $objects = [
-        "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
-        "2 0 obj\n<< /Type /Pages /Count 1 /Kids [3 0 R] >>\nendobj\n",
-        "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R /F2 5 0 R >>{$resourceExtra} >> /Contents {$contentObjectNumber} 0 R >>\nendobj\n",
-        "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
-        "5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n",
-    ];
+    $objects = [];
+    $pageCount = count($pageStreams);
+    $pageObjectStart = 3;
+    $font1ObjectNumber = $pageObjectStart + $pageCount;
+    $font2ObjectNumber = $font1ObjectNumber + 1;
+    $nextObjectNumber = $font2ObjectNumber + 1;
+    $imageObjectNumber = 0;
+    $imageObject = '';
+
+    if ($logo !== null) {
+        $imageObjectNumber = $nextObjectNumber;
+        $nextObjectNumber++;
+        $imageBinary = $logo['binary'];
+        $imageObject = $imageObjectNumber . " 0 obj\n<< /Type /XObject /Subtype /Image /Width {$logo['width']} /Height {$logo['height']} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " . strlen($imageBinary) . " >>\nstream\n" . $imageBinary . "\nendstream\nendobj\n";
+    }
+
+    $contentObjectNumbers = [];
+    foreach ($pageStreams as $_stream) {
+        $contentObjectNumbers[] = $nextObjectNumber;
+        $nextObjectNumber++;
+    }
+
+    $objects[] = "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n";
+
+    $pageKids = [];
+    for ($i = 0; $i < $pageCount; $i++) {
+        $pageKids[] = ($pageObjectStart + $i) . ' 0 R';
+    }
+    $objects[] = "2 0 obj\n<< /Type /Pages /Count {$pageCount} /Kids [" . implode(' ', $pageKids) . "] >>\nendobj\n";
+
+    for ($i = 0; $i < $pageCount; $i++) {
+        $resourceExtra = ($i === 0 && $imageObjectNumber > 0)
+            ? ' /XObject << /Im1 ' . $imageObjectNumber . ' 0 R >>'
+            : '';
+        $objects[] = ($pageObjectStart + $i) . " 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 {$font1ObjectNumber} 0 R /F2 {$font2ObjectNumber} 0 R >>{$resourceExtra} >> /Contents {$contentObjectNumbers[$i]} 0 R >>\nendobj\n";
+    }
+
+    $objects[] = $font1ObjectNumber . " 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n";
+    $objects[] = $font2ObjectNumber . " 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>\nendobj\n";
+
     if ($imageObject !== '') {
         $objects[] = $imageObject;
     }
-    $objects[] = $contentObjectNumber . " 0 obj\n<< /Length " . strlen($stream) . " >>\nstream\n" . $stream . "endstream\nendobj\n";
+
+    foreach ($pageStreams as $i => $stream) {
+        $objects[] = $contentObjectNumbers[$i] . " 0 obj\n<< /Length " . strlen($stream) . " >>\nstream\n" . $stream . "endstream\nendobj\n";
+    }
 
     foreach ($objects as $object) {
         $offsets[] = strlen($pdf);
