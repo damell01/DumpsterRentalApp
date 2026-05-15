@@ -173,30 +173,49 @@ foreach ($monthly_revenue as $mr) {
 }
 
 // ── Operations snapshot (always real-time, no date filter) ───────────────────
-$ops_active     = (int)(db_fetch("SELECT COUNT(*) AS n FROM work_orders WHERE status IN ('delivered','active')")['n'] ?? 0);
-$ops_upcoming   = (int)(db_fetch("SELECT COUNT(*) AS n FROM work_orders WHERE delivery_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(),INTERVAL 7 DAY) AND status='scheduled'")['n'] ?? 0);
-$ops_overdue_wo = (int)(db_fetch("SELECT COUNT(*) AS n FROM work_orders WHERE pickup_date < CURDATE() AND status NOT IN ('picked_up','completed','canceled')")['n'] ?? 0);
+$ops_active     = 0;
+$ops_upcoming   = 0;
+$ops_overdue_wo = 0;
+$inv_outstanding_cnt = 0;
+$inv_outstanding_bal = 0.0;
+$inv_overdue_cnt     = 0;
+$top_customers       = [];
 
-$inv_outstanding_row = db_fetch("SELECT COUNT(*) AS cnt, COALESCE(SUM(total - COALESCE(amount_paid,0)),0) AS bal FROM invoices WHERE status IN ('open','sent')");
-$inv_outstanding_cnt = (int)($inv_outstanding_row['cnt'] ?? 0);
-$inv_outstanding_bal = (float)($inv_outstanding_row['bal'] ?? 0);
-$inv_overdue_cnt     = (int)(db_fetch("SELECT COUNT(*) AS n FROM invoices WHERE status IN ('open','sent') AND due_date < CURDATE()")['n'] ?? 0);
+try {
+    $ops_active = (int)(db_fetch("SELECT COUNT(*) AS n FROM work_orders WHERE status IN ('delivered','active')")['n'] ?? 0);
+} catch (\Throwable $e) {}
+try {
+    $ops_upcoming = (int)(db_fetch("SELECT COUNT(*) AS n FROM work_orders WHERE delivery_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(),INTERVAL 7 DAY) AND status='scheduled'")['n'] ?? 0);
+} catch (\Throwable $e) {}
+try {
+    $ops_overdue_wo = (int)(db_fetch("SELECT COUNT(*) AS n FROM work_orders WHERE pickup_date < CURDATE() AND status NOT IN ('picked_up','completed','canceled')")['n'] ?? 0);
+} catch (\Throwable $e) {}
+try {
+    $r = db_fetch("SELECT COUNT(*) AS cnt, COALESCE(SUM(total),0) AS bal FROM invoices WHERE status = 'sent'");
+    $inv_outstanding_cnt = (int)($r['cnt'] ?? 0);
+    $inv_outstanding_bal = (float)($r['bal'] ?? 0);
+} catch (\Throwable $e) {}
+try {
+    $inv_overdue_cnt = (int)(db_fetch("SELECT COUNT(*) AS n FROM invoices WHERE status = 'sent' AND due_date < CURDATE()")['n'] ?? 0);
+} catch (\Throwable $e) {}
 
 // ── Top 10 customers by all-time revenue ────────────────────────────────────
-$top_customers = db_fetchall(
-    "SELECT c.id, c.name, c.email,
-            COUNT(DISTINCT i.id)  AS invoice_cnt,
-            COALESCE(SUM(i.total_paid),0) AS inv_revenue,
-            COUNT(DISTINCT b.id)  AS booking_cnt,
-            COALESCE(SUM(CASE WHEN b.payment_status IN ('paid','paid_cash','paid_check') THEN b.total_amount ELSE 0 END),0) AS bk_revenue
-     FROM customers c
-     LEFT JOIN invoices i ON i.customer_id = c.id AND i.status = 'paid'
-     LEFT JOIN bookings b ON b.customer_id = c.id AND b.booking_status != 'canceled'
-     GROUP BY c.id, c.name, c.email
-     HAVING (inv_revenue + bk_revenue) > 0
-     ORDER BY (inv_revenue + bk_revenue) DESC
-     LIMIT 10"
-);
+try {
+    $top_customers = db_fetchall(
+        "SELECT c.id, c.name, c.email,
+                COUNT(DISTINCT i.id) AS invoice_cnt,
+                COALESCE(SUM(CASE WHEN i.status='paid' THEN i.total ELSE 0 END),0) AS inv_revenue,
+                COUNT(DISTINCT b.id) AS booking_cnt,
+                COALESCE(SUM(CASE WHEN b.payment_status IN ('paid','paid_cash','paid_check') THEN b.total_amount ELSE 0 END),0) AS bk_revenue
+         FROM customers c
+         LEFT JOIN invoices i ON i.customer_id = c.id
+         LEFT JOIN bookings b ON b.customer_email = c.email AND b.booking_status != 'canceled'
+         GROUP BY c.id, c.name, c.email
+         HAVING (inv_revenue + bk_revenue) > 0
+         ORDER BY (inv_revenue + bk_revenue) DESC
+         LIMIT 10"
+    );
+} catch (\Throwable $e) {}
 
 layout_start('Reports', 'reports');
 ?>
