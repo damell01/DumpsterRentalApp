@@ -172,8 +172,66 @@ foreach ($monthly_revenue as $mr) {
     if ($t > $max_bar) $max_bar = $t;
 }
 
+// ── Operations snapshot (always real-time, no date filter) ───────────────────
+$ops_active     = (int)(db_fetch("SELECT COUNT(*) AS n FROM work_orders WHERE status IN ('delivered','active')")['n'] ?? 0);
+$ops_upcoming   = (int)(db_fetch("SELECT COUNT(*) AS n FROM work_orders WHERE delivery_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(),INTERVAL 7 DAY) AND status='scheduled'")['n'] ?? 0);
+$ops_overdue_wo = (int)(db_fetch("SELECT COUNT(*) AS n FROM work_orders WHERE pickup_date < CURDATE() AND status NOT IN ('picked_up','completed','canceled')")['n'] ?? 0);
+
+$inv_outstanding_row = db_fetch("SELECT COUNT(*) AS cnt, COALESCE(SUM(total - COALESCE(amount_paid,0)),0) AS bal FROM invoices WHERE status IN ('open','sent')");
+$inv_outstanding_cnt = (int)($inv_outstanding_row['cnt'] ?? 0);
+$inv_outstanding_bal = (float)($inv_outstanding_row['bal'] ?? 0);
+$inv_overdue_cnt     = (int)(db_fetch("SELECT COUNT(*) AS n FROM invoices WHERE status IN ('open','sent') AND due_date < CURDATE()")['n'] ?? 0);
+
+// ── Top 10 customers by all-time revenue ────────────────────────────────────
+$top_customers = db_fetchall(
+    "SELECT c.id, c.name, c.email,
+            COUNT(DISTINCT i.id)  AS invoice_cnt,
+            COALESCE(SUM(i.total_paid),0) AS inv_revenue,
+            COUNT(DISTINCT b.id)  AS booking_cnt,
+            COALESCE(SUM(CASE WHEN b.payment_status IN ('paid','paid_cash','paid_check') THEN b.total_amount ELSE 0 END),0) AS bk_revenue
+     FROM customers c
+     LEFT JOIN invoices i ON i.customer_id = c.id AND i.status = 'paid'
+     LEFT JOIN bookings b ON b.customer_id = c.id AND b.booking_status != 'canceled'
+     GROUP BY c.id, c.name, c.email
+     HAVING (inv_revenue + bk_revenue) > 0
+     ORDER BY (inv_revenue + bk_revenue) DESC
+     LIMIT 10"
+);
+
 layout_start('Reports', 'reports');
 ?>
+
+<!-- Operations Snapshot -->
+<h6 class="section-heading mb-2">
+    <i class="fa-solid fa-gauge-high me-1"></i> Operations Snapshot <small class="text-muted" style="font-weight:400;font-size:.78rem;">— real-time, no date filter</small>
+</h6>
+<div class="kpi-row mb-4">
+    <div class="kpi-card" style="border-left:4px solid #f97316;">
+        <div class="kpi-label">Active Rentals</div>
+        <div class="kpi-value"><?= $ops_active ?></div>
+        <div class="kpi-sub">Dumpsters currently out</div>
+    </div>
+    <div class="kpi-card" style="border-left:4px solid #3b82f6;">
+        <div class="kpi-label">Deliveries (Next 7 Days)</div>
+        <div class="kpi-value"><?= $ops_upcoming ?></div>
+        <div class="kpi-sub">Scheduled deliveries</div>
+    </div>
+    <div class="kpi-card" style="border-left:4px solid <?= $ops_overdue_wo > 0 ? '#ef4444' : '#6b7280' ?>;">
+        <div class="kpi-label">Overdue Pickups</div>
+        <div class="kpi-value" style="<?= $ops_overdue_wo > 0 ? 'color:#ef4444;' : '' ?>"><?= $ops_overdue_wo ?></div>
+        <div class="kpi-sub"><?= $ops_overdue_wo > 0 ? '<a href="'.e(APP_URL).'/modules/work_orders/index.php?status=overdue" style="color:#ef4444;">View overdue</a>' : 'All pickups on schedule' ?></div>
+    </div>
+    <div class="kpi-card" style="border-left:4px solid #7c3aed;">
+        <div class="kpi-label">Outstanding Invoices</div>
+        <div class="kpi-value"><?= e(fmt_money($inv_outstanding_bal)) ?></div>
+        <div class="kpi-sub"><?= $inv_outstanding_cnt ?> invoice<?= $inv_outstanding_cnt !== 1 ? 's' : '' ?> unpaid</div>
+    </div>
+    <div class="kpi-card" style="border-left:4px solid <?= $inv_overdue_cnt > 0 ? '#ef4444' : '#6b7280' ?>;">
+        <div class="kpi-label">Overdue Invoices</div>
+        <div class="kpi-value" style="<?= $inv_overdue_cnt > 0 ? 'color:#ef4444;' : '' ?>"><?= $inv_overdue_cnt ?></div>
+        <div class="kpi-sub"><?= $inv_overdue_cnt > 0 ? '<a href="'.e(APP_URL).'/modules/invoices/index.php?status=overdue" style="color:#ef4444;">View overdue</a>' : 'No overdue invoices' ?></div>
+    </div>
+</div>
 
 <!-- Filter Bar -->
 <div class="tp-card mb-4">
@@ -456,6 +514,51 @@ layout_start('Reports', 'reports');
     </div>
     <?php endif; ?>
 </div>
+
+<?php if (!empty($top_customers)): ?>
+<!-- Top Customers -->
+<h6 class="section-heading mb-2">
+    <i class="fa-solid fa-trophy me-1"></i> Top Customers by Revenue <small class="text-muted" style="font-weight:400;">(all-time)</small>
+</h6>
+<div class="tp-card p-0 mb-4">
+    <div class="table-responsive">
+        <table class="table tp-table mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Customer</th>
+                    <th class="text-center">Bookings</th>
+                    <th class="text-center">Invoices</th>
+                    <th class="text-end">Total Revenue</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($top_customers as $i => $tc):
+                $total = (float)$tc['inv_revenue'] + (float)$tc['bk_revenue'];
+            ?>
+            <tr>
+                <td style="color:var(--gy);font-size:.85rem;"><?= $i + 1 ?></td>
+                <td>
+                    <div class="fw-semibold"><?= e($tc['name']) ?></div>
+                    <?php if ($tc['email']): ?>
+                    <div style="font-size:.78rem;color:var(--gy);"><?= e($tc['email']) ?></div>
+                    <?php endif; ?>
+                </td>
+                <td class="text-center"><?= (int)$tc['booking_cnt'] ?></td>
+                <td class="text-center"><?= (int)$tc['invoice_cnt'] ?></td>
+                <td class="text-end fw-bold" style="color:#4ade80;"><?= e(fmt_money($total)) ?></td>
+                <td>
+                    <a href="<?= e(APP_URL) ?>/modules/customers/view.php?id=<?= (int)$tc['id'] ?>"
+                       class="btn-tp-ghost btn-tp-xs">View</a>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+<?php endif; ?>
 
 <?php
 layout_end();
