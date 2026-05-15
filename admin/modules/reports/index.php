@@ -222,33 +222,49 @@ layout_start('Reports', 'reports');
 
 <!-- Operations Snapshot -->
 <h6 class="section-heading mb-2">
-    <i class="fa-solid fa-gauge-high me-1"></i> Operations Snapshot <small class="text-muted" style="font-weight:400;font-size:.78rem;">— real-time, no date filter</small>
+    <i class="fa-solid fa-gauge-high me-1"></i> Operations Snapshot
+    <small style="font-weight:400;font-size:.75rem;color:var(--gy);text-transform:none;letter-spacing:0;"> — live, no date filter</small>
 </h6>
-<div class="kpi-row mb-4">
-    <div class="kpi-card" style="border-left:4px solid #f97316;">
-        <div class="kpi-label">Active Rentals</div>
-        <div class="kpi-value"><?= $ops_active ?></div>
-        <div class="kpi-sub">Dumpsters currently out</div>
+<div class="tp-dashboard-kpis mb-4" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;">
+    <div class="tp-kpi-card tp-kpi-orange">
+        <div class="kpi-icon"><i class="fa-solid fa-dumpster"></i></div>
+        <div>
+            <div class="kpi-value" style="font-size:2rem;"><?= $ops_active ?></div>
+            <div class="kpi-label">Active Rentals</div>
+            <div class="kpi-note">Dumpsters currently out</div>
+        </div>
     </div>
-    <div class="kpi-card" style="border-left:4px solid #3b82f6;">
-        <div class="kpi-label">Deliveries (Next 7 Days)</div>
-        <div class="kpi-value"><?= $ops_upcoming ?></div>
-        <div class="kpi-sub">Scheduled deliveries</div>
+    <div class="tp-kpi-card tp-kpi-blue">
+        <div class="kpi-icon"><i class="fa-solid fa-truck"></i></div>
+        <div>
+            <div class="kpi-value" style="font-size:2rem;"><?= $ops_upcoming ?></div>
+            <div class="kpi-label">Deliveries (7 Days)</div>
+            <div class="kpi-note">Scheduled this week</div>
+        </div>
     </div>
-    <div class="kpi-card" style="border-left:4px solid <?= $ops_overdue_wo > 0 ? '#ef4444' : '#6b7280' ?>;">
-        <div class="kpi-label">Overdue Pickups</div>
-        <div class="kpi-value" style="<?= $ops_overdue_wo > 0 ? 'color:#ef4444;' : '' ?>"><?= $ops_overdue_wo ?></div>
-        <div class="kpi-sub"><?= $ops_overdue_wo > 0 ? '<a href="'.e(APP_URL).'/modules/work_orders/index.php?status=overdue" style="color:#ef4444;">View overdue</a>' : 'All pickups on schedule' ?></div>
+    <div class="tp-kpi-card <?= $ops_overdue_wo > 0 ? 'tp-kpi-red' : 'tp-kpi-gray' ?>">
+        <div class="kpi-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div>
+            <div class="kpi-value" style="font-size:2rem;<?= $ops_overdue_wo > 0 ? 'color:#ef4444;' : '' ?>"><?= $ops_overdue_wo ?></div>
+            <div class="kpi-label">Overdue Pickups</div>
+            <div class="kpi-note"><?= $ops_overdue_wo > 0 ? '<a href="'.e(APP_URL).'/modules/work_orders/index.php" style="color:#ef4444;">View overdue &rarr;</a>' : 'All on schedule' ?></div>
+        </div>
     </div>
-    <div class="kpi-card" style="border-left:4px solid #7c3aed;">
-        <div class="kpi-label">Outstanding Invoices</div>
-        <div class="kpi-value"><?= e(fmt_money($inv_outstanding_bal)) ?></div>
-        <div class="kpi-sub"><?= $inv_outstanding_cnt ?> invoice<?= $inv_outstanding_cnt !== 1 ? 's' : '' ?> unpaid</div>
+    <div class="tp-kpi-card" style="border-left:4px solid #7c3aed;">
+        <div class="kpi-icon" style="background:rgba(124,58,237,.12);color:#7c3aed;"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+        <div>
+            <div class="kpi-value" style="font-size:1.6rem;"><?= e(fmt_money($inv_outstanding_bal)) ?></div>
+            <div class="kpi-label">Unpaid Invoices</div>
+            <div class="kpi-note"><?= $inv_outstanding_cnt ?> invoice<?= $inv_outstanding_cnt !== 1 ? 's' : '' ?> outstanding</div>
+        </div>
     </div>
-    <div class="kpi-card" style="border-left:4px solid <?= $inv_overdue_cnt > 0 ? '#ef4444' : '#6b7280' ?>;">
-        <div class="kpi-label">Overdue Invoices</div>
-        <div class="kpi-value" style="<?= $inv_overdue_cnt > 0 ? 'color:#ef4444;' : '' ?>"><?= $inv_overdue_cnt ?></div>
-        <div class="kpi-sub"><?= $inv_overdue_cnt > 0 ? '<a href="'.e(APP_URL).'/modules/invoices/index.php?status=overdue" style="color:#ef4444;">View overdue</a>' : 'No overdue invoices' ?></div>
+    <div class="tp-kpi-card <?= $inv_overdue_cnt > 0 ? 'tp-kpi-red' : 'tp-kpi-gray' ?>">
+        <div class="kpi-icon"><i class="fa-solid fa-clock"></i></div>
+        <div>
+            <div class="kpi-value" style="font-size:2rem;<?= $inv_overdue_cnt > 0 ? 'color:#ef4444;' : '' ?>"><?= $inv_overdue_cnt ?></div>
+            <div class="kpi-label">Overdue Invoices</div>
+            <div class="kpi-note"><?= $inv_overdue_cnt > 0 ? '<a href="'.e(APP_URL).'/modules/invoices/index.php" style="color:#ef4444;">View overdue &rarr;</a>' : 'None overdue' ?></div>
+        </div>
     </div>
 </div>
 
@@ -299,78 +315,59 @@ layout_start('Reports', 'reports');
     </form>
 </div>
 
-<!-- All-Time Totals -->
+<!-- Revenue Summary -->
 <h6 class="section-heading mb-2">
-    <i class="fa-solid fa-infinity me-1"></i> All-Time Revenue (Bookings)
+    <i class="fa-solid fa-dollar-sign me-1"></i> Revenue Summary
+    <small style="font-weight:400;font-size:.75rem;color:var(--gy);text-transform:none;letter-spacing:0;"> — <?= $all_time ? 'all time' : e(fmt_date($date_from)).' – '.e(fmt_date($date_to)) ?></small>
 </h6>
-<div class="kpi-row mb-4">
-    <div class="kpi-card" style="border-left:4px solid #16a34a;">
-        <div class="kpi-label">Total All-Time Paid</div>
-        <div class="kpi-value"><?= e(fmt_money($all_time_stripe + $all_time_ach + $all_time_cash + $all_time_check)) ?></div>
-        <div class="kpi-sub">All paid bookings</div>
-    </div>
-    <div class="kpi-card" style="border-left:4px solid #6366f1;">
-        <div class="kpi-label">Stripe — All Time</div>
-        <div class="kpi-value"><?= e(fmt_money($all_time_stripe)) ?></div>
-        <div class="kpi-sub">Card payments</div>
-    </div>
-    <div class="kpi-card" style="border-left:4px solid #14b8a6;">
-        <div class="kpi-label">ACH — All Time</div>
-        <div class="kpi-value"><?= e(fmt_money($all_time_ach)) ?></div>
-        <div class="kpi-sub">Bank payments</div>
-    </div>
-    <div class="kpi-card" style="border-left:4px solid #16a34a;">
-        <div class="kpi-label">Cash — All Time</div>
-        <div class="kpi-value"><?= e(fmt_money($all_time_cash)) ?></div>
-        <div class="kpi-sub">Cash payments</div>
-    </div>
-    <div class="kpi-card" style="border-left:4px solid #d97706;">
-        <div class="kpi-label">Check — All Time</div>
-        <div class="kpi-value"><?= e(fmt_money($all_time_check)) ?></div>
-        <div class="kpi-sub">Check payments</div>
-    </div>
-    <div class="kpi-card" style="border-left:4px solid #ef4444;">
-        <div class="kpi-label">Pending — All Time</div>
-        <div class="kpi-value"><?= e(fmt_money($all_time_pending)) ?></div>
-        <div class="kpi-sub">Awaiting payment</div>
+<div class="tp-card mb-4 p-0">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));">
+        <?php
+        $rev_items = [
+            ['Grand Total',    $grand_total,                                          '#f97316', 'fa-star'],
+            ['Stripe / Card',  $period_stripe,                                        '#6366f1', 'fa-stripe'],
+            ['ACH',            $period_ach,                                           '#14b8a6', 'fa-building-columns'],
+            ['Cash',           $period_cash,                                          '#16a34a', 'fa-money-bill-wave'],
+            ['Check',          $period_check,                                         '#d97706', 'fa-money-check'],
+            ['Invoices',       $inv_period,                                           '#7c3aed', 'fa-file-invoice'],
+            ['Work Orders',    $wo_period,                                            '#2563eb', 'fa-clipboard-list'],
+            ['Pending',        $all_time_pending,                                     '#6b7280', 'fa-clock'],
+        ];
+        foreach ($rev_items as $i => [$lbl, $val, $clr, $ico]):
+            $border = $i === 0 ? 'border-bottom:1px solid var(--st);border-right:1px solid var(--st);' : 'border-bottom:1px solid var(--st);border-right:1px solid var(--st);';
+        ?>
+        <div style="padding:1.1rem 1.25rem;<?= $border ?>">
+            <div style="font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gy);margin-bottom:.35rem;">
+                <?= $lbl ?>
+            </div>
+            <div style="font-size:1.5rem;font-weight:700;color:<?= $i === 0 ? 'var(--or)' : 'var(--wh)' ?>;">
+                <?= e(fmt_money($val)) ?>
+            </div>
+        </div>
+        <?php endforeach; ?>
     </div>
 </div>
 
-<!-- Period Revenue Summary -->
+<!-- All-Time Booking Breakdown -->
 <h6 class="section-heading mb-2">
-    <i class="fa-solid fa-dollar-sign me-1"></i> Revenue Summary
-    <small class="text-muted ms-1">(<?= $all_time ? 'All Time' : e(fmt_date($date_from)).' – '.e(fmt_date($date_to)) ?>)</small>
+    <i class="fa-solid fa-infinity me-1"></i> All-Time Booking Revenue
 </h6>
-<div class="kpi-row mb-4">
-    <div class="kpi-card" style="border-left:4px solid #16a34a;">
-        <div class="kpi-label">Grand Total</div>
-        <div class="kpi-value" style="color:var(--or,#f60);"><?= e(fmt_money($grand_total)) ?></div>
-        <div class="kpi-sub">Bookings + Invoices + WOs</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;margin-bottom:1.75rem;">
+    <?php
+    $at_items = [
+        ['All Paid',  $all_time_stripe+$all_time_ach+$all_time_cash+$all_time_check, '#16a34a'],
+        ['Stripe',    $all_time_stripe,  '#6366f1'],
+        ['ACH',       $all_time_ach,     '#14b8a6'],
+        ['Cash',      $all_time_cash,    '#16a34a'],
+        ['Check',     $all_time_check,   '#d97706'],
+        ['Pending',   $all_time_pending, '#ef4444'],
+    ];
+    foreach ($at_items as [$lbl, $val, $clr]): ?>
+    <div class="tp-card" style="padding:.85rem 1rem;border-left:3px solid <?= $clr ?>;">
+        <div style="font-size:.7rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--gy);margin-bottom:.3rem;"><?= $lbl ?></div>
+        <div style="font-size:1.25rem;font-weight:700;color:var(--wh);"><?= e(fmt_money($val)) ?></div>
     </div>
-    <div class="kpi-card" style="border-left:4px solid #6366f1;">
-        <div class="kpi-label">Stripe Revenue</div>
-        <div class="kpi-value"><?= e(fmt_money($period_stripe)) ?></div>
-    </div>
-    <div class="kpi-card" style="border-left:4px solid #14b8a6;">
-        <div class="kpi-label">ACH Revenue</div>
-        <div class="kpi-value"><?= e(fmt_money($period_ach)) ?></div>
-    </div>
-    <div class="kpi-card" style="border-left:4px solid #16a34a;">
-        <div class="kpi-label">Cash Revenue</div>
-        <div class="kpi-value"><?= e(fmt_money($period_cash)) ?></div>
-    </div>
-    <div class="kpi-card" style="border-left:4px solid #d97706;">
-        <div class="kpi-label">Check Revenue</div>
-        <div class="kpi-value"><?= e(fmt_money($period_check)) ?></div>
-    </div>
-    <div class="kpi-card" style="border-left:4px solid #7c3aed;">
-        <div class="kpi-label">Invoice Revenue</div>
-        <div class="kpi-value"><?= e(fmt_money($inv_period)) ?></div>
-    </div>
-    <div class="kpi-card" style="border-left:4px solid #2563eb;">
-        <div class="kpi-label">Work Order Revenue</div>
-        <div class="kpi-value"><?= e(fmt_money($wo_period)) ?></div>
-    </div>
+    <?php endforeach; ?>
 </div>
 
 <!-- Monthly Bar Chart -->
@@ -379,7 +376,7 @@ layout_start('Reports', 'reports');
     <i class="fa-solid fa-chart-bar me-1"></i> Monthly Booking Revenue (last 6 months)
 </h6>
 <div class="tp-card mb-4">
-    <div class="bar-chart">
+    <div class="bar-chart" style="align-items:flex-end;justify-content:flex-start;">
         <?php foreach ($monthly_revenue as $mr):
             $st = (float)$mr['stripe']; $ca = (float)$mr['cash']; $ch = (float)$mr['chk'];
             $rt = $st + $ca + $ch;
@@ -389,10 +386,10 @@ layout_start('Reports', 'reports');
             $check_px  = $total_px - $stripe_px - $cash_px;
             $label     = date("M 'y", strtotime($mr['month'].'-01'));
         ?>
-        <div class="bar-col">
+        <div class="bar-col" style="max-width:64px;min-width:44px;">
             <div class="bar-count">$<?= number_format($rt,0) ?></div>
             <div style="display:flex;flex-direction:column-reverse;align-items:center;width:100%;height:120px;justify-content:flex-start;">
-                <?php if ($stripe_px>0): ?><div class="bar-seg" style="height:<?=$stripe_px?>px;background:#6366f1;" title="Stripe: $<?=number_format($st,2)?>"></div><?php endif;?>
+                <?php if ($stripe_px>0): ?><div class="bar-seg" style="height:<?=$stripe_px?>px;background:#6366f1;border-radius:3px 3px 0 0;" title="Stripe: $<?=number_format($st,2)?>"></div><?php endif;?>
                 <?php if ($cash_px>0):   ?><div class="bar-seg" style="height:<?=$cash_px?>px;background:#16a34a;" title="Cash: $<?=number_format($ca,2)?>"></div><?php endif;?>
                 <?php if ($check_px>0):  ?><div class="bar-seg" style="height:<?=$check_px?>px;background:#d97706;" title="Check: $<?=number_format($ch,2)?>"></div><?php endif;?>
             </div>
