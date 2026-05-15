@@ -8,7 +8,9 @@
 
 // ── Temporary Debug Mode (?debug=1) ─────────────────────────────────────────
 // Use this on a failing admin URL to surface HTTP 500 root-cause details.
-$debugMode = true; // TEMPORARY — revert after capturing the error
+$debugMode = (
+    defined('APP_ENV') && APP_ENV !== 'production' && isset($_GET['debug']) && $_GET['debug'] === '1'
+) || (defined('APP_DEBUG') && APP_DEBUG === true);
 
 if ($debugMode) {
     ini_set('display_errors', '1');
