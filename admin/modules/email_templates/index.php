@@ -10,7 +10,7 @@ require_once INC_PATH . '/mailer.php';
 require_login();
 require_role('admin');
 
-// ── Template registry (slug → metadata + defaults) ────────────────────────────
+// ── Template registry ─────────────────────────────────────────────────────────
 $TEMPLATE_DEFS = [
     'booking_confirmed' => [
         'name'    => 'Booking Confirmed',
@@ -20,26 +20,11 @@ $TEMPLATE_DEFS = [
         'default_body_html'=> '<p>Hello {{customer_name}},</p>
 <p>Your dumpster rental booking has been <strong>confirmed</strong>. Here are your details:</p>
 <table width="100%" style="border-collapse:collapse;font-size:.95rem;margin:16px 0;">
-  <tr style="background:#f9fafb;">
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;width:40%;">Booking #</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{booking_number}}</td>
-  </tr>
-  <tr>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Unit</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;">{{unit}}</td>
-  </tr>
-  <tr style="background:#f9fafb;">
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Rental Period</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;">{{rental_start}} → {{rental_end}} ({{rental_days}} day{{rental_days_s}})</td>
-  </tr>
-  <tr>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Total</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{total}}</td>
-  </tr>
-  <tr style="background:#f9fafb;">
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Payment Method</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;">{{payment_method}}</td>
-  </tr>
+  <tr style="background:#f9fafb;"><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;width:40%;">Booking #</td><td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{booking_number}}</td></tr>
+  <tr><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Unit</td><td style="padding:10px 14px;border:1px solid #e5e7eb;">{{unit}}</td></tr>
+  <tr style="background:#f9fafb;"><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Rental Period</td><td style="padding:10px 14px;border:1px solid #e5e7eb;">{{rental_start}} → {{rental_end}} ({{rental_days}} day{{rental_days_s}})</td></tr>
+  <tr><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Total</td><td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{total}}</td></tr>
+  <tr style="background:#f9fafb;"><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Payment Method</td><td style="padding:10px 14px;border:1px solid #e5e7eb;">{{payment_method}}</td></tr>
 </table>
 <p>If you have any questions or need to make changes, please contact us.</p>
 <p>Thank you for choosing us!</p>',
@@ -52,26 +37,11 @@ $TEMPLATE_DEFS = [
         'default_body_html'=> '<p>Hello {{customer_name}},</p>
 <p>We received your dumpster rental request and it is now <strong>awaiting review</strong>.</p>
 <table width="100%" style="border-collapse:collapse;font-size:.95rem;margin:16px 0;">
-  <tr style="background:#f9fafb;">
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;width:40%;">Request #</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{booking_number}}</td>
-  </tr>
-  <tr>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Unit</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;">{{unit}}</td>
-  </tr>
-  <tr style="background:#f9fafb;">
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Rental Period</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;">{{rental_start}} → {{rental_end}}</td>
-  </tr>
-  <tr>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Estimated Total</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{total}}</td>
-  </tr>
-  <tr style="background:#f9fafb;">
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Preferred Payment</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;">{{payment_method}}</td>
-  </tr>
+  <tr style="background:#f9fafb;"><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;width:40%;">Request #</td><td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{booking_number}}</td></tr>
+  <tr><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Unit</td><td style="padding:10px 14px;border:1px solid #e5e7eb;">{{unit}}</td></tr>
+  <tr style="background:#f9fafb;"><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Rental Period</td><td style="padding:10px 14px;border:1px solid #e5e7eb;">{{rental_start}} → {{rental_end}}</td></tr>
+  <tr><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Estimated Total</td><td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{total}}</td></tr>
+  <tr style="background:#f9fafb;"><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Preferred Payment</td><td style="padding:10px 14px;border:1px solid #e5e7eb;">{{payment_method}}</td></tr>
 </table>
 <p>Our team will review availability and follow up with approval details and payment instructions if needed.</p>',
     ],
@@ -83,18 +53,9 @@ $TEMPLATE_DEFS = [
         'default_body_html'=> '<p>Hello {{customer_name}},</p>
 <p>Your invoice <strong>{{invoice_number}}</strong> is ready.</p>
 <table width="100%" style="border-collapse:collapse;font-size:.95rem;margin:16px 0;">
-  <tr style="background:#f9fafb;">
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;width:40%;">Invoice #</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{invoice_number}}</td>
-  </tr>
-  <tr>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Amount Due</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{amount}}</td>
-  </tr>
-  <tr style="background:#f9fafb;">
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Due Date</td>
-    <td style="padding:10px 14px;border:1px solid #e5e7eb;">{{due_date}}</td>
-  </tr>
+  <tr style="background:#f9fafb;"><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;width:40%;">Invoice #</td><td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{invoice_number}}</td></tr>
+  <tr><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Amount Due</td><td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{amount}}</td></tr>
+  <tr style="background:#f9fafb;"><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Due Date</td><td style="padding:10px 14px;border:1px solid #e5e7eb;">{{due_date}}</td></tr>
 </table>
 {{notes_block}}
 <p>You can review and pay this invoice using the link below.</p>',
@@ -144,8 +105,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
     if ($action === 'save_template') {
-        $slug     = trim($_POST['slug'] ?? '');
-        $subject  = trim($_POST['subject'] ?? '');
+        $slug      = trim($_POST['slug'] ?? '');
+        $subject   = trim($_POST['subject'] ?? '');
         $body_html = trim($_POST['body_html'] ?? '');
 
         if (!isset($TEMPLATE_DEFS[$slug])) {
@@ -193,6 +154,12 @@ try {
 
 $editing = isset($_GET['edit']) && isset($TEMPLATE_DEFS[$_GET['edit']]) ? $_GET['edit'] : null;
 
+// Preview company info (used in JS email wrapper)
+$preview_company = get_setting('company_name',    'Trash Panda Roll-Offs');
+$preview_phone   = get_setting('company_phone',   '');
+$preview_email_s = get_setting('company_email',   '');
+$preview_address = get_setting('company_address', '');
+
 layout_start('Email Templates', 'email_templates');
 ?>
 
@@ -212,78 +179,95 @@ layout_start('Email Templates', 'email_templates');
 <div class="d-flex align-items-center justify-content-between mb-4">
     <div>
         <h1 class="tp-page-title mb-1">Email Templates</h1>
-        <p class="text-muted mb-0" style="font-size:.9rem;">Customize the emails sent to customers. Use <code>{{variable}}</code> placeholders shown for each template.</p>
+        <p class="text-muted mb-0" style="font-size:.9rem;">Customize the emails sent to customers. Use <code>{{variable}}</code> placeholders — they get replaced with real data when the email sends.</p>
     </div>
 </div>
 
 <?php if ($editing): ?>
 <?php
-    $def  = $TEMPLATE_DEFS[$editing];
-    $curr = $saved[$editing] ?? null;
-    $cur_subject  = $curr ? $curr['subject']   : $def['default_subject'];
-    $cur_body     = $curr ? $curr['body_html']  : $def['default_body_html'];
+    $def         = $TEMPLATE_DEFS[$editing];
+    $curr        = $saved[$editing] ?? null;
+    $cur_subject = $curr ? $curr['subject']  : $def['default_subject'];
+    $cur_body    = $curr ? $curr['body_html'] : $def['default_body_html'];
 ?>
+
+<!-- TinyMCE via jsDelivr (no API key required) -->
+<script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js" referrerpolicy="origin"></script>
+
 <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header d-flex align-items-center gap-2" style="background:#1a1d27;border-radius:8px 8px 0 0;">
-        <a href="<?= APP_URL ?>/modules/email_templates/index.php" class="btn btn-sm btn-outline-secondary me-2">
+    <div class="card-header d-flex align-items-center gap-2 flex-wrap" style="background:#1a1d27;border-radius:8px 8px 0 0;">
+        <a href="<?= APP_URL ?>/modules/email_templates/index.php" class="btn btn-sm btn-outline-secondary">
             <i class="fas fa-arrow-left"></i>
         </a>
         <span style="color:#f97316;font-weight:700;"><?= e($def['name']) ?></span>
         <?php if ($curr): ?>
-        <span class="badge bg-success ms-2">Custom</span>
+        <span class="badge bg-success">Custom</span>
         <?php else: ?>
-        <span class="badge bg-secondary ms-2">Default</span>
+        <span class="badge bg-secondary">Default</span>
         <?php endif; ?>
+        <button type="button" class="btn btn-sm btn-outline-info ms-auto" onclick="openPreview()">
+            <i class="fas fa-eye me-1"></i> Preview Email
+        </button>
     </div>
     <div class="card-body">
         <p class="text-muted mb-3" style="font-size:.9rem;"><?= e($def['desc']) ?></p>
 
-        <div class="mb-3">
-            <label class="form-label fw-semibold">Available Variables</label>
+        <!-- Variables -->
+        <div class="mb-4">
+            <label class="form-label fw-semibold mb-2">Available Variables</label>
             <div class="d-flex flex-wrap gap-2">
                 <?php foreach ($def['vars'] as $v): ?>
-                <code class="bg-light px-2 py-1 rounded" style="font-size:.8rem;cursor:pointer;"
-                      onclick="insertVar(this.textContent)"
-                      title="Click to insert into body">{{<?= e($v) ?>}}</code>
+                <button type="button"
+                        class="btn btn-sm"
+                        style="background:#1e2030;color:#f97316;border:1px solid #f97316;font-family:monospace;font-size:.8rem;padding:2px 10px;"
+                        onclick="insertVar('{{<?= e($v) ?>}}')"
+                        title="Click to insert into editor">{{<?= e($v) ?>}}</button>
                 <?php endforeach; ?>
             </div>
-            <small class="text-muted">Click a variable to insert it at the cursor in the body editor.</small>
+            <small class="text-muted mt-1 d-block">Click any variable to insert it at the cursor position in the editor.</small>
         </div>
 
-        <form method="POST" action="">
+        <form method="POST" action="" id="tpl-form">
             <?= csrf_field() ?>
             <input type="hidden" name="action" value="save_template">
             <input type="hidden" name="slug" value="<?= e($editing) ?>">
 
-            <div class="mb-3">
+            <!-- Subject -->
+            <div class="mb-4">
                 <label class="form-label fw-semibold" for="tpl_subject">Subject Line</label>
                 <input type="text" id="tpl_subject" name="subject" class="form-control"
                        value="<?= e($cur_subject) ?>" required>
-                <small class="text-muted">You can use <code>{{variables}}</code> in the subject too.</small>
+                <small class="text-muted">Supports <code>{{variables}}</code> too.</small>
             </div>
 
-            <div class="mb-3">
-                <label class="form-label fw-semibold" for="tpl_body">Body HTML</label>
-                <textarea id="tpl_body" name="body_html" class="form-control font-monospace"
-                          rows="20" style="font-size:.82rem;resize:vertical;" required><?= e($cur_body) ?></textarea>
-                <small class="text-muted">This is the inner body of the email (inside the white box). HTML is supported. The header, footer, and CTA button are added automatically.</small>
+            <!-- Body editor (TinyMCE) -->
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Email Body</label>
+                <textarea id="tpl_body" name="body_html"><?= e($cur_body) ?></textarea>
+                <small class="text-muted mt-1 d-block">
+                    This is the inner body — the header/footer and button are added automatically.
+                    Use the <strong>&lt;/&gt;</strong> toolbar button to switch to HTML source view.
+                </small>
             </div>
 
-            <div class="d-flex gap-2">
-                <button type="submit" class="btn btn-primary">
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="submit" class="btn btn-primary" id="save-btn">
                     <i class="fas fa-save me-1"></i> Save Template
                 </button>
                 <?php if ($curr): ?>
-                <button type="submit" form="reset-form-<?= e($editing) ?>" class="btn btn-outline-danger">
+                <button type="submit" form="reset-form" class="btn btn-outline-danger">
                     <i class="fas fa-rotate-left me-1"></i> Reset to Default
                 </button>
                 <?php endif; ?>
+                <button type="button" class="btn btn-outline-info" onclick="openPreview()">
+                    <i class="fas fa-eye me-1"></i> Preview
+                </button>
                 <a href="<?= APP_URL ?>/modules/email_templates/index.php" class="btn btn-outline-secondary">Cancel</a>
             </div>
         </form>
 
         <?php if ($curr): ?>
-        <form id="reset-form-<?= e($editing) ?>" method="POST" action=""
+        <form id="reset-form" method="POST" action=""
               onsubmit="return confirm('Reset this template to the built-in default?')">
             <?= csrf_field() ?>
             <input type="hidden" name="action" value="reset_template">
@@ -293,19 +277,150 @@ layout_start('Email Templates', 'email_templates');
     </div>
 </div>
 
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content" style="background:#1a1d27;">
+            <div class="modal-header" style="border-color:#2d3148;">
+                <h5 class="modal-title" style="color:#f97316;" id="previewModalLabel">
+                    <i class="fas fa-eye me-2"></i>Email Preview
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <iframe id="previewFrame"
+                        style="width:100%;height:600px;border:0;display:block;"
+                        sandbox="allow-same-origin"></iframe>
+            </div>
+            <div class="modal-footer" style="border-color:#2d3148;">
+                <small class="text-muted">Preview uses sample values for <code>{{variables}}</code>. The actual email wraps the body with your company header and footer.</small>
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-function insertVar(v) {
-    const ta = document.getElementById('tpl_body');
-    if (!ta) return;
-    const s = ta.selectionStart, e = ta.selectionEnd;
-    ta.value = ta.value.slice(0, s) + v + ta.value.slice(e);
-    ta.selectionStart = ta.selectionEnd = s + v.length;
-    ta.focus();
+// ── Company info for preview wrapper ──────────────────────────────────────────
+const _co = {
+    name:    <?= json_encode($preview_company) ?>,
+    phone:   <?= json_encode($preview_phone) ?>,
+    email:   <?= json_encode($preview_email_s) ?>,
+    address: <?= json_encode($preview_address) ?>,
+};
+
+// ── Sample values for {{variable}} replacement in preview ─────────────────────
+const _samples = {
+    customer_name:   'John Smith',
+    booking_number:  'BK-0001',
+    invoice_number:  'INV-0001',
+    unit:            'TP-01 — 10 Yard',
+    unit_size:       '10 Yard',
+    rental_start:    'Monday, June 2, 2025',
+    rental_end:      'Monday, June 9, 2025',
+    rental_days:     '7',
+    rental_days_s:   's',
+    total:           '$350.00',
+    amount:          '$350.00',
+    due_date:        'June 9, 2025',
+    payment_method:  'Card',
+    delivery_date:   'Wednesday, June 4, 2025',
+    delivery_address:'123 Main St, Mobile, AL 36602',
+    notes_block:     '',
+    phone_block:     _co.phone ? '<p>To schedule a pickup or extend your rental, call us at <strong>' + _co.phone + '</strong>.</p>' : '<p>Please contact us to schedule a pickup.</p>',
+};
+
+function _replaceSamples(html) {
+    return html.replace(/\{\{(\w+)\}\}/g, (m, key) => _samples[key] !== undefined ? _samples[key] : m);
 }
+
+function _buildEmailWrapper(title, bodyHtml) {
+    const footerParts = [_co.name, _co.phone, _co.email, _co.address].filter(Boolean);
+    const footerText  = footerParts.join(' &bull; ');
+
+    return `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:30px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+        <tr><td style="background:#1a1d27;padding:24px 32px;border-radius:8px 8px 0 0;">
+          <h1 style="margin:0;color:#f97316;font-size:1.5rem;font-weight:700;">&#128465; ${_escHtml(_co.name)}</h1>
+          <p style="margin:4px 0 0;color:#9ca3af;font-size:.85rem;">${_escHtml(title)}</p>
+        </td></tr>
+        <tr><td style="background:#ffffff;padding:32px;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">
+          ${bodyHtml}
+        </td></tr>
+        <tr><td style="background:#f9fafb;padding:20px 32px;border:1px solid #e5e7eb;border-radius:0 0 8px 8px;color:#9ca3af;font-size:.75rem;text-align:center;">
+          ${footerText}<br><span style="color:#d1d5db;">Powered by Trash Panda Roll-Offs Manager</span>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+}
+
+function _escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function openPreview() {
+    const subj   = document.getElementById('tpl_subject').value || 'Email Preview';
+    const editor = tinymce.get('tpl_body');
+    const body   = editor ? editor.getContent() : document.getElementById('tpl_body').value;
+    const filled = _replaceSamples(body);
+    const html   = _buildEmailWrapper(subj, filled);
+
+    const frame  = document.getElementById('previewFrame');
+    frame.srcdoc = html;
+
+    const modal  = new bootstrap.Modal(document.getElementById('previewModal'));
+    modal.show();
+}
+
+function insertVar(v) {
+    const editor = tinymce.get('tpl_body');
+    if (editor) {
+        editor.insertContent(v);
+        editor.focus();
+    }
+}
+
+// ── TinyMCE init ──────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+    tinymce.init({
+        selector: '#tpl_body',
+        height: 480,
+        menubar: false,
+        promotion: false,
+        branding: false,
+        plugins: 'lists link table code',
+        toolbar: 'undo redo | blocks | bold italic underline | forecolor | '
+               + 'bullist numlist | table | link | removeformat | code',
+        toolbar_mode: 'wrap',
+        skin: 'oxide-dark',
+        content_css: 'dark',
+        content_style: 'body { font-family: Arial, sans-serif; font-size: 14px; color: #111827; background: #fff; }',
+        valid_elements: '*[*]',
+        extended_valid_elements: '*[*]',
+        verify_html: false,
+        cleanup: false,
+        setup: function (editor) {
+            editor.on('change', function () { editor.save(); });
+        },
+    });
+
+    // Sync TinyMCE content to textarea before form submit
+    document.getElementById('tpl-form').addEventListener('submit', function () {
+        const editor = tinymce.get('tpl_body');
+        if (editor) editor.save();
+    });
+});
 </script>
 
 <?php else: ?>
-
+<!-- ── Template list ── -->
 <div class="row g-3">
     <?php foreach ($TEMPLATE_DEFS as $slug => $def): ?>
     <?php $curr = $saved[$slug] ?? null; ?>
@@ -325,7 +440,7 @@ function insertVar(v) {
                 </div>
 
                 <?php if ($curr): ?>
-                <div class="mb-2" style="font-size:.82rem;">
+                <div class="mb-1" style="font-size:.82rem;">
                     <span class="text-muted">Subject:</span>
                     <span class="ms-1"><?= e($curr['subject']) ?></span>
                 </div>
