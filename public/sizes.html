@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-title" content="Trash Panda"/>
   <link rel="apple-touch-icon" href="/assets/icon-192.png"/>
   <style>
-    .page-hero{padding:160px 0 90px;position:relative;overflow:hidden;background:linear-gradient(160deg,#080808 0%,#100800 60%,#0d0d0d 100%);}
+    .page-hero{padding:90px 0 56px;position:relative;overflow:hidden;background:linear-gradient(160deg,#080808 0%,#100800 60%,#0d0d0d 100%);}
     .page-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 80% at 80% 50%,rgba(249,115,22,.1) 0%,transparent 65%);}
     .page-hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);background-size:50px 50px;}
     .breadcrumb-wrap{font-family:var(--font-cond);font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gray);margin-bottom:1.5rem;}
@@ -23,19 +23,19 @@
     .size-full-card{background:var(--dark);border:1px solid var(--steel);border-radius:var(--radius-xl);overflow:hidden;margin-bottom:2rem;transition:var(--transition);}
     .size-full-card:hover{border-color:rgba(249,115,22,.35);box-shadow:var(--shadow-orange);}
     .size-full-card.featured{border-color:var(--orange);}
-    .size-banner{padding:3rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:2rem;background:var(--dark2);border-bottom:1px solid var(--steel);}
+    .size-banner{padding:1.75rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1.25rem;background:var(--dark2);border-bottom:1px solid var(--steel);}
     .size-banner.featured-banner{background:linear-gradient(135deg,var(--orange-dark),var(--orange));}
-    .size-mega{font-family:var(--font-display);font-size:7rem;line-height:.85;color:var(--white);}
+    .size-mega{font-family:var(--font-display);font-size:4.5rem;line-height:.85;color:var(--white);}
     .size-banner.featured-banner .size-mega{color:var(--black);}
-    .size-banner-label{font-family:var(--font-cond);font-weight:800;font-size:1.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-light);}
+    .size-banner-label{font-family:var(--font-cond);font-weight:800;font-size:1.2rem;text-transform:uppercase;letter-spacing:.06em;color:var(--gray-light);}
     .size-banner.featured-banner .size-banner-label{color:rgba(0,0,0,.6);}
     .size-best-for{font-family:var(--font-cond);font-weight:700;font-size:.75rem;letter-spacing:.2em;text-transform:uppercase;color:var(--orange);margin-bottom:.5rem;}
     .size-banner.featured-banner .size-best-for{color:rgba(0,0,0,.5);}
     .size-ideal-text{font-family:var(--font-cond);font-weight:600;font-size:1.1rem;color:var(--white);max-width:320px;}
     .size-banner.featured-banner .size-ideal-text{color:var(--black);}
-    .size-full-body{padding:2.5rem;}
-    .size-cols{display:grid;grid-template-columns:1fr 1fr;gap:2rem;}
-    @media(max-width:767px){.size-cols{grid-template-columns:1fr;}.size-mega{font-size:5rem;}}
+    .size-full-body{padding:1.5rem;}
+    .size-cols{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;}
+    @media(max-width:767px){.size-cols{grid-template-columns:1fr;}.size-mega{font-size:3.2rem;}}
     .size-col-label{font-family:var(--font-cond);font-weight:700;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--orange);margin-bottom:.8rem;}
     .use-list{list-style:none;padding-left:0;margin:0;}
     .use-list li{display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid var(--steel);font-size:.9rem;color:var(--gray-light);}
@@ -43,7 +43,7 @@
     .use-list li i{color:var(--orange);font-size:.75rem;margin-top:3px;flex-shrink:0;}
     .size-specs{background:var(--dark3);border:1px solid var(--steel);border-radius:var(--radius);padding:1.2rem;display:flex;flex-wrap:wrap;gap:1.2rem;}
     .spec-item{flex:1;min-width:100px;}
-    .spec-val{font-family:var(--font-display);font-size:1.6rem;color:var(--orange);}
+    .spec-val{font-family:var(--font-display);font-size:1.25rem;color:var(--orange);}
     .spec-key{font-family:var(--font-cond);font-weight:700;font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;color:var(--gray);}
     .pop-badge{display:inline-flex;align-items:center;gap:6px;background:var(--blue);color:white;font-family:var(--font-cond);font-weight:800;font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;padding:5px 14px;border-radius:100px;margin-left:1rem;vertical-align:middle;}
     .compare-table{width:100%;border-collapse:separate;border-spacing:0;}
@@ -120,7 +120,7 @@
 
 <section class="section-pad" style="background:linear-gradient(135deg,var(--orange-xd),var(--orange),var(--amber));">
   <div class="container text-center" style="max-width:800px;">
-    <h2 style="font-family:var(--font-display);font-size:clamp(2.5rem,6vw,4rem);color:var(--black);line-height:.95;">NEED HELP CHOOSING?</h2>
+    <h2 style="font-family:var(--font-display);font-size:clamp(1.6rem,3vw,2.5rem);color:var(--black);line-height:.95;">NEED HELP CHOOSING?</h2>
     <p style="font-family:var(--font-cond);font-size:1.1rem;font-weight:600;color:rgba(0,0,0,.65);margin:1rem 0 2rem;">Call us and describe your project. We will recommend the right live size in under a minute.</p>
     <div class="d-flex gap-3 justify-content-center flex-wrap">
       <a href="tel:+12513334444" style="display:inline-flex;align-items:center;gap:10px;background:var(--black);color:var(--white);font-family:var(--font-cond);font-weight:900;font-size:1rem;letter-spacing:.1em;text-transform:uppercase;padding:16px 38px;border-radius:var(--radius-sm);text-decoration:none;"><i class="fas fa-phone"></i>(251) 333-4444</a>
