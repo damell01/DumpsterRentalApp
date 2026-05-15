@@ -1,5 +1,6 @@
 <?php
 require_once dirname(__DIR__, 2) . '/includes/bootstrap.php';
+require_once INC_PATH . '/mailer.php';
 require_login();
 $pdo = get_db();
 
@@ -100,6 +101,15 @@ log_activity(
     'work_order',
     $wo_id
 );
+
+// Email customer on key status transitions
+if (in_array($new_status, ['delivered', 'picked_up', 'completed'], true)) {
+    try {
+        notify_work_order_status_change($wo, $new_status);
+    } catch (\Throwable $e) {
+        error_log('[WO status] notify_work_order_status_change failed: ' . $e->getMessage());
+    }
+}
 
 flash_success('Status updated to ' . $new_label . '.');
 redirect('view.php?id=' . $wo_id);

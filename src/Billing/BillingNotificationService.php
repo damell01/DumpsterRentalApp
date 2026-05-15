@@ -4,6 +4,24 @@ namespace TrashPanda\Billing;
 
 class BillingNotificationService
 {
+    public function sendInvoicePaid(array $recipient, string $invoiceNumber, float $amount, string $customerName = ''): void
+    {
+        $nameGreeting = $customerName !== '' ? 'Hi ' . \e($customerName) . ',' : 'Hello,';
+        $body = '<p>' . $nameGreeting . '</p>'
+            . '<p>Your payment of <strong>' . \e(\fmt_money($amount)) . '</strong> for invoice '
+            . '<strong>' . \e($invoiceNumber) . '</strong> has been received successfully. Thank you!</p>';
+
+        $this->sendToCustomer($recipient, 'Invoice Paid', $body, 'Invoice Paid — ' . $invoiceNumber);
+
+        $adminBody = '<p>Invoice <strong>' . \e($invoiceNumber) . '</strong> has been paid.'
+            . ($customerName !== '' ? ' Customer: <strong>' . \e($customerName) . '</strong>.' : '')
+            . ' Amount: <strong>' . \e(\fmt_money($amount)) . '</strong>.</p>';
+        \notify_admins(
+            'Invoice Paid — ' . $invoiceNumber . ($customerName !== '' ? ' (' . $customerName . ')' : ''),
+            $adminBody
+        );
+    }
+
     public function sendAchInitiated(array $recipient, string $subjectContext, float $amount): void
     {
         $this->sendToCustomer(

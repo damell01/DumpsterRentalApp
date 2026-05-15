@@ -1318,3 +1318,156 @@ function notify_booking_cancelled(array $booking): void
         }
     }
 }
+
+/**
+ * Email the customer when a work order status changes to delivered or picked_up/completed.
+ */
+function notify_work_order_status_change(array $wo, string $new_status): void
+{
+    $email = trim($wo['cust_email'] ?? '');
+    if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return;
+    }
+
+    $name    = htmlspecialchars($wo['cust_name'] ?? 'Valued Customer', ENT_QUOTES, 'UTF-8');
+    $address = htmlspecialchars(
+        trim(($wo['service_address'] ?? '') . ($wo['service_city'] ? ', ' . $wo['service_city'] : '')),
+        ENT_QUOTES, 'UTF-8'
+    );
+    $size   = htmlspecialchars($wo['size'] ?? '', ENT_QUOTES, 'UTF-8');
+    $wo_num = htmlspecialchars($wo['wo_number'] ?? '', ENT_QUOTES, 'UTF-8');
+    $phone  = get_setting('company_phone', '');
+    $phone_html = $phone
+        ? ' at <strong>' . htmlspecialchars(fmt_phone($phone), ENT_QUOTES, 'UTF-8') . '</strong>'
+        : '';
+
+    if ($new_status === 'delivered') {
+        $tpl = get_email_template('work_order_delivered', [
+            'subject'   => 'Your Dumpster Has Been Delivered!',
+            'body_html' => '<p>Hello {{customer_name}},</p>
+<p>Your dumpster has been delivered to <strong>{{service_address}}</strong>. You are all set to start your project!</p>'
+. ($size ? '<p><strong>Unit Size:</strong> {{unit_size}}</p>' : '')
+. '<p>When you are ready for pickup, just give us a call' . $phone_html . ' and we will get it scheduled.</p>
+<p>Thank you for choosing us!</p>',
+        ]);
+        $vars = [
+            'customer_name'   => $name,
+            'service_address' => $address,
+            'unit_size'       => $size,
+        ];
+        $icon_title = 'Dumpster Delivered';
+    } elseif (in_array($new_status, ['picked_up', 'completed'], true)) {
+        $tpl = get_email_template('work_order_completed', [
+            'subject'   => 'Pickup Complete — Thanks for Choosing Us!',
+            'body_html' => '<p>Hello {{customer_name}},</p>
+<p>Your dumpster has been picked up and your rental is now complete. Thank you for choosing us for your project!</p>
+<p>We hope everything went smoothly. If you need a dumpster again in the future, we would love to help.</p>',
+        ]);
+        $vars = ['customer_name' => $name];
+        $icon_title = 'Pickup Complete';
+    } else {
+        return;
+    }
+
+    $subject = render_email_vars($tpl['subject'], $vars);
+    $body    = render_email_vars($tpl['body_html'], $vars);
+    $html    = email_template($icon_title, $body);
+    send_email($email, $subject, $html);
+    log_activity(
+        'wo_status_emailed',
+        'Sent ' . $new_status . ' email for WO ' . ($wo['wo_number'] ?? $wo['id']) . ' to ' . $email,
+        'work_order',
+        (int)($wo['id'] ?? 0)
+    );
+}
+
+/**
+ * Send overdue invoice reminders to customers whose invoices are past due.
+ * Skips invoices that already received a reminder today.
+ */
+function notify_invoice_overdue(): void
+{
+    $today = date('Y-m-d');
+
+    $invoices = db_fetchall(
+        "SELECT i.*, c.email AS cust_email_db
+         FROM invoices i
+         LEFT JOIN customers c ON c.id = i.customer_id
+         WHERE i.due_date < ?
+           AND i.status IN ('open', 'sent')
+           AND i.total > 0",
+        [$today]
+    );
+
+    foreach ($invoices as $inv) {
+        $email = trim($inv['cust_email_db'] ?? '');
+        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            continue;
+        }
+
+        // Only one reminder per invoice per day
+        $sentToday = db_value(
+            "SELECT COUNT(*) FROM activity_log
+             WHERE action = 'invoice_overdue_emailed' AND entity_id = ?
+               AND DATE(created_at) = ?",
+            [(int)$inv['id'], $today]
+        );
+        if ($sentToday > 0) {
+            continue;
+        }
+
+        $name    = htmlspecialchars($inv['cust_name'] ?? 'Valued Customer', ENT_QUOTES, 'UTF-8');
+        $inv_num = htmlspecialchars($inv['invoice_number'] ?? '', ENT_QUOTES, 'UTF-8');
+        $amount  = htmlspecialchars(fmt_money((float)$inv['total']), ENT_QUOTES, 'UTF-8');
+        $due     = !empty($inv['due_date']) ? htmlspecialchars(date('F j, Y', strtotime($inv['due_date'])), ENT_QUOTES, 'UTF-8') : '—';
+
+        $vars = [
+            'customer_name'  => $name,
+            'invoice_number' => $inv_num,
+            'amount'         => $amount,
+            'due_date'       => $due,
+        ];
+
+        $tpl = get_email_template('invoice_overdue', [
+            'subject'   => 'Invoice {{invoice_number}} — Payment Past Due',
+            'body_html' => '<p>Hello {{customer_name}},</p>
+<p>This is a reminder that invoice <strong>{{invoice_number}}</strong> for <strong>{{amount}}</strong> was due on <strong>{{due_date}}</strong> and remains outstanding.</p>
+<p>Please remit payment at your earliest convenience. If you have already paid or have any questions, please contact us and we will sort it out right away.</p>
+<p>Thank you for your prompt attention.</p>',
+        ]);
+
+        $subject = render_email_vars($tpl['subject'], $vars);
+        $body    = render_email_vars($tpl['body_html'], $vars);
+        $html    = email_template('Payment Past Due', $body);
+        send_email($email, $subject, $html);
+        log_activity('invoice_overdue_emailed', 'Sent overdue reminder for invoice ' . ($inv['invoice_number'] ?? $inv['id']), 'invoice', (int)$inv['id']);
+    }
+}
+
+/**
+ * Send an auto-response acknowledgment to a customer who submitted a contact/quote form.
+ */
+function notify_lead_received(string $to_email, string $to_name, string $company_name = ''): void
+{
+    if (empty($to_email) || !filter_var($to_email, FILTER_VALIDATE_EMAIL)) {
+        return;
+    }
+
+    $company = $company_name ?: get_setting('company_name', 'Trash Panda Roll-Offs');
+    $phone   = get_setting('company_phone', '');
+    $name    = htmlspecialchars($to_name ?: 'there', ENT_QUOTES, 'UTF-8');
+
+    $phone_line = $phone
+        ? '<p>If you need an immediate response, give us a call at <strong>'
+          . htmlspecialchars(fmt_phone($phone), ENT_QUOTES, 'UTF-8')
+          . '</strong>.</p>'
+        : '';
+
+    $body = '<p>Hi ' . $name . ',</p>
+<p>Thanks for reaching out! We received your request and someone from our team will be in touch shortly.</p>'
+    . $phone_line
+    . '<p>We appreciate your interest in ' . htmlspecialchars($company, ENT_QUOTES, 'UTF-8') . '!</p>';
+
+    $html = email_template('Request Received', $body);
+    send_email($to_email, 'We received your request — ' . $company, $html);
+}

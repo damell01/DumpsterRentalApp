@@ -7,6 +7,7 @@ $_admin_root = dirname(__DIR__, 2) . '/admin';
 require_once $_admin_root . '/config/config.php';
 require_once INC_PATH . '/db.php';
 require_once INC_PATH . '/helpers.php';
+require_once INC_PATH . '/mailer.php';
 require_once INC_PATH . '/billing.php';
 
 $autoload = $_admin_root . '/vendor/autoload.php';

@@ -522,7 +522,31 @@ layout_start('Settings', 'settings');
                 <input type="text" id="notification_emails" name="notification_emails" class="form-control"
                        placeholder="admin@example.com, manager@example.com"
                        value="<?= e(get_setting('notification_emails', get_setting('company_email', ''))) ?>">
-                <div class="form-text" style="color:var(--gy);">Comma-separated. These addresses get an email whenever the public contact form is submitted.</div>
+                <div class="form-text" style="color:var(--gy);">Comma-separated. These addresses receive alerts for new bookings, invoice payments, contact form submissions, and overdue pickups.</div>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">
+                    Cron Key
+                    <span style="font-weight:400;color:var(--gy);font-size:.8rem;"> — used to trigger the daily cron via URL</span>
+                </label>
+                <?php $cron_key = get_setting('cron_key', ''); ?>
+                <div class="input-group">
+                    <input type="text" class="form-control font-monospace" readonly
+                           value="<?= e($cron_key) ?>"
+                           id="cronKeyField"
+                           style="font-size:.82rem;color:var(--gy);">
+                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                            onclick="navigator.clipboard.writeText(document.getElementById('cronKeyField').value).then(()=>{this.textContent='Copied!';setTimeout(()=>{this.textContent='Copy'},1500)})">
+                        Copy
+                    </button>
+                </div>
+                <div class="form-text" style="color:var(--gy);">
+                    Daily cron URL:
+                    <code style="font-size:.78rem;"><?= e(rtrim(str_replace('/admin','',APP_URL),'/')) ?>/admin/cron/run.php?key=<?= e($cron_key) ?></code><br>
+                    In Hostinger hPanel → Advanced → Cron Jobs, run daily at 8 AM:<br>
+                    <code style="font-size:.78rem;">0 8 * * * /usr/bin/php <?= e($_SERVER['DOCUMENT_ROOT'] ?? '/home/user/public_html') ?>/admin/cron/run.php</code>
+                </div>
             </div>
         </div>
 

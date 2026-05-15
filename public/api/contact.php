@@ -207,5 +207,14 @@ try {
     // Email failure should not fail the API response
 }
 
+// Auto-response to the customer
+if (!empty($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    try {
+        notify_lead_received($email, $name);
+    } catch (\Throwable $e) {
+        // Non-fatal — admin notification already sent above
+    }
+}
+
 // Success
 echo json_encode(['success' => true]);

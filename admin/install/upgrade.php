@@ -457,6 +457,7 @@ if (table_exists($pdo, 'settings')) {
         'vapid_public_key'  => '',
         'vapid_private_key' => '',
         'vapid_subject'     => '',
+        'cron_key'          => bin2hex(random_bytes(16)),
     ];
     foreach ($extra_defaults as $key => $value) {
         try {

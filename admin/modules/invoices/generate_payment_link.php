@@ -36,9 +36,11 @@ if ((float)$inv['total'] <= 0) {
 }
 
 try {
-    $base_url    = rtrim(APP_URL, '/');
-    $success_url = $base_url . '/modules/invoices/view.php?id=' . $id . '&paid=1';
-    $cancel_url  = $base_url . '/modules/invoices/view.php?id=' . $id;
+    $scheme      = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $public_base = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? parse_url(APP_URL, PHP_URL_HOST));
+    $inv_token   = hash_hmac('sha256', 'inv_' . $id, defined('PORTAL_SIGNING_KEY') ? PORTAL_SIGNING_KEY : 'invoice-token-secret');
+    $success_url = $public_base . '/invoice-paid.php?id=' . $id . '&token=' . urlencode($inv_token) . '&session_id={CHECKOUT_SESSION_ID}';
+    $cancel_url  = $public_base . '/invoice-canceled.php?id=' . $id . '&token=' . urlencode($inv_token);
 
     $session = stripe_create_invoice_checkout($inv, $success_url, $cancel_url, $paymentMethod);
 

@@ -114,6 +114,20 @@ class WebhookService
                         $booking['booking_number'] ?? ('Booking ' . $bookingId),
                         (float)$booking['total_amount']
                     );
+                } else {
+                    // Card payment settled — send customer confirmation + admin email
+                    $alreadyEmailed = (bool)\db_value(
+                        "SELECT COUNT(*) FROM activity_log WHERE action = 'booking_paid_emailed' AND entity_id = ?",
+                        [$bookingId]
+                    );
+                    if (!$alreadyEmailed) {
+                        try {
+                            \notify_booking_confirmed($booking);
+                            \log_activity('booking_paid_emailed', 'Sent booking paid confirmation for ' . ($booking['booking_number'] ?? $bookingId), 'booking', $bookingId);
+                        } catch (\Throwable $e) {
+                            \error_log('[Webhook] notify_booking_confirmed failed for booking ' . $bookingId . ': ' . $e->getMessage());
+                        }
+                    }
                 }
             }
 
@@ -155,6 +169,22 @@ class WebhookService
                              WHERE booking_number = ? AND payment_status != 'paid'",
                             [$m[1]]
                         );
+                    }
+
+                    // Email customer + admin — skip if success page already sent it
+                    $alreadyEmailed = (bool)\db_value(
+                        "SELECT COUNT(*) FROM activity_log WHERE action = 'invoice_paid_emailed' AND entity_id = ?",
+                        [$invoiceId]
+                    );
+                    if (!$alreadyEmailed) {
+                        $custEmail = trim((string)(\db_value('SELECT email FROM customers WHERE id = ?', [(int)($invoice['customer_id'] ?? 0)]) ?? ''));
+                        $this->notificationService->sendInvoicePaid(
+                            ['email' => $custEmail],
+                            $invoice['invoice_number'] ?? ('INV-' . $invoiceId),
+                            (float)$invoice['total'],
+                            $invoice['cust_name'] ?? ''
+                        );
+                        \log_activity('invoice_paid_emailed', 'Sent invoice paid notification for ' . ($invoice['invoice_number'] ?? $invoiceId), 'invoice', $invoiceId);
                     }
                 }
             }
@@ -333,13 +363,35 @@ class WebhookService
             }
 
             if (!empty($payment['invoice_id'])) {
+                $invoiceId = (int)$payment['invoice_id'];
                 \db_update('invoices', [
-                    'status' => $status === 'paid' ? 'paid' : 'open',
-                    'paid_at' => $status === 'paid' ? date('Y-m-d H:i:s') : null,
-                    'failed_at' => $status === 'failed' ? date('Y-m-d H:i:s') : null,
+                    'status'     => $status === 'paid' ? 'paid' : 'open',
+                    'paid_at'    => $status === 'paid' ? date('Y-m-d H:i:s') : null,
+                    'failed_at'  => $status === 'failed' ? date('Y-m-d H:i:s') : null,
                     'updated_at' => date('Y-m-d H:i:s'),
-                ], 'id', (int)$payment['invoice_id']);
-                return ['entity_type' => 'invoice', 'entity_id' => (int)$payment['invoice_id']];
+                ], 'id', $invoiceId);
+
+                if ($status === 'paid') {
+                    $invoice = \db_fetch('SELECT * FROM invoices WHERE id = ? LIMIT 1', [$invoiceId]);
+                    if ($invoice) {
+                        $alreadyEmailed = (bool)\db_value(
+                            "SELECT COUNT(*) FROM activity_log WHERE action = 'invoice_paid_emailed' AND entity_id = ?",
+                            [$invoiceId]
+                        );
+                        if (!$alreadyEmailed) {
+                            $custEmail = trim((string)(\db_value('SELECT email FROM customers WHERE id = ?', [(int)($invoice['customer_id'] ?? 0)]) ?? ''));
+                            $this->notificationService->sendInvoicePaid(
+                                ['email' => $custEmail],
+                                $invoice['invoice_number'] ?? ('INV-' . $invoiceId),
+                                (float)$invoice['total'],
+                                $invoice['cust_name'] ?? ''
+                            );
+                            \log_activity('invoice_paid_emailed', 'Sent invoice paid notification for ' . ($invoice['invoice_number'] ?? $invoiceId), 'invoice', $invoiceId);
+                        }
+                    }
+                }
+
+                return ['entity_type' => 'invoice', 'entity_id' => $invoiceId];
             }
         }
 
