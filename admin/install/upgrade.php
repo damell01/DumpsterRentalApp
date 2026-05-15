@@ -696,10 +696,29 @@ if (table_exists($pdo, 'bookings')) {
 }
 
 // =============================================================================
-// UPGRADE 26 — customers: add stripe_customer_id; add email/phone indexes
-//              for fast deduplication lookups.
+// UPGRADE 26 — customers: create if missing; add stripe_customer_id; add
+//              email/phone indexes for fast deduplication lookups.
 // =============================================================================
-echo "\n--- Upgrade 26: customers — stripe_customer_id + dedup indexes ---\n";
+echo "\n--- Upgrade 26: customers — create if missing; stripe_customer_id + dedup indexes ---\n";
+
+if (!table_exists($pdo, 'customers')) {
+    run_step($pdo, 'customers CREATE',
+        "CREATE TABLE `customers` (
+          `id`         INT(11)      NOT NULL AUTO_INCREMENT,
+          `name`       VARCHAR(150) NOT NULL DEFAULT '',
+          `email`      VARCHAR(150)          DEFAULT NULL,
+          `phone`      VARCHAR(25)           DEFAULT NULL,
+          `address`    VARCHAR(255)          DEFAULT NULL,
+          `city`       VARCHAR(100)          DEFAULT NULL,
+          `state`      VARCHAR(50)           DEFAULT NULL,
+          `zip`        VARCHAR(20)           DEFAULT NULL,
+          `notes`      TEXT                  DEFAULT NULL,
+          `lead_id`    INT(11)               DEFAULT NULL,
+          `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          PRIMARY KEY (`id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+}
 
 if (table_exists($pdo, 'customers')) {
     if (!column_exists($pdo, 'customers', 'stripe_customer_id')) {
