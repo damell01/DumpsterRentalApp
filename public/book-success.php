@@ -177,7 +177,7 @@ $has_terms_document = trim((string)get_setting('booking_terms', '')) !== '';
         }
         .book-nav-brand { font-family: var(--font-display); font-size: 1.1rem; color: var(--white); text-decoration: none; }
         .book-nav-brand span { color: var(--orange); }
-        .success-container { max-width: 660px; margin: 4rem auto; padding: 0 1rem; text-align: center; }
+        .success-container { max-width: 660px; margin: 2.5rem auto; padding: 0 1rem; text-align: center; }
         .success-icon {
             width: 90px; height: 90px;
             background: rgba(34,197,94,.15);

@@ -179,71 +179,67 @@ layout_start('Customer: ' . $cust['name'], 'customers');
                 </a>
                 <?php endif; ?>
             </div>
-            <div class="detail-grid mt-3">
-                <?php if (!empty($cust['company'])): ?>
-                <div class="detail-row">
-                    <span class="detail-label">Company</span>
-                    <span class="detail-value"><?= e($cust['company']) ?></span>
+            <div class="cust-info-wrap">
+
+                <!-- Contact fields -->
+                <div class="cust-info-fields">
+                    <?php if (!empty($cust['company'])): ?>
+                    <div>
+                        <div class="cust-kv-label">Company</div>
+                        <div class="cust-kv-val"><?= e($cust['company']) ?></div>
+                    </div>
+                    <?php endif; ?>
+                    <div>
+                        <div class="cust-kv-label">Phone</div>
+                        <div class="cust-kv-val"><?= e(fmt_phone($cust['phone'] ?? '')) ?: '—' ?></div>
+                    </div>
+                    <div>
+                        <div class="cust-kv-label">Email</div>
+                        <div class="cust-kv-val">
+                            <?php if (!empty($cust['email'])): ?>
+                                <a href="mailto:<?= e($cust['email']) ?>"><?= e($cust['email']) ?></a>
+                            <?php else: ?>—<?php endif; ?>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="cust-kv-label">Type</div>
+                        <div class="cust-kv-val"><?= cust_type_badge($cust['type'] ?? 'residential') ?></div>
+                    </div>
+                    <div>
+                        <div class="cust-kv-label">Customer Since</div>
+                        <div class="cust-kv-val"><?= e(fmt_date($cust['created_at'])) ?></div>
+                    </div>
                 </div>
-                <?php endif; ?>
-                <div class="detail-row">
-                    <span class="detail-label">Phone</span>
-                    <span class="detail-value">
-                        <?= e(fmt_phone($cust['phone'] ?? '')) ?: '—' ?>
-                    </span>
+
+                <!-- Addresses -->
+                <div class="cust-info-addresses">
+                    <div>
+                        <div class="cust-kv-label">Service Address</div>
+                        <div class="cust-kv-val">
+                            <?php
+                            $parts = array_filter([$cust['address']??'', $cust['city']??'', $cust['state']??'', $cust['zip']??'']);
+                            echo $parts ? e(implode(', ', $parts)) : '—';
+                            ?>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="cust-kv-label">Billing Address</div>
+                        <div class="cust-kv-val">
+                            <?php
+                            $bparts = array_filter([$cust['billing_address']??'', $cust['billing_city']??'', $cust['billing_state']??'', $cust['billing_zip']??'']);
+                            echo $bparts ? e(implode(', ', $bparts)) : '—';
+                            ?>
+                        </div>
+                    </div>
                 </div>
-                <div class="detail-row">
-                    <span class="detail-label">Email</span>
-                    <span class="detail-value">
-                        <?php if (!empty($cust['email'])): ?>
-                            <a href="mailto:<?= e($cust['email']) ?>"><?= e($cust['email']) ?></a>
-                        <?php else: ?>
-                            —
-                        <?php endif; ?>
-                    </span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Service Address</span>
-                    <span class="detail-value">
-                        <?php
-                        $parts = array_filter([
-                            $cust['address'] ?? '',
-                            $cust['city']    ?? '',
-                            $cust['state']   ?? '',
-                            $cust['zip']     ?? '',
-                        ]);
-                        echo $parts ? e(implode(', ', $parts)) : '—';
-                        ?>
-                    </span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Billing Address</span>
-                    <span class="detail-value">
-                        <?php
-                        $bparts = array_filter([
-                            $cust['billing_address'] ?? '',
-                            $cust['billing_city']    ?? '',
-                            $cust['billing_state']   ?? '',
-                            $cust['billing_zip']     ?? '',
-                        ]);
-                        echo $bparts ? e(implode(', ', $bparts)) : '—';
-                        ?>
-                    </span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Type</span>
-                    <span class="detail-value"><?= cust_type_badge($cust['type'] ?? 'residential') ?></span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Customer Since</span>
-                    <span class="detail-value"><?= e(fmt_date($cust['created_at'])) ?></span>
-                </div>
+
                 <?php if (!empty($cust['notes'])): ?>
-                <div class="detail-row">
-                    <span class="detail-label">Notes</span>
-                    <span class="detail-value"><?= nl2br(e($cust['notes'])) ?></span>
+                <div class="cust-info-notes">
+                    <div class="cust-kv-label">Notes</div>
+                    <div class="cust-kv-val" style="color:var(--gy-lt,#9ca3af);line-height:1.65;"><?= nl2br(e($cust['notes'])) ?></div>
                 </div>
                 <?php endif; ?>
+
             </div>
         </div>
 

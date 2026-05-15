@@ -553,10 +553,6 @@ function layout_start(string $page_title, string $active_nav = ''): void
                     <i class="fa-solid fa-circle-question"></i>
                     Open Help
                 </a>
-                <a href="<?= htmlspecialchars($app_url, ENT_QUOTES, 'UTF-8') ?>/../docs/TESTING_AND_ONBOARDING_GUIDE.md" target="_blank" rel="noopener" class="btn-tp-primary btn-tp-sm">
-                    <i class="fa-solid fa-book"></i>
-                    Testing Guide
-                </a>
             </div>
         </aside>
         <?php endif; ?>

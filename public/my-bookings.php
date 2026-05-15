@@ -44,7 +44,7 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' https://c
         /* ── Page hero ─────────────────────────────────────────────────────── */
         .page-hero {
             background: var(--dark2);
-            padding: 3rem 0 2rem;
+            padding: 1.75rem 0 1.25rem;
             border-bottom: 1px solid var(--steel);
         }
         .page-hero h1 {
@@ -55,7 +55,7 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' https://c
         }
         .page-hero h1 span { color: var(--orange); }
 
-        .page-container { max-width: 900px; margin: 0 auto; padding: 3rem 1.1rem 4.75rem; }
+        .page-container { max-width: 900px; margin: 0 auto; padding: 1.75rem 1.1rem 2.5rem; }
 
         /* ── Card ──────────────────────────────────────────────────────────── */
         .book-card {

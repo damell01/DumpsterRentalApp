@@ -399,7 +399,7 @@ body.sidebar-collapsed .sb-footer {
 .tp-guide-trigger {
     position: fixed;
     right: 18px;
-    bottom: 20px;
+    bottom: 80px;
     z-index: 96;
     display: inline-flex;
     align-items: center;
@@ -425,7 +425,7 @@ body.sidebar-collapsed .sb-footer {
 .tp-page-guide {
     position: fixed;
     right: 18px;
-    bottom: 78px;
+    bottom: 138px;
     width: min(360px, calc(100vw - 32px));
     z-index: 97;
     background: #ffffff;
@@ -1764,12 +1764,12 @@ hr { border-color: var(--st); opacity: 1; }
     }
     .tp-guide-trigger {
         right: 12px;
-        bottom: 14px;
+        bottom: 76px;
         padding: .7rem .9rem;
     }
     .tp-page-guide {
         right: 12px;
-        bottom: 68px;
+        bottom: 134px;
         width: calc(100vw - 24px);
     }
 }
@@ -2014,6 +2014,50 @@ hr { border-color: var(--st); opacity: 1; }
 .tp-unit-size { font-size: .78rem; color: var(--gy); }
 .tp-unit-price { font-size: .78rem; color: var(--or); font-weight: 600; margin-top: .2rem; }
 .tp-unit-status { font-size: .72rem; color: var(--am); margin-top: .1rem; }
+
+/* ==========================================================================
+   Customer Info Card
+   ========================================================================== */
+.cust-info-wrap { padding: 1.25rem 1.6rem 1.5rem; }
+.cust-info-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 1.1rem 2rem;
+}
+.cust-info-addresses {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.1rem 2rem;
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--st);
+}
+.cust-info-notes {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--st);
+}
+.cust-kv-label {
+    font-family: var(--font-cond);
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    color: var(--gy);
+    margin-bottom: .3rem;
+}
+.cust-kv-val {
+    font-size: .92rem;
+    color: var(--wh);
+    line-height: 1.5;
+    word-break: break-word;
+}
+.cust-kv-val a { color: var(--or); }
+.cust-kv-val a:hover { color: var(--or-lt, #fb923c); }
+@media (max-width: 640px) {
+    .cust-info-addresses { grid-template-columns: 1fr; }
+    .cust-info-wrap { padding: 1rem 1.1rem 1.25rem; }
+}
 
 /* ==========================================================================
    Customer Hero Header

@@ -149,7 +149,7 @@ foreach ($payments as $payment) {
         .portal-shell {
             max-width: 1180px;
             margin: 0 auto;
-            padding: 2.9rem 1.2rem 5rem;
+            padding: 1.75rem 1.2rem 3rem;
         }
         .portal-hero {
             display: flex;

@@ -59,7 +59,7 @@ $request_mode = $booking_flow_mode === 'request';
 
         .book-hero {
             background: var(--dark2);
-            padding: 3rem 0 2rem;
+            padding: 1.75rem 0 1.25rem;
             border-bottom: 1px solid var(--steel);
         }
         .book-hero h1 {
@@ -70,13 +70,13 @@ $request_mode = $booking_flow_mode === 'request';
         }
         .book-hero h1 span { color: var(--orange); }
 
-        .book-container { max-width: 900px; margin: 0 auto; padding: 2.5rem 1rem 4rem; }
+        .book-container { max-width: 900px; margin: 0 auto; padding: 1.75rem 1rem 2.5rem; }
 
         /* Step indicators */
         .step-nav {
             display: flex;
             gap: 0;
-            margin-bottom: 2.5rem;
+            margin-bottom: 1.75rem;
             border-radius: 8px;
             overflow: hidden;
             border: 1px solid var(--steel);

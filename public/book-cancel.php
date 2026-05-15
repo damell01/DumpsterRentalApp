@@ -42,7 +42,7 @@ $company_phone = get_setting('company_phone', '');
         }
         .book-nav-brand { font-family: var(--font-display); font-size: 1.1rem; color: var(--white); text-decoration: none; }
         .book-nav-brand span { color: var(--orange); }
-        .cancel-container { max-width: 520px; margin: 5rem auto; padding: 0 1rem; text-align: center; }
+        .cancel-container { max-width: 520px; margin: 3rem auto; padding: 0 1rem; text-align: center; }
         .cancel-icon {
             width: 90px; height: 90px;
             background: rgba(249,115,22,.12);
