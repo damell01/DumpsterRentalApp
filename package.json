@@ -1,0 +1,23 @@
+{
+  "name": "dumpsterrentalapp",
+  "version": "1.0.0",
+  "description": "A complete dumpster rental business platform including a public-facing website and an internal admin work order management system. Payments are handled outside the system by the business.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "screenshots": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node scripts/capture-screenshots.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:45415/git/damell01/DumpsterRentalApp"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "playwright": "^1.60.0"
+  }
+}

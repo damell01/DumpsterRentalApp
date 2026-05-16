@@ -2,6 +2,56 @@
 
 A complete dumpster rental business platform including a public-facing website and an internal admin work order management system. Payments are handled outside the system by the business.
 
+---
+
+## Screenshots
+
+### Public Website
+
+| Home | Sizes |
+|------|-------|
+| ![Home page](docs/screenshots/public-home-desktop.png) | ![Dumpster Sizes](docs/screenshots/public-sizes-desktop.png) |
+
+| Services | FAQ |
+|----------|-----|
+| ![Services](docs/screenshots/public-services-desktop.png) | ![FAQ](docs/screenshots/public-faq-desktop.png) |
+
+| Contact / Quote | Service Areas |
+|-----------------|---------------|
+| ![Contact](docs/screenshots/public-contact-desktop.png) | ![Service Areas](docs/screenshots/public-service-areas-desktop.png) |
+
+<details>
+<summary>📱 Mobile views</summary>
+
+| Home | Sizes | Services |
+|------|-------|----------|
+| ![Home mobile](docs/screenshots/public-home-mobile.png) | ![Sizes mobile](docs/screenshots/public-sizes-mobile.png) | ![Services mobile](docs/screenshots/public-services-mobile.png) |
+
+| FAQ | Contact | Service Areas |
+|-----|---------|---------------|
+| ![FAQ mobile](docs/screenshots/public-faq-mobile.png) | ![Contact mobile](docs/screenshots/public-contact-mobile.png) | ![Service Areas mobile](docs/screenshots/public-service-areas-mobile.png) |
+
+</details>
+
+---
+
+### Admin Panel
+
+| Login |
+|-------|
+| ![Admin Login](docs/screenshots/admin-login-desktop.png) |
+
+<details>
+<summary>📱 Mobile view</summary>
+
+| Admin Login |
+|-------------|
+| ![Admin Login mobile](docs/screenshots/admin-login-mobile.png) |
+
+</details>
+
+---
+
 ## Project Structure
 
 ```

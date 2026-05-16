@@ -34,3 +34,7 @@ admin/uploads/*.jpeg
 admin/uploads/*.gif
 admin/uploads/*.webp
 admin/uploads/*.svg
+
+# Node
+node_modules/
+package-lock.json
