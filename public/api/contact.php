@@ -47,44 +47,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// ── Rate-limit: 5 submissions per IP per hour (uses existing rate_limit_locks table) ──
-$ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '';
-$ip = trim(explode(',', $ip)[0]);
-// Prefix key to distinguish from login attempts
-$rl_ip = 'cf_' . substr(md5($ip), 0, 38);   // still fits in varchar(45)
-
-try {
-    $rl_row = db_fetch(
-        "SELECT attempts, locked_until FROM rate_limit_locks WHERE ip_address = ?",
-        [$rl_ip]
-    );
-    $now = time();
-    if ($rl_row) {
-        if (!empty($rl_row['locked_until']) && strtotime($rl_row['locked_until']) > $now) {
-            http_response_code(429);
-            echo json_encode(['success' => false, 'error' => 'Too many requests. Please try again later or call us directly.']);
-            exit;
-        }
-        $new_attempts = ((int)$rl_row['attempts']) + 1;
-        $locked_until = $new_attempts >= 5 ? date('Y-m-d H:i:s', $now + 3600) : null;
-        db_query(
-            "UPDATE rate_limit_locks SET attempts = ?, locked_until = ?, updated_at = NOW() WHERE ip_address = ?",
-            [$new_attempts, $locked_until, $rl_ip]
-        );
-        if ($locked_until) {
-            http_response_code(429);
-            echo json_encode(['success' => false, 'error' => 'Too many requests. Please try again in an hour or call us directly.']);
-            exit;
-        }
-    } else {
-        db_query(
-            "INSERT INTO rate_limit_locks (ip_address, attempts, locked_until, updated_at) VALUES (?, 1, NULL, NOW())",
-            [$rl_ip]
-        );
-    }
-} catch (\Throwable $e) {
-    // Rate-limit table missing — continue without blocking
-}
+// ── Rate limit: 5 contact submissions per IP per 30 minutes ──────────────────
+require_once INC_PATH . '/api_rate_limit.php';
+api_rate_limit('contact', 5, 1800, 1800);
 
 // ── Parse input (JSON body or classic form POST) ──────────────────────────────
 $raw = file_get_contents('php://input');

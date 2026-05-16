@@ -45,6 +45,10 @@ require_once INC_PATH . '/db.php';
 require_once INC_PATH . '/helpers.php';
 require_once INC_PATH . '/mailer.php';
 require_once INC_PATH . '/billing.php';
+require_once INC_PATH . '/api_rate_limit.php';
+
+// 10 booking attempts per IP per hour; 30-minute lockout after
+api_rate_limit('create_booking', 10, 3600, 1800);
 
 function api_error(string $message, int $status = 400): void
 {
