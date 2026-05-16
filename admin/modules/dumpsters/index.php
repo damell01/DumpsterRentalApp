@@ -26,11 +26,17 @@ $where_sql = 'WHERE ' . implode(' AND ', $where);
 $dumpsters = db_fetchall(
     "SELECT d.*,
             wo.id        AS wo_id,
-            wo.wo_number AS wo_number
+            wo.wo_number AS wo_number,
+            bk.id        AS bk_id,
+            bk.booking_number AS bk_number
      FROM dumpsters d
      LEFT JOIN work_orders wo
            ON  wo.dumpster_id = d.id
            AND wo.status NOT IN ('completed','canceled','picked_up')
+     LEFT JOIN bookings bk
+           ON  bk.dumpster_id = d.id
+           AND bk.booking_status NOT IN ('canceled')
+           AND bk.rental_end >= CURDATE()
      $where_sql
      ORDER BY d.unit_code ASC",
     $params
@@ -43,6 +49,22 @@ foreach ($count_rows as $cr) {
     $status_counts[$cr['status']] = (int)$cr['cnt'];
 }
 $total_all = array_sum($status_counts);
+
+function maintenance_service_html(array $d): string
+{
+    $last = $d['last_maintenance_date'] ?? null;
+    if (!$last) {
+        return ($d['status'] ?? '') === 'maintenance'
+            ? '<span class="text-muted">—</span>'
+            : '<span class="tp-badge badge-canceled">Never</span>';
+    }
+    $days = (int)floor((time() - strtotime($last)) / 86400);
+    $out  = '<small>' . htmlspecialchars(date('m/d/Y', strtotime($last))) . '</small>';
+    if ($days > 90) {
+        $out .= ' <span class="tp-badge badge-canceled" title="' . $days . ' days ago">Due</span>';
+    }
+    return $out;
+}
 
 $tabs = [
     ''            => ['label' => 'All',         'count' => $total_all],
@@ -158,8 +180,9 @@ layout_start('Inventory', 'inventory');
                     <th>Base Price</th>
                     <th>Incl. Days</th>
                     <th>Extra Day</th>
-                    <th>Current WO#</th>
-                    <th>Notes</th>
+                    <th>Assignment</th>
+                    <th>Last Service</th>
+                    <th class="d-none d-xl-table-cell">Notes</th>
                     <?php if ($can_edit): ?>
                     <th class="text-end">Actions</th>
                     <?php endif; ?>
@@ -239,11 +262,16 @@ layout_start('Inventory', 'inventory');
                             <a href="<?= e(APP_URL) ?>/modules/work_orders/view.php?id=<?= (int)$d['wo_id'] ?>">
                                 <?= e($d['wo_number']) ?>
                             </a>
+                        <?php elseif (!empty($d['bk_id'])): ?>
+                            <a href="<?= e(APP_URL) ?>/modules/bookings/view.php?id=<?= (int)$d['bk_id'] ?>">
+                                <?= e($d['bk_number']) ?>
+                            </a>
                         <?php else: ?>
                             <span class="text-muted">—</span>
                         <?php endif; ?>
                     </td>
-                    <td>
+                    <td><?= maintenance_service_html($d) ?></td>
+                    <td class="d-none d-xl-table-cell">
                         <?php if (!empty($d['notes'])): ?>
                             <span class="tp-text-tooltip" title="<?= e($d['notes']) ?>">
                                 <?= e(mb_strimwidth($d['notes'], 0, 40, '…')) ?>

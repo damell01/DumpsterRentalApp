@@ -53,6 +53,7 @@ class WebhookService
             return ['duplicate' => false] + $context;
         } catch (\Throwable $e) {
             $this->webhookLogService->markFailed($logId, $e->getMessage());
+            $this->sendFailureAlert($event, $e);
             throw $e;
         }
     }
@@ -488,5 +489,29 @@ class WebhookService
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
+    }
+
+    private function sendFailureAlert(object $event, \Throwable $e): void
+    {
+        try {
+            $adminEmail = \get_setting('admin_email', '');
+            if (!$adminEmail) {
+                return;
+            }
+            $appName = \get_setting('company_name', 'Trash Panda Roll-Offs');
+            $appUrl  = \get_setting('app_url', '');
+            $subject = '[' . $appName . '] Webhook failed: ' . $event->type;
+            $body    = "A Stripe webhook event failed to process and requires attention.\r\n\r\n"
+                     . "Event Type : " . $event->type . "\r\n"
+                     . "Event ID   : " . $event->id . "\r\n"
+                     . "Error      : " . $e->getMessage() . "\r\n"
+                     . "File       : " . $e->getFile() . ':' . $e->getLine() . "\r\n"
+                     . "Time       : " . date('Y-m-d H:i:s') . "\r\n\r\n"
+                     . ($appUrl ? "Review webhook logs: " . $appUrl . "/modules/webhooks/\r\n" : '');
+            $headers = 'From: ' . $adminEmail . "\r\nContent-Type: text/plain; charset=UTF-8";
+            \mail($adminEmail, $subject, $body, $headers);
+        } catch (\Throwable $ignored) {
+            \error_log('[Webhook] sendFailureAlert failed: ' . $ignored->getMessage());
+        }
     }
 }
