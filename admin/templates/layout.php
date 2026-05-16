@@ -373,6 +373,9 @@ function layout_start(string $page_title, string $active_nav = ''): void
     ?>
     <link rel="stylesheet" href="<?= htmlspecialchars($asset_path, ENT_QUOTES, 'UTF-8') ?>/css/app.css?v=<?= $css_ver ?>">
 
+    <!-- Apply dark mode before first paint to prevent flash -->
+    <script>if(localStorage.getItem('tp_theme')==='dark')document.documentElement.classList.add('dark');</script>
+
     <meta name="theme-color" content="#f97316">
 </head>
 <body>
@@ -498,6 +501,11 @@ function layout_start(string $page_title, string $active_nav = ''): void
         <h4 class="mb-0 me-auto tp-topbar-title">
             <?= $escaped_title ?>
         </h4>
+
+        <!-- Dark mode toggle -->
+        <button type="button" class="tp-theme-toggle no-print" id="tpThemeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+            <i class="fa-solid fa-moon" id="tpThemeIcon"></i>
+        </button>
 
         <!-- Global search -->
         <button type="button" class="tp-search-btn no-print me-1" id="tpSearchTrigger" aria-label="Quick search (Ctrl+K)">
@@ -826,6 +834,31 @@ if ('serviceWorker' in navigator) {
         </div>
     </div>
 </div>
+
+<!-- ── Dark Mode Toggle ── -->
+<script>
+(function () {
+    var btn  = document.getElementById('tpThemeToggle');
+    var icon = document.getElementById('tpThemeIcon');
+    if (!btn) return;
+
+    function apply(dark) {
+        document.documentElement.classList.toggle('dark', dark);
+        icon.className = dark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+        btn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+        btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    }
+
+    // Sync icon with current state (class was already set in <head>)
+    apply(document.documentElement.classList.contains('dark'));
+
+    btn.addEventListener('click', function () {
+        var dark = !document.documentElement.classList.contains('dark');
+        localStorage.setItem('tp_theme', dark ? 'dark' : 'light');
+        apply(dark);
+    });
+})();
+</script>
 
 <!-- ── Command Palette ── -->
 <script>
