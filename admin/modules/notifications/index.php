@@ -113,8 +113,20 @@ layout_start('Notifications', 'notifications');
                     <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                         <?= e($notif['recipient']) ?>
                     </td>
-                    <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                        <?= e($notif['subject']) ?>
+                    <td style="max-width:280px;">
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">
+                                <?= e($notif['subject']) ?>
+                            </span>
+                            <?php if (!empty($notif['body'])): ?>
+                            <button type="button"
+                                    class="btn-tp-ghost btn-tp-xs preview-btn flex-shrink-0"
+                                    data-id="<?= (int)$notif['id'] ?>"
+                                    title="Preview message">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                            <?php endif; ?>
+                        </div>
                     </td>
                     <td><span class="badge bg-<?= $status_col ?>"><?= e(ucfirst($notif['status'])) ?></span></td>
                     <td>
@@ -151,5 +163,94 @@ layout_start('Notifications', 'notifications');
     </ul>
 </nav>
 <?php endif; ?>
+
+<!-- ── Message Preview Modal ──────────────────────────────────────────────── -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content" style="background:var(--dark2,#161b27);border:1px solid var(--steel,#374151);">
+            <div class="modal-header" style="border-bottom:1px solid var(--steel,#374151);">
+                <div style="min-width:0;flex:1;">
+                    <h6 class="modal-title mb-0 text-truncate" id="previewModalLabel">Loading…</h6>
+                    <div id="previewMeta" style="font-size:.78rem;color:var(--gy,#9ca3af);margin-top:.2rem;"></div>
+                </div>
+                <button type="button" class="btn-close btn-close-white ms-3 flex-shrink-0" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0" style="min-height:300px;">
+                <div id="previewLoading" class="d-flex align-items-center justify-content-center py-5">
+                    <i class="fa-solid fa-spinner fa-spin me-2" style="color:var(--or);"></i>
+                    <span style="color:var(--gy);">Loading…</span>
+                </div>
+                <iframe id="previewFrame"
+                        srcdoc=""
+                        style="width:100%;height:520px;border:0;display:none;background:#fff;"
+                        sandbox="allow-same-origin"
+                        title="Email preview"></iframe>
+                <pre id="previewPlain"
+                     style="display:none;margin:0;padding:1rem;color:#e5e7eb;font-size:.85rem;white-space:pre-wrap;word-break:break-word;"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var modal      = null;
+    var currentId  = null;
+
+    function showPreview(id) {
+        if (!modal) {
+            modal = new bootstrap.Modal(document.getElementById('previewModal'));
+        }
+
+        // Reset state
+        currentId = id;
+        document.getElementById('previewModalLabel').textContent = 'Loading…';
+        document.getElementById('previewMeta').textContent       = '';
+        document.getElementById('previewLoading').style.display  = '';
+        document.getElementById('previewFrame').style.display    = 'none';
+        document.getElementById('previewFrame').srcdoc           = '';
+        document.getElementById('previewPlain').style.display    = 'none';
+        document.getElementById('previewPlain').textContent      = '';
+        modal.show();
+
+        fetch('preview.php?id=' + encodeURIComponent(id))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (id !== currentId) return; // stale response
+
+                document.getElementById('previewModalLabel').textContent =
+                    data.subject || '(no subject)';
+
+                var meta = 'To: ' + (data.recipient || '—') + '  ·  ' + (data.sent_at || '—');
+                if (data.status) meta += '  ·  ' + data.status.charAt(0).toUpperCase() + data.status.slice(1);
+                document.getElementById('previewMeta').textContent = meta;
+
+                document.getElementById('previewLoading').style.display = 'none';
+
+                var body = data.body || '';
+                var isHtml = /<[a-z][\s\S]*>/i.test(body);
+
+                if (isHtml) {
+                    document.getElementById('previewFrame').srcdoc  = body;
+                    document.getElementById('previewFrame').style.display = '';
+                } else {
+                    document.getElementById('previewPlain').textContent     = body || '(no message body recorded)';
+                    document.getElementById('previewPlain').style.display   = '';
+                }
+            })
+            .catch(function () {
+                if (id !== currentId) return;
+                document.getElementById('previewLoading').style.display  = 'none';
+                document.getElementById('previewPlain').textContent       = 'Failed to load preview.';
+                document.getElementById('previewPlain').style.display     = '';
+            });
+    }
+
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.preview-btn');
+        if (btn) showPreview(btn.dataset.id);
+    });
+}());
+</script>
 
 <?php layout_end(); ?>
