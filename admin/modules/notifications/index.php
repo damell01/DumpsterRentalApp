@@ -182,11 +182,9 @@ layout_start('Notifications', 'notifications');
                 </div>
                 <iframe id="previewFrame"
                         srcdoc=""
-                        style="width:100%;height:520px;border:0;display:none;background:#fff;"
+                        style="width:100%;height:600px;border:0;display:none;background:#f1f3f4;"
                         sandbox="allow-same-origin"
                         title="Email preview"></iframe>
-                <pre id="previewPlain"
-                     style="display:none;margin:0;padding:1rem;color:#e5e7eb;font-size:.85rem;white-space:pre-wrap;word-break:break-word;"></pre>
             </div>
         </div>
     </div>
@@ -194,55 +192,92 @@ layout_start('Notifications', 'notifications');
 
 <script>
 (function () {
-    var modal      = null;
-    var currentId  = null;
+    var modal     = null;
+    var currentId = null;
+
+    function esc(s) {
+        return String(s)
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function buildDoc(data) {
+        var raw     = data.body || '';
+        // Extract body content from a full HTML doc if present
+        var match   = raw.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        var content = match ? match[1] : raw;
+
+        var company = esc(data.company_name || 'Trash Panda Roll-Offs');
+        var initial = esc((data.company_name || 'T').charAt(0).toUpperCase());
+
+        return [
+            '<!DOCTYPE html><html lang="en"><head>',
+            '<meta charset="UTF-8">',
+            '<meta name="viewport" content="width=device-width,initial-scale=1">',
+            '<style>',
+            '*{box-sizing:border-box;}',
+            'body{margin:0;padding:0;background:#f1f3f4;font-family:Roboto,Arial,sans-serif;}',
+            '.gc{background:#fff;padding:16px 24px 0;}',
+            '.gs{font-size:22px;font-weight:400;color:#202124;margin:0 0 14px;line-height:1.3;word-break:break-word;}',
+            '.gr{display:flex;align-items:flex-start;gap:12px;padding-bottom:14px;}',
+            '.ga{width:40px;height:40px;min-width:40px;border-radius:50%;background:#f97316;',
+            '    display:flex;align-items:center;justify-content:center;',
+            '    color:#fff;font-size:18px;font-weight:500;}',
+            '.gf{font-size:14px;font-weight:600;color:#202124;}',
+            '.gt{font-size:12px;color:#5f6368;margin-top:2px;}',
+            '.gd{margin-left:auto;font-size:12px;color:#5f6368;white-space:nowrap;padding-top:2px;}',
+            'hr{border:none;border-top:1px solid #e0e0e0;margin:0;}',
+            '.gb{padding:20px 24px 32px;background:#fff;}',
+            '</style></head><body>',
+            '<div class="gc">',
+            '  <h1 class="gs">' + esc(data.subject || '(no subject)') + '</h1>',
+            '  <div class="gr">',
+            '    <div class="ga">' + initial + '</div>',
+            '    <div>',
+            '      <div class="gf">' + company + '</div>',
+            '      <div class="gt">to ' + esc(data.recipient || '') + '</div>',
+            '    </div>',
+            '    <div class="gd">' + esc(data.sent_at || '') + '</div>',
+            '  </div>',
+            '</div>',
+            '<hr>',
+            '<div class="gb">' + content + '</div>',
+            '</body></html>'
+        ].join('\n');
+    }
 
     function showPreview(id) {
         if (!modal) {
             modal = new bootstrap.Modal(document.getElementById('previewModal'));
         }
-
-        // Reset state
         currentId = id;
         document.getElementById('previewModalLabel').textContent = 'Loading…';
         document.getElementById('previewMeta').textContent       = '';
         document.getElementById('previewLoading').style.display  = '';
         document.getElementById('previewFrame').style.display    = 'none';
         document.getElementById('previewFrame').srcdoc           = '';
-        document.getElementById('previewPlain').style.display    = 'none';
-        document.getElementById('previewPlain').textContent      = '';
         modal.show();
 
         fetch('preview.php?id=' + encodeURIComponent(id))
             .then(function (r) { return r.json(); })
             .then(function (data) {
-                if (id !== currentId) return; // stale response
-
-                document.getElementById('previewModalLabel').textContent =
-                    data.subject || '(no subject)';
-
-                var meta = 'To: ' + (data.recipient || '—') + '  ·  ' + (data.sent_at || '—');
-                if (data.status) meta += '  ·  ' + data.status.charAt(0).toUpperCase() + data.status.slice(1);
-                document.getElementById('previewMeta').textContent = meta;
-
+                if (id !== currentId) return;
+                document.getElementById('previewModalLabel').textContent = data.subject || '(no subject)';
+                var parts = [data.recipient, data.sent_at];
+                if (data.status) parts.push(data.status.charAt(0).toUpperCase() + data.status.slice(1));
+                document.getElementById('previewMeta').textContent = parts.filter(Boolean).join('  ·  ');
                 document.getElementById('previewLoading').style.display = 'none';
-
-                var body = data.body || '';
-                var isHtml = /<[a-z][\s\S]*>/i.test(body);
-
-                if (isHtml) {
-                    document.getElementById('previewFrame').srcdoc  = body;
-                    document.getElementById('previewFrame').style.display = '';
-                } else {
-                    document.getElementById('previewPlain').textContent     = body || '(no message body recorded)';
-                    document.getElementById('previewPlain').style.display   = '';
-                }
+                document.getElementById('previewFrame').srcdoc          = buildDoc(data);
+                document.getElementById('previewFrame').style.display   = '';
             })
             .catch(function () {
                 if (id !== currentId) return;
-                document.getElementById('previewLoading').style.display  = 'none';
-                document.getElementById('previewPlain').textContent       = 'Failed to load preview.';
-                document.getElementById('previewPlain').style.display     = '';
+                document.getElementById('previewLoading').style.display = 'none';
+                document.getElementById('previewFrame').srcdoc = buildDoc({
+                    subject: 'Error', body: '<p style="color:red;font-family:sans-serif;">Failed to load preview.</p>',
+                    company_name: '', recipient: '', sent_at: '',
+                });
+                document.getElementById('previewFrame').style.display = '';
             });
     }
 

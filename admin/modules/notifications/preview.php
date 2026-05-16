@@ -24,12 +24,13 @@ if (!$notif) {
 }
 
 echo json_encode([
-    'subject'   => $notif['subject']   ?? '',
-    'body'      => $notif['body']      ?? '',
-    'recipient' => $notif['recipient'] ?? '',
-    'type'      => $notif['type']      ?? 'email',
-    'status'    => $notif['status']    ?? '',
-    'sent_at'   => !empty($notif['sent_at'])
-                       ? fmt_datetime($notif['sent_at'])
-                       : fmt_datetime($notif['created_at']),
+    'subject'      => $notif['subject']   ?? '',
+    'body'         => $notif['body']      ?? '',
+    'recipient'    => $notif['recipient'] ?? '',
+    'type'         => $notif['type']      ?? 'email',
+    'status'       => $notif['status']    ?? '',
+    'sent_at'      => !empty($notif['sent_at'])
+                          ? fmt_datetime($notif['sent_at'])
+                          : fmt_datetime($notif['created_at']),
+    'company_name' => get_setting('company_name', 'Trash Panda Roll-Offs'),
 ]);
