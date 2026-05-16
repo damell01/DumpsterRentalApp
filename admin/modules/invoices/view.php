@@ -353,6 +353,17 @@ layout_start('Invoice ' . $inv['invoice_number'], 'invoices');
                         onclick="copyPayLink(this)" type="button">
                     <i class="fa-solid fa-copy me-1"></i> Copy Link
                 </button>
+                <?php if ($can_edit && $inv['status'] !== 'paid' && !empty($inv['stripe_session_id'])): ?>
+                <form method="POST" action="stripe_sync.php">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="id" value="<?= $id ?>">
+                    <button type="submit" class="btn-tp-ghost btn-tp-xs w-100"
+                            style="color:#22c55e;border-color:#22c55e;"
+                            title="Check Stripe and mark paid if payment was received">
+                        <i class="fa-solid fa-rotate me-1"></i> Sync from Stripe
+                    </button>
+                </form>
+                <?php endif; ?>
                 <?php if ($can_edit && $has_stripe): ?>
                 <form method="POST" action="generate_payment_link.php">
                     <?= csrf_field() ?>
