@@ -36,6 +36,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($action === 'retry') {
             stripe_retry_subscription_invoice((int)($_POST['id'] ?? 0));
             flash_success('Latest subscription invoice retry triggered.');
+        } elseif ($action === 'update') {
+            stripe_update_subscription((int)($_POST['id'] ?? 0), [
+                'service_name'    => trim((string)($_POST['service_name'] ?? '')),
+                'service_address' => trim((string)($_POST['service_address'] ?? '')),
+                'amount'          => (float)($_POST['amount'] ?? 0),
+                'interval_unit'   => trim((string)($_POST['interval_unit'] ?? 'month')),
+                'interval_count'  => (int)($_POST['interval_count'] ?? 1),
+                'autopay_enabled' => !empty($_POST['autopay_enabled']),
+            ]);
+            flash_success('Subscription updated.');
         }
     } catch (Throwable $e) {
         flash_error('Subscription error: ' . $e->getMessage());
@@ -125,6 +135,12 @@ layout_start('Subscriptions', 'subscriptions');
                                        class="btn-tp-danger btn-tp-xs me-1" title="No payment method on file">
                                         <i class="fa-solid fa-triangle-exclamation me-1"></i>Set Up Payment
                                     </a>
+                                    <?php endif; ?>
+                                    <?php if ($subscription['status'] !== 'canceled'): ?>
+                                    <button type="button" class="btn-tp-ghost btn-tp-xs me-1"
+                                            onclick="openEditSub(<?= (int)$subscription['id'] ?>,<?= e(json_encode($subscription['service_name'])) ?>,<?= e(json_encode($subscription['service_address'] ?? '')) ?>,<?= (float)$subscription['amount'] ?>,<?= e(json_encode($subscription['interval_unit'])) ?>,<?= (int)$subscription['interval_count'] ?>,<?= (int)$subscription['autopay_enabled'] ?>)">
+                                        Edit
+                                    </button>
                                     <?php endif; ?>
                                     <form method="POST" action="index.php" class="d-inline">
                                         <?= csrf_field() ?>
@@ -245,4 +261,71 @@ layout_start('Subscriptions', 'subscriptions');
         </div>
     </div>
 </div>
+<!-- Edit Subscription Modal -->
+<div class="modal fade" id="editSubModal" tabindex="-1" aria-labelledby="editSubModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content" style="background:var(--card-bg,#1e2130);color:var(--body-color,#e2e8f0);border:1px solid var(--border,#2d3148);">
+      <form method="POST" action="index.php">
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="update">
+        <input type="hidden" name="id" id="editSubId">
+        <div class="modal-header" style="border-bottom:1px solid var(--border,#2d3148);">
+          <h5 class="modal-title" id="editSubModalLabel">Edit Subscription</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Service Name</label>
+            <input type="text" name="service_name" id="editSubServiceName" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Service Address</label>
+            <input type="text" name="service_address" id="editSubServiceAddress" class="form-control" placeholder="Optional">
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label">Amount ($)</label>
+              <input type="number" step="0.01" min="1" name="amount" id="editSubAmount" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Interval Count</label>
+              <input type="number" min="1" name="interval_count" id="editSubIntervalCount" class="form-control" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Interval</label>
+            <select name="interval_unit" id="editSubIntervalUnit" class="form-select">
+              <option value="day">Day</option>
+              <option value="week">Week</option>
+              <option value="month">Month</option>
+              <option value="year">Year</option>
+            </select>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="autopay_enabled" id="editSubAutopay" value="1">
+            <label class="form-check-label" for="editSubAutopay">Autopay enabled</label>
+          </div>
+          <p class="text-muted mt-2 mb-0" style="font-size:.8rem;">Changing amount or interval will create a new Stripe price and update the subscription immediately with no proration.</p>
+        </div>
+        <div class="modal-footer" style="border-top:1px solid var(--border,#2d3148);">
+          <button type="button" class="btn-tp-ghost btn-tp-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-tp-primary btn-tp-sm">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function openEditSub(id, name, address, amount, intervalUnit, intervalCount, autopay) {
+    document.getElementById('editSubId').value = id;
+    document.getElementById('editSubServiceName').value = name;
+    document.getElementById('editSubServiceAddress').value = address;
+    document.getElementById('editSubAmount').value = amount;
+    document.getElementById('editSubIntervalUnit').value = intervalUnit;
+    document.getElementById('editSubIntervalCount').value = intervalCount;
+    document.getElementById('editSubAutopay').checked = autopay == 1;
+    new bootstrap.Modal(document.getElementById('editSubModal')).show();
+}
+</script>
 <?php layout_end(); ?>

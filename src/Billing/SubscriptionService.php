@@ -65,6 +65,57 @@ class SubscriptionService
         return $subscriptionId;
     }
 
+    public function update(int $id, array $data): void
+    {
+        $subscription = $this->requireLocalSubscription($id);
+
+        $localUpdates = [
+            'service_name'    => trim((string)$data['service_name']),
+            'service_address' => trim((string)($data['service_address'] ?? '')) ?: null,
+            'autopay_enabled' => !empty($data['autopay_enabled']) ? 1 : 0,
+            'updated_at'      => date('Y-m-d H:i:s'),
+        ];
+
+        $newAmount        = (float)$data['amount'];
+        $newIntervalUnit  = trim((string)$data['interval_unit']);
+        $newIntervalCount = max(1, (int)$data['interval_count']);
+
+        $amountChanged   = abs($newAmount - (float)$subscription['amount']) > 0.001;
+        $intervalChanged = $newIntervalUnit !== (string)$subscription['interval_unit']
+                        || $newIntervalCount !== (int)$subscription['interval_count'];
+
+        if ($amountChanged || $intervalChanged) {
+            $newPriceId = $this->ensureRecurringPrice(
+                trim((string)$data['service_name']),
+                (int)round($newAmount * 100),
+                $newIntervalUnit,
+                $newIntervalCount
+            );
+
+            $stripeSub   = $this->factory->requireClient()->subscriptions->retrieve(
+                $subscription['stripe_subscription_id'],
+                ['expand' => ['items']]
+            );
+            $firstItemId = $stripeSub->items->data[0]->id ?? null;
+            if ($firstItemId === null) {
+                throw new BillingException('Could not retrieve subscription item from Stripe.');
+            }
+
+            $this->factory->requireClient()->subscriptions->update($subscription['stripe_subscription_id'], [
+                'items'              => [['id' => $firstItemId, 'price' => $newPriceId]],
+                'proration_behavior' => 'none',
+            ]);
+
+            $localUpdates['amount']         = $newAmount;
+            $localUpdates['interval_unit']  = $newIntervalUnit;
+            $localUpdates['interval_count'] = $newIntervalCount;
+            $localUpdates['stripe_price_id'] = $newPriceId;
+        }
+
+        \db_update('subscriptions', $localUpdates, 'id', $id);
+        $this->auditLogService->log('subscription_updated', 'Updated subscription #' . $id, 'subscription', $id);
+    }
+
     public function syncFromStripeObject(object $subscription): ?array
     {
         $row = \db_fetch('SELECT * FROM subscriptions WHERE stripe_subscription_id = ? LIMIT 1', [$subscription->id]);
