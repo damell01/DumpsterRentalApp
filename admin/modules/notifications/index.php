@@ -113,8 +113,20 @@ layout_start('Notifications', 'notifications');
                     <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                         <?= e($notif['recipient']) ?>
                     </td>
-                    <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                        <?= e($notif['subject']) ?>
+                    <td style="max-width:280px;">
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">
+                                <?= e($notif['subject']) ?>
+                            </span>
+                            <?php if (!empty($notif['body'])): ?>
+                            <button type="button"
+                                    class="btn-tp-ghost btn-tp-xs preview-btn flex-shrink-0"
+                                    data-id="<?= (int)$notif['id'] ?>"
+                                    title="Preview message">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                            <?php endif; ?>
+                        </div>
                     </td>
                     <td><span class="badge bg-<?= $status_col ?>"><?= e(ucfirst($notif['status'])) ?></span></td>
                     <td>
@@ -151,5 +163,129 @@ layout_start('Notifications', 'notifications');
     </ul>
 </nav>
 <?php endif; ?>
+
+<!-- ── Message Preview Modal ──────────────────────────────────────────────── -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content" style="background:var(--dark2,#161b27);border:1px solid var(--steel,#374151);">
+            <div class="modal-header" style="border-bottom:1px solid var(--steel,#374151);">
+                <div style="min-width:0;flex:1;">
+                    <h6 class="modal-title mb-0 text-truncate" id="previewModalLabel">Loading…</h6>
+                    <div id="previewMeta" style="font-size:.78rem;color:var(--gy,#9ca3af);margin-top:.2rem;"></div>
+                </div>
+                <button type="button" class="btn-close btn-close-white ms-3 flex-shrink-0" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0" style="min-height:300px;">
+                <div id="previewLoading" class="d-flex align-items-center justify-content-center py-5">
+                    <i class="fa-solid fa-spinner fa-spin me-2" style="color:var(--or);"></i>
+                    <span style="color:var(--gy);">Loading…</span>
+                </div>
+                <iframe id="previewFrame"
+                        srcdoc=""
+                        style="width:100%;height:600px;border:0;display:none;background:#f1f3f4;"
+                        sandbox="allow-same-origin"
+                        title="Email preview"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var modal     = null;
+    var currentId = null;
+
+    function esc(s) {
+        return String(s)
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function buildDoc(data) {
+        var raw     = data.body || '';
+        // Extract body content from a full HTML doc if present
+        var match   = raw.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        var content = match ? match[1] : raw;
+
+        var company = esc(data.company_name || 'Trash Panda Roll-Offs');
+        var initial = esc((data.company_name || 'T').charAt(0).toUpperCase());
+
+        return [
+            '<!DOCTYPE html><html lang="en"><head>',
+            '<meta charset="UTF-8">',
+            '<meta name="viewport" content="width=device-width,initial-scale=1">',
+            '<style>',
+            '*{box-sizing:border-box;}',
+            'body{margin:0;padding:0;background:#f1f3f4;font-family:Roboto,Arial,sans-serif;}',
+            '.gc{background:#fff;padding:16px 24px 0;}',
+            '.gs{font-size:22px;font-weight:400;color:#202124;margin:0 0 14px;line-height:1.3;word-break:break-word;}',
+            '.gr{display:flex;align-items:flex-start;gap:12px;padding-bottom:14px;}',
+            '.ga{width:40px;height:40px;min-width:40px;border-radius:50%;background:#f97316;',
+            '    display:flex;align-items:center;justify-content:center;',
+            '    color:#fff;font-size:18px;font-weight:500;}',
+            '.gf{font-size:14px;font-weight:600;color:#202124;}',
+            '.gt{font-size:12px;color:#5f6368;margin-top:2px;}',
+            '.gd{margin-left:auto;font-size:12px;color:#5f6368;white-space:nowrap;padding-top:2px;}',
+            'hr{border:none;border-top:1px solid #e0e0e0;margin:0;}',
+            '.gb{padding:20px 24px 32px;background:#fff;}',
+            '</style></head><body>',
+            '<div class="gc">',
+            '  <h1 class="gs">' + esc(data.subject || '(no subject)') + '</h1>',
+            '  <div class="gr">',
+            '    <div class="ga">' + initial + '</div>',
+            '    <div>',
+            '      <div class="gf">' + company + '</div>',
+            '      <div class="gt">to ' + esc(data.recipient || '') + '</div>',
+            '    </div>',
+            '    <div class="gd">' + esc(data.sent_at || '') + '</div>',
+            '  </div>',
+            '</div>',
+            '<hr>',
+            '<div class="gb">' + content + '</div>',
+            '</body></html>'
+        ].join('\n');
+    }
+
+    function showPreview(id) {
+        if (!modal) {
+            modal = new bootstrap.Modal(document.getElementById('previewModal'));
+        }
+        currentId = id;
+        document.getElementById('previewModalLabel').textContent = 'Loading…';
+        document.getElementById('previewMeta').textContent       = '';
+        document.getElementById('previewLoading').style.display  = '';
+        document.getElementById('previewFrame').style.display    = 'none';
+        document.getElementById('previewFrame').srcdoc           = '';
+        modal.show();
+
+        fetch('preview.php?id=' + encodeURIComponent(id))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (id !== currentId) return;
+                document.getElementById('previewModalLabel').textContent = data.subject || '(no subject)';
+                var parts = [data.recipient, data.sent_at];
+                if (data.status) parts.push(data.status.charAt(0).toUpperCase() + data.status.slice(1));
+                document.getElementById('previewMeta').textContent = parts.filter(Boolean).join('  ·  ');
+                document.getElementById('previewLoading').style.display = 'none';
+                document.getElementById('previewFrame').srcdoc          = buildDoc(data);
+                document.getElementById('previewFrame').style.display   = '';
+            })
+            .catch(function () {
+                if (id !== currentId) return;
+                document.getElementById('previewLoading').style.display = 'none';
+                document.getElementById('previewFrame').srcdoc = buildDoc({
+                    subject: 'Error', body: '<p style="color:red;font-family:sans-serif;">Failed to load preview.</p>',
+                    company_name: '', recipient: '', sent_at: '',
+                });
+                document.getElementById('previewFrame').style.display = '';
+            });
+    }
+
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.preview-btn');
+        if (btn) showPreview(btn.dataset.id);
+    });
+}());
+</script>
 
 <?php layout_end(); ?>

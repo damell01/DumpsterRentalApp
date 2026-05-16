@@ -1,0 +1,21 @@
+# Public website security rules
+Options -Indexes
+
+# Block direct access to sensitive file types
+<FilesMatch "\.(env|sql|log|lock|json|md|sh|bak|orig|git)$">
+    Require all denied
+</FilesMatch>
+
+# Block access to hidden directories/files (.git, .env, etc.)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule (^|/)\.(?!well-known) - [F,L]
+</IfModule>
+
+# Security headers for public pages
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+</IfModule>

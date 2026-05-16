@@ -373,6 +373,9 @@ function layout_start(string $page_title, string $active_nav = ''): void
     ?>
     <link rel="stylesheet" href="<?= htmlspecialchars($asset_path, ENT_QUOTES, 'UTF-8') ?>/css/app.css?v=<?= $css_ver ?>">
 
+    <!-- Apply dark mode before first paint to prevent flash -->
+    <script>if(localStorage.getItem('tp_theme')==='dark')document.documentElement.classList.add('dark');</script>
+
     <meta name="theme-color" content="#f97316">
 </head>
 <body>
@@ -499,6 +502,18 @@ function layout_start(string $page_title, string $active_nav = ''): void
             <?= $escaped_title ?>
         </h4>
 
+        <!-- Dark mode toggle -->
+        <button type="button" class="tp-theme-toggle no-print" id="tpThemeToggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+            <i class="fa-solid fa-moon" id="tpThemeIcon"></i>
+        </button>
+
+        <!-- Global search -->
+        <button type="button" class="tp-search-btn no-print me-1" id="tpSearchTrigger" aria-label="Quick search (Ctrl+K)">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <span class="d-none d-sm-inline" style="font-size:.82rem;">Search</span>
+            <span class="tp-search-kbd d-none d-md-inline">⌘K</span>
+        </button>
+
         <!-- Right-side quick actions -->
         <div class="d-flex gap-2 align-items-center">
             <?php if ($page_guide): ?>
@@ -523,6 +538,26 @@ function layout_start(string $page_title, string $active_nav = ''): void
             </a>
         </div>
     </div><!-- /.tp-topbar -->
+
+    <!-- ── Command Palette ──────────────────────────────────────────────── -->
+    <div class="tp-palette-overlay no-print" id="tpPaletteOverlay"
+         role="dialog" aria-modal="true" aria-label="Quick search">
+        <div class="tp-palette" id="tpPalette">
+            <div class="tp-palette-input-wrap">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="search" class="tp-palette-input" id="tpPaletteInput"
+                       placeholder="Search customers, bookings, work orders, invoices…"
+                       autocomplete="off" spellcheck="false">
+                <i class="fa-solid fa-spinner fa-spin tp-palette-spinner" id="tpPaletteSpinner" style="display:none;"></i>
+            </div>
+            <div class="tp-palette-results" id="tpPaletteResults"></div>
+            <div class="tp-palette-footer">
+                <span><kbd>↑</kbd> <kbd>↓</kbd> Navigate</span>
+                <span><kbd>↵</kbd> Open</span>
+                <span><kbd>Esc</kbd> Close</span>
+            </div>
+        </div>
+    </div>
 
     <!-- Content area -->
     <div class="tp-content">
@@ -799,6 +834,138 @@ if ('serviceWorker' in navigator) {
         </div>
     </div>
 </div>
+
+<!-- ── Dark Mode Toggle ── -->
+<script>
+(function () {
+    var btn  = document.getElementById('tpThemeToggle');
+    var icon = document.getElementById('tpThemeIcon');
+    if (!btn) return;
+
+    function apply(dark) {
+        document.documentElement.classList.toggle('dark', dark);
+        icon.className = dark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+        btn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+        btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    }
+
+    // Sync icon with current state (class was already set in <head>)
+    apply(document.documentElement.classList.contains('dark'));
+
+    btn.addEventListener('click', function () {
+        var dark = !document.documentElement.classList.contains('dark');
+        localStorage.setItem('tp_theme', dark ? 'dark' : 'light');
+        apply(dark);
+    });
+})();
+</script>
+
+<!-- ── Command Palette ── -->
+<script>
+(function () {
+    var overlay  = document.getElementById('tpPaletteOverlay');
+    var palette  = document.getElementById('tpPalette');
+    var input    = document.getElementById('tpPaletteInput');
+    var results  = document.getElementById('tpPaletteResults');
+    var spinner  = document.getElementById('tpPaletteSpinner');
+    var trigger  = document.getElementById('tpSearchTrigger');
+    if (!overlay || !input) return;
+
+    var debounce = null;
+    var focused  = -1;
+    var baseUrl  = <?= json_encode($app_url) ?>;
+
+    function esc(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function open() {
+        overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        setTimeout(function () { input.focus(); input.select(); }, 30);
+    }
+
+    function close() {
+        overlay.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    function items() { return results.querySelectorAll('.tp-palette-result'); }
+
+    function setFocused(idx) {
+        var all = items();
+        all.forEach(function (el, i) { el.classList.toggle('focused', i === idx); });
+        focused = idx;
+        if (all[idx]) all[idx].scrollIntoView({ block: 'nearest' });
+    }
+
+    var typeLabel = { customer: 'Customer', booking: 'Booking', work_order: 'Work Order', invoice: 'Invoice' };
+
+    function render(data) {
+        spinner.style.display = 'none';
+        if (!data.results || data.results.length === 0) {
+            results.innerHTML = '<div class="tp-palette-empty"><i class="fa-solid fa-magnifying-glass" style="margin-right:.4rem;opacity:.4;"></i>No results found.</div>';
+            return;
+        }
+        var html = '';
+        data.results.forEach(function (r) {
+            html += '<a href="' + esc(r.url) + '" class="tp-palette-result">'
+                  + '<div class="tp-palette-result-icon"><i class="fa-solid ' + esc(r.icon) + '"></i></div>'
+                  + '<div style="flex:1;min-width:0;">'
+                  + '<div class="tp-palette-result-label">' + esc(r.label) + '</div>'
+                  + (r.sub ? '<div class="tp-palette-result-sub">' + esc(r.sub) + '</div>' : '')
+                  + '</div>'
+                  + '<span class="tp-palette-type-tag">' + esc(typeLabel[r.type] || r.type) + '</span>'
+                  + '</a>';
+        });
+        results.innerHTML = html;
+        focused = -1;
+    }
+
+    function search(q) {
+        if (q.length < 2) { results.innerHTML = ''; spinner.style.display = 'none'; return; }
+        spinner.style.display = '';
+        fetch(baseUrl + '/api/search.php?q=' + encodeURIComponent(q), { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(render)
+            .catch(function () { spinner.style.display = 'none'; });
+    }
+
+    input.addEventListener('input', function () {
+        clearTimeout(debounce);
+        debounce = setTimeout(function () { search(input.value.trim()); }, 200);
+    });
+
+    input.addEventListener('keydown', function (e) {
+        var all = items();
+        if (e.key === 'ArrowDown') {
+            e.preventDefault(); setFocused(Math.min(focused + 1, all.length - 1));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault(); setFocused(Math.max(focused - 1, 0));
+        } else if (e.key === 'Enter' && all[focused]) {
+            window.location.href = all[focused].href;
+        } else if (e.key === 'Escape') {
+            close();
+        }
+    });
+
+    /* Ctrl+K / ⌘K global shortcut */
+    document.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            overlay.classList.contains('open') ? close() : open();
+        }
+        if (e.key === 'Escape' && overlay.classList.contains('open')) close();
+    });
+
+    if (trigger) trigger.addEventListener('click', open);
+
+    /* Click outside palette to close */
+    overlay.addEventListener('mousedown', function (e) {
+        if (!palette.contains(e.target)) close();
+    });
+})();
+</script>
 
 </body>
 </html>

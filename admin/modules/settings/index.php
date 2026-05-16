@@ -340,6 +340,18 @@ layout_start('Settings', 'settings');
             </div>
         </div>
 
+        <div class="col-12 mb-4">
+            <label class="form-label" for="review_url">
+                <i class="fa-solid fa-star" style="color:#f97316;"></i> Google Review Link
+            </label>
+            <input type="url" id="review_url" name="review_url" class="form-control"
+                   placeholder="https://g.page/r/XXXXXX/review"
+                   value="<?= e(get_setting('review_url', '')) ?>">
+            <div class="form-text" style="color:var(--gy);">
+                Customers are automatically emailed this link after their job is completed. Leave blank to disable review requests.
+            </div>
+        </div>
+
         <h6 class="mb-3" style="font-weight:600;border-bottom:1px solid #e5e7eb;padding-bottom:.5rem;">
             <i class="fa-solid fa-file-lines" style="color:#f97316;"></i> Documents &amp; Templates
         </h6>

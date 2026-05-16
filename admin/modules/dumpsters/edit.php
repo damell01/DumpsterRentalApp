@@ -47,7 +47,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $active     = isset($_POST['active']) ? 1 : 0;
     $status     = trim($_POST['status']     ?? 'available');
     $condition  = trim($_POST['condition']  ?? 'good');
-    $notes      = trim($_POST['notes']      ?? '');
+    $notes                 = trim($_POST['notes']                 ?? '');
+    $last_maint_raw        = trim($_POST['last_maintenance_date'] ?? '');
+    $last_maintenance_date = ($last_maint_raw !== '' && strtotime($last_maint_raw))
+                             ? date('Y-m-d', strtotime($last_maint_raw)) : null;
+    $purchase_date_raw     = trim($_POST['purchase_date'] ?? '');
+    $purchase_date         = ($purchase_date_raw !== '' && strtotime($purchase_date_raw))
+                             ? date('Y-m-d', strtotime($purchase_date_raw)) : null;
     $image      = $dumpster['image'] ?? null; // keep existing by default
 
     // Required field validation
@@ -139,9 +145,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'active'          => $active,
             'status'          => $status,
             'condition'       => $condition,
-            'notes'           => $notes,
-            'image'           => $image,
-            'updated_at'      => date('Y-m-d H:i:s'),
+            'notes'                 => $notes,
+            'last_maintenance_date' => $last_maintenance_date,
+            'purchase_date'         => $purchase_date,
+            'image'                 => $image,
+            'updated_at'            => date('Y-m-d H:i:s'),
         ], 'id', $id);
 
         log_activity('update', "Updated dumpster $unit_code ($size)", 'dumpster', $id);
@@ -165,11 +173,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'delivery_fee'    => $delivery_fee,
         'pickup_fee'      => $pickup_fee,
         'mileage_fee'     => $mileage_fee,
-        'active'          => $active,
-        'status'          => $status,
-        'condition'       => $condition,
-        'notes'           => $notes,
-        'image'           => $image,
+        'active'                => $active,
+        'status'                => $status,
+        'condition'             => $condition,
+        'notes'                 => $notes,
+        'last_maintenance_date' => $last_maintenance_date,
+        'purchase_date'         => $purchase_date,
+        'image'                 => $image,
     ]);
 }
 
@@ -499,6 +509,33 @@ layout_start('Edit Dumpster', 'inventory');
                 </select>
             </div>
 
+            <!-- Asset & Maintenance Info -->
+            <div class="col-12 mt-2">
+                <h6 class="mb-0" style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--gy,#9ca3af);">
+                    Asset &amp; Maintenance Info
+                </h6>
+                <hr class="mt-1 mb-0" style="border-color:rgba(255,255,255,.07);">
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label" for="last_maintenance_date">Last Maintenance Date</label>
+                <input type="date"
+                       id="last_maintenance_date"
+                       name="last_maintenance_date"
+                       class="form-control"
+                       value="<?= e($dumpster['last_maintenance_date'] ?? '') ?>">
+                <div class="form-text">Updated automatically when you log a maintenance entry below.</div>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label" for="purchase_date">Purchase / Acquisition Date <small class="text-muted">optional</small></label>
+                <input type="date"
+                       id="purchase_date"
+                       name="purchase_date"
+                       class="form-control"
+                       value="<?= e($dumpster['purchase_date'] ?? '') ?>">
+            </div>
+
             <!-- Notes -->
             <div class="col-12">
                 <label class="form-label" for="notes">Notes</label>
@@ -537,6 +574,86 @@ layout_start('Edit Dumpster', 'inventory');
                 <a href="index.php" class="btn-tp-ghost">Cancel</a>
             </div>
 
+        </div>
+    </form>
+</div>
+
+<?php
+// ── Maintenance Log ───────────────────────────────────────────────────────────
+$maintenance_logs = db_fetchall(
+    'SELECT dml.*, u.name AS logged_by_name
+     FROM dumpster_maintenance_logs dml
+     LEFT JOIN users u ON u.id = dml.created_by
+     WHERE dml.dumpster_id = ?
+     ORDER BY dml.maintenance_date DESC, dml.id DESC',
+    [$id]
+);
+?>
+
+<div class="tp-card mt-4" id="maintenance" style="max-width:1160px;width:100%;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="mb-0"><i class="fa-solid fa-wrench me-2 text-muted"></i>Maintenance Log</h6>
+    </div>
+
+    <?php if (!empty($maintenance_logs)): ?>
+    <div class="table-responsive mb-3">
+        <table class="tp-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Performed By</th>
+                    <th>Cost</th>
+                    <th>Logged By</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($maintenance_logs as $log): ?>
+                <tr>
+                    <td><?= htmlspecialchars(date('m/d/Y', strtotime($log['maintenance_date']))) ?></td>
+                    <td><?= htmlspecialchars($log['description']) ?></td>
+                    <td><?= $log['performed_by'] ? htmlspecialchars($log['performed_by']) : '<span class="text-muted">—</span>' ?></td>
+                    <td><?= $log['cost'] !== null ? '$' . number_format((float)$log['cost'], 2) : '<span class="text-muted">—</span>' ?></td>
+                    <td><small class="text-muted"><?= $log['logged_by_name'] ? htmlspecialchars($log['logged_by_name']) : 'System' ?></small></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php else: ?>
+    <p class="text-muted mb-3">No maintenance entries yet.</p>
+    <?php endif; ?>
+
+    <form method="POST" action="log_maintenance.php">
+        <?= csrf_field() ?>
+        <input type="hidden" name="dumpster_id" value="<?= $id ?>">
+        <h6 class="mb-3" style="font-size:.85rem;font-weight:600;">Log New Maintenance Entry</h6>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label" for="maint_date">Date <span class="text-danger">*</span></label>
+                <input type="date" id="maint_date" name="maintenance_date" class="form-control"
+                       value="<?= htmlspecialchars(date('Y-m-d')) ?>" required>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label" for="maint_desc">Description <span class="text-danger">*</span></label>
+                <input type="text" id="maint_desc" name="description" class="form-control"
+                       placeholder="e.g. Cleaned, repaired latch, repainted…" required>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label" for="maint_by">Performed By</label>
+                <input type="text" id="maint_by" name="performed_by" class="form-control"
+                       placeholder="Name or vendor">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label" for="maint_cost">Cost ($)</label>
+                <input type="number" id="maint_cost" name="cost" class="form-control"
+                       step="0.01" min="0" placeholder="0.00">
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn-tp-primary btn-tp-sm">
+                    <i class="fa-solid fa-plus me-1"></i> Log Entry
+                </button>
+            </div>
         </div>
     </form>
 </div>

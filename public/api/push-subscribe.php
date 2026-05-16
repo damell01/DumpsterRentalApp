@@ -27,6 +27,10 @@ if (file_exists($_autoload)) {
     require_once $_autoload;
 }
 require_once INC_PATH . '/push.php';
+require_once INC_PATH . '/api_rate_limit.php';
+
+// 10 subscribe/unsubscribe actions per IP per hour
+api_rate_limit('push_subscribe', 10, 3600);
 
 function push_api_error(string $msg, int $code = 400): void
 {
