@@ -5,12 +5,47 @@ require_once TMPL_PATH . '/layout.php';
 require_login();
 require_role('admin', 'office');
 
+require_once INC_PATH . '/stripe.php';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_check();
+    if (trim($_POST['action'] ?? '') === 'detach') {
+        try {
+            billing_payment_method_service()->detach(
+                (int)($_POST['customer_id'] ?? 0),
+                (int)($_POST['id'] ?? 0)
+            );
+            flash_success('Payment method removed.');
+        } catch (\Throwable $e) {
+            flash_error('Could not remove payment method: ' . $e->getMessage());
+        }
+    }
+    redirect('index.php');
+}
+
 $methods = db_fetchall(
     'SELECT pm.*, c.name AS customer_name, c.email AS customer_email
      FROM payment_methods pm
      INNER JOIN customers c ON c.id = pm.customer_id
      ORDER BY pm.is_default DESC, pm.updated_at DESC'
 );
+
+$duplicateKeys = [];
+$potentialDupes = [];
+foreach ($methods as $m) {
+    if (!$m['is_active'] || !$m['last4']) {
+        continue;
+    }
+    $key = $m['customer_id'] . '|' . $m['type'] . '|' . $m['brand'] . '|' . $m['last4'];
+    $potentialDupes[$key][] = (int)$m['id'];
+}
+foreach ($potentialDupes as $key => $ids) {
+    if (count($ids) > 1) {
+        foreach ($ids as $dupId) {
+            $duplicateKeys[$dupId] = true;
+        }
+    }
+}
 
 layout_start('Payment Methods', 'payment_methods');
 ?>
@@ -88,11 +123,26 @@ layout_start('Payment Methods', 'payment_methods');
                             <span class="tp-badge badge-canceled">Detached</span>
                             <?php endif; ?>
                         </td>
-                        <td class="text-end">
+                        <td class="text-end text-nowrap">
+                            <?php if (!empty($duplicateKeys[(int)$method['id']])): ?>
+                            <span class="tp-badge badge-warning me-1" title="Possible duplicate — same card on file">Duplicate?</span>
+                            <?php endif; ?>
                             <a href="setup.php?customer_id=<?= (int)$method['customer_id'] ?>"
-                               class="btn-tp-ghost btn-tp-xs" title="Manage payment methods for this customer">
+                               class="btn-tp-ghost btn-tp-xs me-1" title="Manage payment methods for this customer">
                                 <i class="fa-solid fa-gear"></i>
                             </a>
+                            <?php if ((int)$method['is_active'] === 1): ?>
+                            <form method="POST" action="index.php" class="d-inline"
+                                  onsubmit="return confirm('Remove this payment method? This cannot be undone.');">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="action" value="detach">
+                                <input type="hidden" name="id" value="<?= (int)$method['id'] ?>">
+                                <input type="hidden" name="customer_id" value="<?= (int)$method['customer_id'] ?>">
+                                <button type="submit" class="btn-tp-danger btn-tp-xs" title="Remove payment method">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </form>
+                            <?php endif; ?>
                         </td>
                     </tr>
                     <?php endforeach; ?>

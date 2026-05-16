@@ -312,6 +312,40 @@ layout_start('Reports', 'reports');
             </button>
             <a href="index.php" class="btn-tp-ghost btn-tp-sm ms-1">Reset</a>
         </div>
+        <div class="col-auto ms-auto">
+            <?php
+            $export_qs = http_build_query(array_filter([
+                'date_from'  => $all_time ? '' : $date_from,
+                'date_to'    => $all_time ? '' : $date_to,
+                'pay_method' => $pay_method,
+                'pay_status' => $pay_status,
+                'all_time'   => $all_time ? '1' : '',
+            ]));
+            ?>
+            <div class="dropdown">
+                <button class="btn-tp-ghost btn-tp-sm dropdown-toggle" type="button"
+                        data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fa-solid fa-download me-1"></i> Export CSV
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <a class="dropdown-item" href="export.php?type=bookings&<?= $export_qs ?>">
+                            <i class="fa-solid fa-calendar-check me-2 text-muted"></i>Bookings
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="export.php?type=invoices&<?= $export_qs ?>">
+                            <i class="fa-solid fa-file-invoice me-2 text-muted"></i>Invoices
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="export.php?type=work_orders&<?= $export_qs ?>">
+                            <i class="fa-solid fa-clipboard-list me-2 text-muted"></i>Work Orders
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
     </form>
 </div>
 

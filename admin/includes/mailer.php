@@ -1505,3 +1505,122 @@ function notify_lead_received(string $to_email, string $to_name, string $company
     $html = email_template('Request Received', $body);
     send_email($to_email, 'We received your request — ' . $company, $html);
 }
+
+/**
+ * Send a payment received confirmation to the customer (Stripe webhook — card payment settled).
+ */
+function notify_payment_received(array $booking, float $amount, string $payment_method_slug): void
+{
+    $email = trim($booking['customer_email'] ?? '');
+    if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return;
+    }
+
+    $name   = htmlspecialchars($booking['customer_name'] ?? 'Customer', ENT_QUOTES, 'UTF-8');
+    $bk_num = htmlspecialchars($booking['booking_number'] ?? '', ENT_QUOTES, 'UTF-8');
+    $start  = !empty($booking['rental_start']) ? date('l, F j, Y', strtotime($booking['rental_start'])) : '—';
+    $end    = !empty($booking['rental_end'])   ? date('l, F j, Y', strtotime($booking['rental_end']))   : '—';
+    $method = htmlspecialchars(payment_method_label($payment_method_slug), ENT_QUOTES, 'UTF-8');
+    $amt    = htmlspecialchars(fmt_money($amount), ENT_QUOTES, 'UTF-8');
+
+    $vars = [
+        'customer_name'  => $name,
+        'booking_number' => $bk_num,
+        'amount'         => $amt,
+        'payment_method' => $method,
+        'rental_start'   => $start,
+        'rental_end'     => $end,
+    ];
+
+    $tpl = get_email_template('payment_received', [
+        'subject'  => 'Payment Received — {{booking_number}}',
+        'body_html' => '<p>Hello {{customer_name}},</p>
+<p>We have received your payment of <strong>{{amount}}</strong> for booking <strong>{{booking_number}}</strong>. Thank you!</p>
+<table width="100%" style="border-collapse:collapse;font-size:.95rem;margin:16px 0;">
+  <tr style="background:#f9fafb;"><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;width:40%;">Booking #</td><td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{booking_number}}</td></tr>
+  <tr><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Amount Paid</td><td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{amount}}</td></tr>
+  <tr style="background:#f9fafb;"><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Payment Method</td><td style="padding:10px 14px;border:1px solid #e5e7eb;">{{payment_method}}</td></tr>
+  <tr><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Rental Period</td><td style="padding:10px 14px;border:1px solid #e5e7eb;">{{rental_start}} → {{rental_end}}</td></tr>
+</table>
+<p>If you have any questions about your booking, please don\'t hesitate to contact us.</p>
+<p>Thank you for choosing us!</p>',
+    ]);
+
+    $subject = render_email_vars($tpl['subject'], $vars);
+    $body    = render_email_vars($tpl['body_html'], $vars);
+    $html    = email_template('Payment Received — ' . $bk_num, $body);
+    send_email($email, $subject, $html);
+    log_activity('payment_received_emailed', 'Sent payment received email for booking ' . ($booking['booking_number'] ?? ''), 'booking', (int)($booking['id'] ?? 0));
+
+    notify_admins('Payment Received — ' . $bk_num . ' (' . ($booking['customer_name'] ?? '') . ')', $body);
+
+    if (function_exists('push_notify_customer')) {
+        $identifiers = array_filter([
+            filter_var($email, FILTER_VALIDATE_EMAIL) ? strtolower($email) : '',
+            !empty($booking['customer_phone']) ? preg_replace('/\D/', '', $booking['customer_phone']) : '',
+        ]);
+        foreach ($identifiers as $id) {
+            push_notify_customer($id, '✅ Payment Received — ' . $bk_num, 'Your payment of ' . $amt . ' has been confirmed.');
+        }
+    }
+}
+
+/**
+ * Send a refund notification to the customer when a Stripe charge is refunded.
+ */
+function notify_payment_refunded(array $payment, float $refunded_amount): void
+{
+    $bookingId = (int)($payment['booking_id'] ?? 0);
+    $invoiceId = (int)($payment['invoice_id'] ?? 0);
+
+    $customerEmail = '';
+    $customerName  = '';
+    $bookingNumber = '';
+
+    if ($bookingId > 0) {
+        $booking = db_fetch('SELECT customer_email, customer_name, booking_number FROM bookings WHERE id = ? LIMIT 1', [$bookingId]);
+        if ($booking) {
+            $customerEmail = trim($booking['customer_email'] ?? '');
+            $customerName  = $booking['customer_name'] ?? '';
+            $bookingNumber = $booking['booking_number'] ?? '';
+        }
+    } elseif ($invoiceId > 0) {
+        $row = db_fetch(
+            'SELECT c.email, c.name, i.invoice_number FROM invoices i LEFT JOIN customers c ON c.id = i.customer_id WHERE i.id = ? LIMIT 1',
+            [$invoiceId]
+        );
+        if ($row) {
+            $customerEmail = trim($row['email'] ?? '');
+            $customerName  = $row['name'] ?? '';
+            $bookingNumber = $row['invoice_number'] ?? '';
+        }
+    }
+
+    if (empty($customerEmail) || !filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
+        return;
+    }
+
+    $name   = htmlspecialchars($customerName ?: 'Customer', ENT_QUOTES, 'UTF-8');
+    $ref    = htmlspecialchars($bookingNumber, ENT_QUOTES, 'UTF-8');
+    $amt    = htmlspecialchars(fmt_money($refunded_amount), ENT_QUOTES, 'UTF-8');
+
+    $vars = [
+        'customer_name'   => $name,
+        'refunded_amount' => $amt,
+        'booking_number'  => $ref,
+    ];
+
+    $tpl = get_email_template('payment_refunded', [
+        'subject'  => 'Refund Issued — {{booking_number}}',
+        'body_html' => '<p>Hello {{customer_name}},</p>
+<p>A refund of <strong>{{refunded_amount}}</strong> has been issued for booking <strong>{{booking_number}}</strong>.</p>
+<p>Refunds typically appear on your statement within 5–10 business days depending on your bank.</p>
+<p>If you have any questions, please contact us and we\'ll be happy to help.</p>',
+    ]);
+
+    $subject = render_email_vars($tpl['subject'], $vars);
+    $body    = render_email_vars($tpl['body_html'], $vars);
+    $html    = email_template('Refund Issued', $body);
+    send_email($customerEmail, $subject, $html);
+    log_activity('payment_refunded_emailed', 'Sent refund notification for ' . $bookingNumber . ', amount ' . fmt_money($refunded_amount), $bookingId > 0 ? 'booking' : 'invoice', $bookingId ?: $invoiceId);
+}

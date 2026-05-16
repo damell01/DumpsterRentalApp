@@ -122,10 +122,10 @@ class WebhookService
                     );
                     if (!$alreadyEmailed) {
                         try {
-                            \notify_booking_confirmed($booking);
-                            \log_activity('booking_paid_emailed', 'Sent booking paid confirmation for ' . ($booking['booking_number'] ?? $bookingId), 'booking', $bookingId);
+                            \notify_payment_received($booking, (float)$booking['total_amount'], $paymentMethod);
+                            \log_activity('booking_paid_emailed', 'Sent payment received email for ' . ($booking['booking_number'] ?? $bookingId), 'booking', $bookingId);
                         } catch (\Throwable $e) {
-                            \error_log('[Webhook] notify_booking_confirmed failed for booking ' . $bookingId . ': ' . $e->getMessage());
+                            \error_log('[Webhook] notify_payment_received failed for booking ' . $bookingId . ': ' . $e->getMessage());
                         }
                     }
                 }
@@ -330,6 +330,11 @@ class WebhookService
             }
             if (!empty($payment['invoice_id'])) {
                 \db_update('invoices', ['status' => 'void', 'updated_at' => date('Y-m-d H:i:s')], 'id', (int)$payment['invoice_id']);
+            }
+            try {
+                \notify_payment_refunded($payment, ((int)$charge->amount_refunded) / 100);
+            } catch (\Throwable $e) {
+                \error_log('[Webhook] notify_payment_refunded failed: ' . $e->getMessage());
             }
         }
 
