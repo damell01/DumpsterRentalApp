@@ -2160,3 +2160,164 @@ hr { border-color: var(--st); opacity: 1; }
     .tp-customer-hero { flex-direction: column; gap: 1rem; }
     .tp-customer-hero-stats { gap: .75rem; }
 }
+
+/* ── Sticky table headers ───────────────────────────────────────────────────── */
+.tp-table thead th {
+    position: sticky;
+    top: 60px;
+    z-index: 5;
+    background: var(--dk2, #f3f4f6);
+    box-shadow: 0 1px 0 var(--st2, #e5e7eb);
+}
+
+/* ── Command Palette ────────────────────────────────────────────────────────── */
+.tp-palette-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 42, 68, .45);
+    z-index: 9999;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 10vh;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s;
+}
+.tp-palette-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+.tp-palette {
+    width: min(620px, 92vw);
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,.18), 0 4px 16px rgba(0,0,0,.08);
+    transform: translateY(-10px) scale(.98);
+    transition: transform .15s;
+}
+.tp-palette-overlay.open .tp-palette {
+    transform: none;
+}
+.tp-palette-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .9rem 1.1rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+.tp-palette-input-wrap .fa-magnifying-glass { color: var(--or, #f97316); font-size: 1rem; flex-shrink: 0; }
+.tp-palette-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: #111827;
+    font-size: 1rem;
+    font-family: var(--font-body, sans-serif);
+}
+.tp-palette-input::placeholder { color: #9ca3af; }
+.tp-palette-spinner { color: #9ca3af; font-size: .85rem; flex-shrink: 0; }
+.tp-palette-results { max-height: 380px; overflow-y: auto; }
+.tp-palette-empty {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: #9ca3af;
+    font-size: .9rem;
+}
+.tp-palette-result {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .65rem 1.1rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background .08s;
+    border-bottom: 1px solid #f9fafb;
+}
+.tp-palette-result:last-child { border-bottom: none; }
+.tp-palette-result:hover,
+.tp-palette-result.focused { background: rgba(249,115,22,.07); text-decoration: none; }
+.tp-palette-result-icon {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    background: rgba(249,115,22,.1);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--or, #f97316);
+    font-size: .82rem;
+    flex-shrink: 0;
+}
+.tp-palette-result-label {
+    font-weight: 600;
+    color: #111827;
+    font-size: .88rem;
+    line-height: 1.25;
+}
+.tp-palette-result-sub {
+    color: #6b7280;
+    font-size: .76rem;
+    margin-top: .1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tp-palette-type-tag {
+    margin-left: auto;
+    font-size: .67rem;
+    padding: .15rem .45rem;
+    border-radius: 4px;
+    background: rgba(249,115,22,.1);
+    color: var(--or, #f97316);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    flex-shrink: 0;
+    font-family: var(--font-cond, sans-serif);
+    font-weight: 700;
+}
+.tp-palette-footer {
+    padding: .5rem 1.1rem;
+    border-top: 1px solid #f3f4f6;
+    display: flex;
+    gap: 1rem;
+    font-size: .72rem;
+    color: #9ca3af;
+    background: #fafafa;
+}
+.tp-palette-footer kbd {
+    background: #f3f4f6;
+    border-radius: 4px;
+    padding: .1rem .35rem;
+    font-size: .67rem;
+    color: #6b7280;
+    font-family: monospace;
+    border: 1px solid #e5e7eb;
+}
+
+/* Search trigger button in topbar */
+.tp-search-btn {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .35rem .8rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    color: #6b7280;
+    cursor: pointer;
+    font-size: .82rem;
+    transition: border-color .15s, background .15s, color .15s;
+    white-space: nowrap;
+    line-height: 1;
+}
+.tp-search-btn:hover { border-color: var(--or, #f97316); color: var(--or, #f97316); background: rgba(249,115,22,.04); }
+.tp-search-btn .tp-search-kbd {
+    font-size: .67rem;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: .1rem .35rem;
+    font-family: monospace;
+    color: #9ca3af;
+}
