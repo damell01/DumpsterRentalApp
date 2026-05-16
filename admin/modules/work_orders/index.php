@@ -123,9 +123,15 @@ layout_start('Work Orders', 'work_orders');
         <small class="text-muted fw-normal ms-2" style="font-size:.75rem;"><?= number_format($total) ?> total</small>
         <?php endif; ?>
     </h5>
-    <a href="create.php" class="btn-tp-primary btn-tp-sm">
-        <i class="fa-solid fa-plus"></i> New Work Order
-    </a>
+    <div class="d-flex gap-2">
+        <a href="map.php" class="btn-tp-ghost btn-tp-sm">
+            <i class="fa-solid fa-map-location-dot"></i>
+            <span class="d-none d-sm-inline">Dispatch Map</span>
+        </a>
+        <a href="create.php" class="btn-tp-primary btn-tp-sm">
+            <i class="fa-solid fa-plus"></i> New Work Order
+        </a>
+    </div>
 </div>
 
 <!-- Status Tabs -->
