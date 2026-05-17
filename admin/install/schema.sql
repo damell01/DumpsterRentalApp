@@ -75,6 +75,8 @@ CREATE TABLE IF NOT EXISTS `leads` (
   `created_at`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
+  KEY `idx_leads_status`     (`status`),
+  KEY `idx_leads_created_at` (`created_at`),
   CONSTRAINT `fk_leads_assigned_to`  FOREIGN KEY (`assigned_to`)  REFERENCES `users`     (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_leads_converted_to` FOREIGN KEY (`converted_to`) REFERENCES `customers` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -120,6 +122,8 @@ CREATE TABLE IF NOT EXISTS `quotes` (
   `updated_at`     datetime       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_quotes_number` (`quote_number`),
+  KEY `idx_quotes_status`     (`status`),
+  KEY `idx_quotes_created_at` (`created_at`),
   CONSTRAINT `fk_quotes_customer_id` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_quotes_lead_id`     FOREIGN KEY (`lead_id`)     REFERENCES `leads`     (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_quotes_created_by`  FOREIGN KEY (`created_by`)  REFERENCES `users`     (`id`) ON DELETE SET NULL
@@ -155,7 +159,9 @@ CREATE TABLE IF NOT EXISTS `dumpsters` (
   `created_at`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_dumpsters_unit_code` (`unit_code`)
+  UNIQUE KEY `uq_dumpsters_unit_code` (`unit_code`),
+  KEY `idx_dumpsters_status` (`status`),
+  KEY `idx_dumpsters_active` (`active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
@@ -204,6 +210,10 @@ CREATE TABLE IF NOT EXISTS `work_orders` (
   `updated_at`      datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_work_orders_number` (`wo_number`),
+  KEY `idx_wo_status`        (`status`),
+  KEY `idx_wo_delivery_date` (`delivery_date`),
+  KEY `idx_wo_pickup_date`   (`pickup_date`),
+  KEY `idx_wo_created_at`    (`created_at`),
   CONSTRAINT `fk_wo_customer_id`    FOREIGN KEY (`customer_id`)    REFERENCES `customers` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_wo_quote_id`       FOREIGN KEY (`quote_id`)       REFERENCES `quotes`    (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_wo_dumpster_id`    FOREIGN KEY (`dumpster_id`)    REFERENCES `dumpsters` (`id`) ON DELETE SET NULL,
@@ -253,6 +263,9 @@ CREATE TABLE IF NOT EXISTS `activity_log` (
   `ip_address`  varchar(45)           DEFAULT NULL,
   `created_at`  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
+  KEY `idx_al_action`     (`action`),
+  KEY `idx_al_ip`         (`ip_address`),
+  KEY `idx_al_created_at` (`created_at`),
   CONSTRAINT `fk_al_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -281,7 +294,9 @@ CREATE TABLE IF NOT EXISTS `notifications` (
   `related_id`   int(11)               DEFAULT NULL,
   `sent_at`      datetime              DEFAULT NULL,
   `created_at`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_notif_status`     (`status`),
+  KEY `idx_notif_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
@@ -316,8 +331,12 @@ CREATE TABLE IF NOT EXISTS `bookings` (
   `created_at`        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `idx_bookings_number` (`booking_number`),
-  KEY `idx_bookings_group` (`booking_group_id`),
+  KEY `idx_bookings_number`         (`booking_number`),
+  KEY `idx_bookings_group`          (`booking_group_id`),
+  KEY `idx_bookings_status`         (`booking_status`),
+  KEY `idx_bookings_payment_status` (`payment_status`),
+  KEY `idx_bookings_rental_start`   (`rental_start`),
+  KEY `idx_bookings_email`          (`customer_email`),
   CONSTRAINT `fk_bookings_customer_id` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_bookings_dumpster_id` FOREIGN KEY (`dumpster_id`) REFERENCES `dumpsters` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_bookings_created_by`  FOREIGN KEY (`created_by`)  REFERENCES `users`     (`id`) ON DELETE SET NULL
@@ -369,6 +388,9 @@ CREATE TABLE IF NOT EXISTS `invoices` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_invoices_number` (`invoice_number`),
   KEY `idx_invoices_work_order_id` (`work_order_id`),
+  KEY `idx_invoices_status`        (`status`),
+  KEY `idx_invoices_cust_email`    (`cust_email`),
+  KEY `idx_invoices_created_at`    (`created_at`),
   CONSTRAINT `fk_inv_customer_id` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_inv_work_order_id` FOREIGN KEY (`work_order_id`) REFERENCES `work_orders` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_inv_created_by`  FOREIGN KEY (`created_by`)  REFERENCES `users`     (`id`) ON DELETE SET NULL
