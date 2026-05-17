@@ -16,7 +16,7 @@ $today     = date('Y-m-d');
 $is_today  = ($view_date === $today);
 
 // ── Queries ───────────────────────────────────────────────────────────────────
-$addr_cols = 'wo.service_address, wo.service_city, wo.service_state, wo.service_zip';
+$addr_cols = 'wo.service_address, wo.service_city, wo.service_state, wo.service_zip, wo.cust_phone';
 
 if ($view_mode === 'active') {
     // All dumpsters currently on-site, regardless of date
@@ -107,9 +107,85 @@ if (!empty($all_jobs)) {
     foreach ($pickups   as &$p) { if (isset($id_map[$p['id']])) $p = $id_map[$p['id']]; } unset($p);
 }
 
-$cached_count  = count(array_filter($all_jobs, fn($wo) => $wo['lat'] !== null));
-$missing_count = count($all_jobs) - $cached_count;
+$cached_count    = count(array_filter($all_jobs, fn($wo) => $wo['lat'] !== null));
+$missing_count   = count($all_jobs) - $cached_count;
 $company_address = get_setting('company_address', '');
+$company_name    = get_setting('company_name', 'Dispatch');
+
+// ── Print route sheet ─────────────────────────────────────────────────────────
+if (isset($_GET['print']) && !empty($all_jobs)) {
+    // Reorder jobs if a route order was passed from the map JS
+    $ordered_jobs = $all_jobs;
+    if (!empty($_GET['order'])) {
+        $raw_order = preg_replace('/[^0-9,]/', '', $_GET['order']);
+        $order_ids = array_filter(array_map('intval', explode(',', $raw_order)));
+        $id_index  = array_column($all_jobs, null, 'id');
+        $arranged  = [];
+        foreach ($order_ids as $oid) {
+            if (isset($id_index[$oid])) { $arranged[] = $id_index[$oid]; unset($id_index[$oid]); }
+        }
+        // Append any jobs not in the order param (safety net)
+        $ordered_jobs = array_merge($arranged, array_values($id_index));
+    }
+
+    $print_title = $view_mode === 'active'
+        ? 'Active Dumpsters — ' . date('M j, Y')
+        : 'Route Sheet — ' . date('l, M j, Y', strtotime($view_date));
+
+    header('Content-Type: text/html; charset=utf-8');
+    ?><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title><?= htmlspecialchars($print_title) ?> | <?= htmlspecialchars($company_name) ?></title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,Helvetica,sans-serif;font-size:11pt;color:#111;padding:18px 24px;}
+h1{font-size:15pt;margin-bottom:2px;}
+.meta{color:#555;font-size:9.5pt;margin-bottom:14px;}
+table{width:100%;border-collapse:collapse;font-size:9.5pt;}
+th{background:#f3f4f6;border:1px solid #d1d5db;padding:5px 7px;text-align:left;font-size:9pt;}
+td{border:1px solid #d1d5db;padding:5px 7px;vertical-align:top;}
+.type-d{color:#c2410c;font-weight:700;}
+.type-p{color:#1d4ed8;font-weight:700;}
+tr:nth-child(even) td{background:#fafafa;}
+.phone{color:#374151;}
+@media print{body{padding:0;}@page{margin:.6in;}}
+</style>
+</head>
+<body>
+<h1><?= htmlspecialchars($company_name) ?> — <?= htmlspecialchars($print_title) ?></h1>
+<div class="meta">Printed <?= date('M j, Y g:i A') ?> · <?= count($ordered_jobs) ?> stops</div>
+<table>
+<thead><tr>
+    <th>#</th><th>WO #</th><th>Customer</th><th>Address</th>
+    <th>Phone</th><th>Size / Unit</th><th>Type</th><th>Status</th>
+</tr></thead>
+<tbody>
+<?php foreach ($ordered_jobs as $i => $wo):
+    $type = ($wo['job_type'] ?? 'delivery') === 'delivery' ? 'Delivery' : 'Pickup';
+    $cls  = $type === 'Delivery' ? 'type-d' : 'type-p';
+    $dumpster = trim(($wo['dumpster_size'] ?? '') . ($wo['dumpster_code'] ? ' · ' . $wo['dumpster_code'] : ''));
+?>
+<tr>
+    <td><?= $i + 1 ?></td>
+    <td><?= htmlspecialchars($wo['wo_number']) ?></td>
+    <td><?= htmlspecialchars($wo['cust_name']) ?></td>
+    <td><?= htmlspecialchars($wo['full_address'] ?? $wo['service_address'] ?? '') ?></td>
+    <td class="phone"><?= htmlspecialchars($wo['cust_phone'] ?? '') ?></td>
+    <td><?= htmlspecialchars($dumpster ?: '—') ?></td>
+    <td class="<?= $cls ?>"><?= $type ?></td>
+    <td><?= htmlspecialchars(ucwords(str_replace('_', ' ', $wo['status']))) ?></td>
+</tr>
+<?php endforeach; ?>
+</tbody>
+</table>
+<script>window.print();</script>
+</body>
+</html>
+<?php
+    exit;
+}
 
 layout_start('Dispatch Map', 'work_orders');
 ?>
@@ -196,7 +272,15 @@ layout_start('Dispatch Map', 'work_orders');
 <div id="route-panel" class="tp-card mb-3" style="display:none;">
     <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
         <h6 class="mb-0"><i class="fa-solid fa-route me-2" style="color:#f97316;"></i>Optimized Route</h6>
-        <span id="route-meta" style="color:var(--gy);font-size:.82rem;"></span>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span id="route-meta" style="color:var(--gy);font-size:.82rem;"></span>
+            <a id="btn-gmaps" href="#" target="_blank" rel="noopener" class="btn-tp-ghost btn-tp-sm" style="display:none;">
+                <i class="fa-solid fa-map-location-dot"></i> Google Maps
+            </a>
+            <a id="btn-print" href="#" target="_blank" rel="noopener" class="btn-tp-ghost btn-tp-sm" style="display:none;">
+                <i class="fa-solid fa-print"></i> Print Sheet
+            </a>
+        </div>
     </div>
     <ol id="route-list" class="mb-0 ps-4"></ol>
 </div>
@@ -430,11 +514,21 @@ document.querySelectorAll('.dispatch-row').forEach(function (r) { rowMap[r.datas
 function buildPopup(job) {
     var type  = job.job_type === 'delivery' ? 'Delivery' : 'Pickup';
     var color = jobColor(job);
+    var addr  = job.full_address || job.service_address;
     var html  = '<div class="dp-title" style="color:' + color + ';">'
               + esc(job.wo_number) + ' — ' + type + '</div>'
-              + '<div class="dp-sub">' + esc(job.cust_name) + '</div>'
-              + '<div class="dp-addr">' + esc(job.full_address || job.service_address) + '</div>'
-              + '<div style="font-size:.78rem;">Status: <strong>' + (statusLabels[job.status] || job.status) + '</strong></div>';
+              + '<div class="dp-sub">' + esc(job.cust_name) + '</div>';
+    if (job.cust_phone) {
+        html += '<div class="dp-sub"><a href="tel:' + esc(job.cust_phone) + '" style="color:#3b82f6;text-decoration:none;">'
+              + '<i class="fa-solid fa-phone" style="font-size:.7rem;margin-right:.25rem;"></i>' + esc(job.cust_phone) + '</a></div>';
+    }
+    html += '<div class="dp-addr">' + esc(addr) + '</div>';
+    var dumpInfo = [job.dumpster_size, job.dumpster_code].filter(Boolean).join(' · ');
+    if (dumpInfo) {
+        html += '<div style="font-size:.78rem;color:#6b7280;margin-bottom:.35rem;">'
+              + '<i class="fa-solid fa-dumpster" style="font-size:.7rem;margin-right:.25rem;"></i>' + esc(dumpInfo) + '</div>';
+    }
+    html += '<div style="font-size:.78rem;">Status: <strong>' + (statusLabels[job.status] || job.status) + '</strong></div>';
 
     var actions = nextStatus[job.status] || [];
     if (actions.length) {
@@ -652,8 +746,9 @@ function clearRoute() {
     document.querySelectorAll('.route-step').forEach(function (el) { el.textContent = '—'; });
     document.getElementById('route-panel').style.display = 'none';
     document.getElementById('btn-clear-route').style.display = 'none';
-    document.getElementById('btn-optimize').textContent = ' Optimize Route';
     document.getElementById('btn-optimize').innerHTML = '<i class="fa-solid fa-route"></i> Optimize Route';
+    var gBtn = document.getElementById('btn-gmaps'); if (gBtn) gBtn.style.display = 'none';
+    var pBtn = document.getElementById('btn-print'); if (pBtn) pBtn.style.display = 'none';
     routeActive = false;
 }
 
@@ -705,6 +800,19 @@ function drawRoute(ordered, distance, duration, geometry, depotLL) {
                      + '<br><span style="color:var(--gy);font-size:.8rem;">' + esc(pt.job.full_address || pt.job.service_address) + '</span></span>';
         list.appendChild(li);
     });
+
+    // Google Maps multi-stop URL
+    var mapsUrl = 'https://www.google.com/maps/dir/';
+    if (depotLL) mapsUrl += depotLL[0] + ',' + depotLL[1] + '/';
+    ordered.forEach(function (pt) { mapsUrl += pt.lat + ',' + pt.lng + '/'; });
+    var gBtn = document.getElementById('btn-gmaps');
+    if (gBtn) { gBtn.href = mapsUrl; gBtn.style.display = ''; }
+
+    // Print route sheet URL (passes the job order so PHP renders in the same order)
+    var orderIds = ordered.map(function (pt) { return pt.job.id; }).join(',');
+    var printBase = '?print=1&view=<?= urlencode($view_mode) ?>&date=<?= urlencode($view_date) ?>';
+    var pBtn = document.getElementById('btn-print');
+    if (pBtn) { pBtn.href = printBase + '&order=' + orderIds; pBtn.style.display = ''; }
 
     document.getElementById('route-panel').style.display = 'block';
     document.getElementById('btn-clear-route').style.display = '';
