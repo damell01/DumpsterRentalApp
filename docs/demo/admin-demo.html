@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Admin Panel — Demo</title>
+<style>
+/* ── Tokens ──────────────────────────────────────────────────────────── */
+:root{
+  --bg:#F7F7F7;--dk1:#fff;--dk2:#F3F4F6;--dk3:#E9ECEF;
+  --or:#F97316;--or-d:#EA6A00;--or-l:#FED7AA;
+  --navy:#0F2A44;--navy-d:#0A1F33;--navy-l:#1A3A5C;
+  --wh:#111827;--gy:#6B7280;--gl:#9CA3AF;--st:#E5E7EB;--st2:#D1D5DB;
+  --bl:#3B82F6;--gr:#10B981;--am:#F59E0B;--rd:#EF4444;
+  --sh:0 1px 4px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
+  --f:system-ui,-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--f);font-size:.93rem;color:var(--wh);background:var(--bg);display:flex;min-height:100vh;}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────── */
+.sidebar{width:260px;min-height:100vh;background:linear-gradient(180deg,var(--navy-d) 0%,var(--navy) 60%,#0d2840 100%);flex-shrink:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;}
+.sb-brand{padding:1.2rem 1.1rem;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:.8rem;}
+.sb-logo{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#f97316,#ea6a00);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;}
+.sb-name{font-size:.82rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.06em;line-height:1.3;}
+.sb-name em{color:var(--or);font-style:normal;}
+.sb-section{font-size:.65rem;font-weight:700;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em;padding:.9rem 1.25rem .3rem;}
+.sb-item{display:flex;align-items:center;gap:.7rem;padding:.58rem .9rem .58rem 1.2rem;margin:1px .65rem 1px .4rem;border-radius:8px;text-decoration:none;color:rgba(255,255,255,.62);font-size:.84rem;font-weight:500;border-left:2px solid transparent;transition:all .15s;}
+.sb-item:hover{color:rgba(255,255,255,.9);background:rgba(255,255,255,.07);}
+.sb-item.active{color:#fff;background:linear-gradient(90deg,rgba(249,115,22,.22) 0%,rgba(249,115,22,.06) 100%);border-left-color:var(--or);}
+.sb-icon{font-size:.95rem;width:1.1rem;text-align:center;flex-shrink:0;}
+.sb-footer{padding:.9rem 1.1rem;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:.65rem;}
+.sb-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#f97316,#ea6a00);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.75rem;font-weight:700;}
+.sb-user-name{font-size:.8rem;color:rgba(255,255,255,.75);font-weight:600;}
+.sb-user-role{font-size:.7rem;color:rgba(255,255,255,.38);}
+
+/* ── Top bar ─────────────────────────────────────────────────────────── */
+.main{flex:1;display:flex;flex-direction:column;min-width:0;}
+.topbar{background:var(--dk1);border-bottom:1px solid var(--st);padding:.65rem 1.6rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.topbar-title{font-size:1.05rem;font-weight:700;}
+.topbar-actions{display:flex;align-items:center;gap:.65rem;}
+.page-content{padding:1.5rem 1.6rem;flex:1;}
+
+/* ── Cards ───────────────────────────────────────────────────────────── */
+.tp-card{background:var(--dk1);border:1px solid var(--st);border-radius:12px;padding:1.2rem;box-shadow:var(--sh);margin-bottom:1rem;}
+.tp-card.p-0{padding:0;}
+.tp-card-header{padding:.8rem 1.2rem;border-bottom:1px solid var(--st);}
+
+/* ── Buttons ─────────────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:.3rem;border-radius:8px;font-weight:600;font-size:.82rem;padding:.38rem .8rem;border:1px solid transparent;cursor:pointer;font-family:var(--f);white-space:nowrap;}
+.btn-primary{background:var(--or);border-color:var(--or);color:#fff;}
+.btn-ghost{background:transparent;border-color:var(--st2);color:var(--wh);}
+.btn-sm{padding:.28rem .6rem;font-size:.78rem;}
+.btn-xs{padding:.2rem .45rem;font-size:.72rem;}
+.btn-blue{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.25);color:var(--bl);}
+.btn-green{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.25);color:#059669;}
+.btn-red{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.2);color:var(--rd);}
+
+/* ── Badges ──────────────────────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;font-size:.72rem;font-weight:700;padding:.18rem .5rem;border-radius:5px;white-space:nowrap;}
+.badge-scheduled{background:rgba(99,102,241,.12);color:#6366f1;}
+.badge-delivered{background:rgba(59,130,246,.12);color:var(--bl);}
+.badge-active{background:rgba(16,185,129,.12);color:#059669;}
+.badge-pickup{background:rgba(245,158,11,.12);color:#d97706;}
+.badge-picked-up{background:rgba(107,114,128,.12);color:var(--gy);}
+.badge-completed{background:rgba(17,24,39,.08);color:#374151;}
+.badge-canceled{background:rgba(239,68,68,.1);color:var(--rd);}
+.badge-paid{background:rgba(16,185,129,.12);color:#059669;}
+.badge-unpaid{background:rgba(245,158,11,.1);color:#d97706;}
+.badge-pending{background:rgba(245,158,11,.1);color:#d97706;}
+.badge-draft{background:rgba(107,114,128,.1);color:var(--gy);}
+.badge-sent{background:rgba(59,130,246,.12);color:var(--bl);}
+.badge-void{background:rgba(239,68,68,.08);color:var(--rd);}
+.badge-confirmed{background:rgba(16,185,129,.12);color:#059669;}
+.badge-available{background:rgba(16,185,129,.12);color:#059669;}
+.badge-in-use{background:rgba(249,115,22,.12);color:var(--or);}
+.badge-reserved{background:rgba(59,130,246,.12);color:var(--bl);}
+.badge-maintenance{background:rgba(239,68,68,.1);color:var(--rd);}
+.badge-priority-high{background:rgba(245,158,11,.12);color:#d97706;font-size:.67rem;}
+.badge-priority-urgent{background:rgba(239,68,68,.1);color:var(--rd);font-size:.67rem;}
+.badge-stripe{background:rgba(99,102,241,.1);color:#6366f1;}
+.badge-cash{background:rgba(16,185,129,.1);color:#059669;}
+.badge-check{background:rgba(107,114,128,.1);color:var(--gy);}
+
+/* ── Filter tabs ─────────────────────────────────────────────────────── */
+.filter-tabs{display:flex;gap:.25rem;flex-wrap:wrap;margin-bottom:.85rem;}
+.ftab{display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;font-weight:600;padding:.3rem .7rem;border-radius:7px;border:1px solid var(--st2);background:transparent;color:var(--gy);cursor:pointer;font-family:var(--f);}
+.ftab.active{color:var(--or);border-color:var(--or);background:rgba(249,115,22,.08);}
+.ftab-count{font-size:.68rem;background:rgba(0,0,0,.07);border-radius:4px;padding:.05rem .28rem;}
+.ftab.active .ftab-count{background:rgba(249,115,22,.15);color:var(--or);}
+
+/* ── Search / toolbar ────────────────────────────────────────────────── */
+.toolbar{display:flex;align-items:center;gap:.5rem;margin-bottom:.85rem;flex-wrap:wrap;}
+.search-box{height:34px;border:1px solid var(--st2);border-radius:8px;padding:.25rem .7rem;font-size:.82rem;background:var(--dk1);color:var(--wh);width:240px;font-family:var(--f);}
+.date-input{height:34px;border:1px solid var(--st2);border-radius:8px;padding:.25rem .6rem;font-size:.8rem;background:var(--dk1);color:var(--wh);width:130px;font-family:var(--f);}
+.toolbar-spacer{flex:1;}
+
+/* ── Table ───────────────────────────────────────────────────────────── */
+.tp-table{width:100%;border-collapse:collapse;font-size:.83rem;}
+.tp-table th{background:var(--dk2);color:var(--gy);font-weight:700;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;padding:.5rem .85rem;border-bottom:1px solid var(--st);white-space:nowrap;text-align:left;}
+.tp-table td{padding:.58rem .85rem;border-bottom:1px solid var(--st);vertical-align:middle;}
+.tp-table tbody tr:last-child td{border-bottom:none;}
+.tp-table tbody tr:hover td{background:rgba(249,115,22,.025);}
+.tp-table a{color:var(--or);font-weight:600;text-decoration:none;}
+.wo-num{color:var(--or);font-weight:700;font-size:.82rem;}
+.td-gray{color:var(--gy);font-size:.8rem;}
+.td-addr{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gy);font-size:.8rem;}
+
+/* ── KPI cards ───────────────────────────────────────────────────────── */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem;margin-bottom:1rem;}
+.kpi-row-3{grid-template-columns:repeat(3,1fr);}
+.kpi-card{background:var(--dk1);border:1px solid var(--st);border-radius:12px;padding:1.1rem;box-shadow:var(--sh);display:flex;align-items:center;gap:.9rem;position:relative;overflow:hidden;}
+.kpi-card.orange{border-left:4px solid var(--or);}
+.kpi-card.green{border-left:4px solid var(--gr);}
+.kpi-card.blue{border-left:4px solid var(--bl);}
+.kpi-card.amber{border-left:4px solid var(--am);}
+.kpi-card.gray{border-left:4px solid var(--st2);}
+.kpi-card.red{border-left:4px solid var(--rd);}
+.kpi-icon{width:46px;height:46px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;}
+.kpi-card.orange .kpi-icon{background:linear-gradient(135deg,rgba(249,115,22,.15) 0%,rgba(249,115,22,.05) 100%);color:var(--or);}
+.kpi-card.green .kpi-icon{background:linear-gradient(135deg,rgba(16,185,129,.15) 0%,rgba(16,185,129,.05) 100%);color:var(--gr);}
+.kpi-card.blue .kpi-icon{background:linear-gradient(135deg,rgba(59,130,246,.15) 0%,rgba(59,130,246,.05) 100%);color:var(--bl);}
+.kpi-card.amber .kpi-icon{background:linear-gradient(135deg,rgba(245,158,11,.15) 0%,rgba(245,158,11,.05) 100%);color:var(--am);}
+.kpi-card.gray .kpi-icon{background:var(--dk2);color:var(--gy);}
+.kpi-card.red .kpi-icon{background:linear-gradient(135deg,rgba(239,68,68,.12) 0%,rgba(239,68,68,.04) 100%);color:var(--rd);}
+.kpi-value{font-size:1.55rem;font-weight:800;line-height:1;color:var(--wh);}
+.kpi-label{font-size:.75rem;color:var(--gy);margin-top:.2rem;}
+.kpi-note{font-size:.71rem;color:var(--gl);margin-top:.15rem;}
+
+/* ── Calendar ────────────────────────────────────────────────────────── */
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;}
+.cal-title{font-size:1.1rem;font-weight:700;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--st);}
+.cal-day-header{background:var(--dk2);text-align:center;font-size:.72rem;font-weight:700;color:var(--gy);text-transform:uppercase;padding:.45rem 0;}
+.cal-cell{background:var(--dk1);min-height:90px;padding:.35rem .4rem;position:relative;}
+.cal-cell.other-month{background:var(--dk2);}
+.cal-cell.today{background:rgba(249,115,22,.03);}
+.cal-date{font-size:.78rem;font-weight:600;color:var(--gy);margin-bottom:.25rem;}
+.cal-cell.today .cal-date{color:var(--or);background:rgba(249,115,22,.12);width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;}
+.cal-event{font-size:.67rem;font-weight:600;padding:.1rem .35rem;border-radius:4px;margin-bottom:.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ev-blue{background:rgba(59,130,246,.15);color:#1d4ed8;}
+.ev-orange{background:rgba(249,115,22,.14);color:#c2410c;}
+.ev-green{background:rgba(16,185,129,.15);color:#065f46;}
+.ev-amber{background:rgba(245,158,11,.14);color:#92400e;}
+.ev-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--or);margin-right:3px;}
+
+/* ── Revenue bar chart ───────────────────────────────────────────────── */
+.rev-chart{display:flex;align-items:flex-end;gap:6px;height:100px;padding:0 4px;}
+.rev-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.rev-bar{width:100%;background:linear-gradient(180deg,rgba(249,115,22,.85),rgba(249,115,22,.55));border-radius:4px 4px 0 0;transition:height .3s;}
+.rev-bar-label{font-size:.65rem;color:var(--gy);}
+.rev-bar-val{font-size:.65rem;color:var(--wh);font-weight:600;}
+.rev-grid{display:flex;gap:.85rem;margin-bottom:.85rem;}
+.rev-method{background:var(--dk2);border-radius:8px;padding:.5rem .75rem;flex:1;text-align:center;}
+.rev-method-val{font-size:1.05rem;font-weight:800;}
+.rev-method-lbl{font-size:.7rem;color:var(--gy);}
+
+/* ── Layout helpers ──────────────────────────────────────────────────── */
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;}
+.flex-between{display:flex;align-items:center;justify-content:space-between;gap:.5rem;}
+.flex-center{display:flex;align-items:center;gap:.5rem;}
+.gap-sm{gap:.4rem;}
+.mb-sm{margin-bottom:.5rem;}
+.mb-md{margin-bottom:.85rem;}
+.text-gy{color:var(--gy);}
+.text-sm{font-size:.78rem;}
+.text-xs{font-size:.72rem;}
+.fw-bold{font-weight:700;}
+h5{font-size:.95rem;font-weight:700;margin:0;}
+h6{font-size:.86rem;font-weight:700;margin:0;}
+.page-title{font-size:1.15rem;font-weight:800;}
+.page-sub{font-size:.82rem;color:var(--gy);margin-top:.15rem;}
+
+/* ── Status timeline ─────────────────────────────────────────────────── */
+.timeline{list-style:none;}
+.tl-item{display:flex;gap:.75rem;padding-bottom:1rem;position:relative;}
+.tl-item:not(:last-child)::before{content:'';position:absolute;left:11px;top:22px;bottom:0;width:2px;background:var(--st);}
+.tl-dot{width:24px;height:24px;border-radius:50%;background:var(--dk2);border:2px solid var(--st);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.65rem;z-index:1;}
+.tl-dot.orange{background:rgba(249,115,22,.15);border-color:rgba(249,115,22,.4);color:var(--or);}
+.tl-dot.green{background:rgba(16,185,129,.15);border-color:rgba(16,185,129,.4);color:var(--gr);}
+.tl-dot.blue{background:rgba(59,130,246,.15);border-color:rgba(59,130,246,.4);color:var(--bl);}
+.tl-body{flex:1;}
+.tl-msg{font-size:.83rem;font-weight:600;color:var(--wh);}
+.tl-meta{font-size:.72rem;color:var(--gy);}
+
+/* ── Info grid ────────────────────────────────────────────────────────── */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:.45rem .75rem;}
+.info-label{font-size:.72rem;color:var(--gy);text-transform:uppercase;letter-spacing:.04em;font-weight:600;}
+.info-value{font-size:.84rem;color:var(--wh);font-weight:500;}
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar ──────────────────────────────────────────────────────────── -->
+<nav class="sidebar">
+  <div class="sb-brand">
+    <div class="sb-logo">🦝</div>
+    <div>
+      <div class="sb-name">Trash Panda<br><em>Roll-Offs</em></div>
+    </div>
+  </div>
+  <nav style="flex:1;padding:.75rem 0;">
+    <div class="sb-section">Operations</div>
+    <a class="sb-item" id="nav-work-orders" href="#" onclick="showView('work-orders');return false;"><span class="sb-icon">📋</span> Work Orders</a>
+    <a class="sb-item" id="nav-map" href="#" onclick="showView('map-placeholder');return false;"><span class="sb-icon">🗺</span> Dispatch Map</a>
+    <a class="sb-item" id="nav-bookings" href="#" onclick="showView('bookings');return false;"><span class="sb-icon">📅</span> Bookings</a>
+    <a class="sb-item" id="nav-calendar" href="#" onclick="showView('calendar');return false;"><span class="sb-icon">📆</span> Calendar</a>
+    <div class="sb-section">Finance</div>
+    <a class="sb-item" id="nav-invoices" href="#" onclick="showView('invoices');return false;"><span class="sb-icon">🧾</span> Invoices</a>
+    <a class="sb-item" id="nav-payments" href="#" onclick="showView('reports');return false;"><span class="sb-icon">💳</span> Payments</a>
+    <a class="sb-item" id="nav-reports" href="#" onclick="showView('reports');return false;"><span class="sb-icon">📊</span> Reports</a>
+    <div class="sb-section">Assets</div>
+    <a class="sb-item" id="nav-inventory" href="#" onclick="showView('inventory');return false;"><span class="sb-icon">🗑</span> Inventory</a>
+    <a class="sb-item" id="nav-customers" href="#"><span class="sb-icon">👥</span> Customers</a>
+    <a class="sb-item" id="nav-leads" href="#"><span class="sb-icon">📬</span> Leads</a>
+    <div class="sb-section">System</div>
+    <a class="sb-item" id="nav-settings" href="#"><span class="sb-icon">⚙</span> Settings</a>
+  </nav>
+  <div class="sb-footer">
+    <div class="sb-avatar">JD</div>
+    <div>
+      <div class="sb-user-name">John Doe</div>
+      <div class="sb-user-role">Administrator</div>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Main ─────────────────────────────────────────────────────────────── -->
+<div class="main">
+  <div class="topbar">
+    <span class="topbar-title" id="topbar-title">Work Orders</span>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-sm">🔔</button>
+      <button class="btn btn-ghost btn-sm">⚙</button>
+    </div>
+  </div>
+
+  <div class="page-content">
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- VIEW: Work Orders ──────────────────────────────────────────────── -->
+  <div id="view-work-orders">
+    <div class="flex-between mb-md">
+      <div><div class="page-title">Work Orders</div><div class="page-sub">10 total</div></div>
+      <div class="flex-center">
+        <button class="btn btn-ghost btn-sm">🗺 Dispatch Map</button>
+        <button class="btn btn-primary btn-sm">＋ New Work Order</button>
+      </div>
+    </div>
+    <div class="filter-tabs">
+      <button class="ftab active">All <span class="ftab-count">10</span></button>
+      <button class="ftab">Scheduled <span class="ftab-count">3</span></button>
+      <button class="ftab">Delivered <span class="ftab-count">1</span></button>
+      <button class="ftab">Active <span class="ftab-count">2</span></button>
+      <button class="ftab">Pickup Req. <span class="ftab-count">2</span></button>
+      <button class="ftab">Picked Up <span class="ftab-count">1</span></button>
+      <button class="ftab">Completed <span class="ftab-count">1</span></button>
+    </div>
+    <div class="toolbar">
+      <input class="search-box" placeholder="🔍  Search WO #, customer, address…" value="">
+      <input class="date-input" type="date" value="2026-05-01">
+      <span style="color:var(--gy);font-size:.8rem;">→</span>
+      <input class="date-input" type="date" value="2026-05-31">
+      <div class="toolbar-spacer"></div>
+    </div>
+    <div class="tp-card p-0">
+      <table class="tp-table">
+        <thead><tr>
+          <th>WO #</th><th>Customer</th><th>Address</th>
+          <th>Size</th><th>Delivery</th><th>Pickup</th><th>Status</th><th>Priority</th><th></th>
+        </tr></thead>
+        <tbody>
+          <tr><td><a class="wo-num" href="#">WO-2026-001</a></td><td><div>John Smith</div><div class="td-gray">(251) 555-0101</div></td><td class="td-addr">123 Magnolia Dr, Foley</td><td class="td-gray">10 yd · D-02</td><td class="td-gray">May 20</td><td class="td-gray">May 30</td><td><span class="badge badge-scheduled">Scheduled</span></td><td></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">WO-2026-002</a></td><td><div>Sarah Johnson</div><div class="td-gray">(251) 555-0102</div></td><td class="td-addr">456 Gulf Beach Hwy, Gulf Shores</td><td class="td-gray">20 yd · D-05</td><td class="td-gray">May 12</td><td class="td-gray">May 22</td><td><span class="badge badge-active">Active</span></td><td></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">WO-2026-003</a></td><td><div>Mike Davis</div><div class="td-gray">(251) 555-0103</div></td><td class="td-addr">789 Section St, Fairhope</td><td class="td-gray">15 yd · D-03</td><td class="td-gray">May 14</td><td class="td-gray">May 21</td><td><span class="badge badge-pickup">Pickup Req.</span></td><td></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">WO-2026-004</a></td><td><div>Linda Wilson</div><div class="td-gray">(251) 555-0104</div></td><td class="td-addr">321 N McKenzie St, Foley</td><td class="td-gray">30 yd · D-07</td><td class="td-gray">May 20</td><td class="td-gray">May 30</td><td><span class="badge badge-scheduled">Scheduled</span></td><td><span class="badge badge-priority-high">HIGH</span></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">WO-2026-005</a></td><td><div>Tom Brown</div><div class="td-gray">(251) 555-0105</div></td><td class="td-addr">654 US-90, Daphne</td><td class="td-gray">10 yd · D-01</td><td class="td-gray">May 10</td><td class="td-gray">May 17</td><td><span class="badge badge-pickup">Pickup Req.</span></td><td></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">WO-2026-006</a></td><td><div>Carol Martinez</div><div class="td-gray">(251) 555-0106</div></td><td class="td-addr">890 Greeno Rd, Fairhope</td><td class="td-gray">20 yd · D-06</td><td class="td-gray">May 18</td><td class="td-gray">May 28</td><td><span class="badge badge-delivered">Delivered</span></td><td></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">WO-2026-007</a></td><td><div>James Lee</div><div class="td-gray">(251) 555-0107</div></td><td class="td-addr">112 Canal Rd, Orange Beach</td><td class="td-gray">10 yd · D-02</td><td class="td-gray">May 5</td><td class="td-gray">May 15</td><td><span class="badge badge-picked-up">Picked Up</span></td><td></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">WO-2026-008</a></td><td><div>Nancy Chen</div><div class="td-gray">(251) 555-0108</div></td><td class="td-addr">445 Morphy Ave, Fairhope</td><td class="td-gray">15 yd · D-04</td><td class="td-gray">Apr 28</td><td class="td-gray">May 8</td><td><span class="badge badge-completed">Completed</span></td><td></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">WO-2026-009</a></td><td><div>Robert Taylor</div><div class="td-gray">(251) 555-0109</div></td><td class="td-addr">220 Hwy 98, Daphne</td><td class="td-gray">20 yd · D-05</td><td class="td-gray">May 22</td><td class="td-gray">Jun 1</td><td><span class="badge badge-scheduled">Scheduled</span></td><td><span class="badge badge-priority-urgent">URGENT</span></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">WO-2026-010</a></td><td><div>Patricia Moore</div><div class="td-gray">(251) 555-0110</div></td><td class="td-addr">567 Pine St, Foley</td><td class="td-gray">10 yd · D-01</td><td class="td-gray">May 14</td><td class="td-gray">May 24</td><td><span class="badge badge-active">Active</span></td><td></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- VIEW: Work Order Detail ────────────────────────────────────────── -->
+  <div id="view-wo-detail" style="display:none;">
+    <div class="flex-between mb-md">
+      <div>
+        <div class="flex-center gap-sm mb-sm">
+          <span style="color:var(--gy);font-size:.8rem;">← Work Orders</span>
+        </div>
+        <div class="flex-center gap-sm">
+          <div class="page-title">WO-2026-002</div>
+          <span class="badge badge-active" style="font-size:.78rem;">Active</span>
+        </div>
+        <div class="page-sub">Created May 12, 2026 · Sarah Johnson</div>
+      </div>
+      <div class="flex-center">
+        <button class="btn btn-ghost btn-sm">✏️ Edit</button>
+        <button class="btn btn-ghost btn-sm">🖨 Print</button>
+        <button class="btn btn-ghost btn-sm">🧾 Invoice</button>
+        <button class="btn btn-primary btn-sm">Update Status</button>
+      </div>
+    </div>
+    <div class="row2">
+      <!-- Left column -->
+      <div>
+        <div class="tp-card mb-md">
+          <h5 class="mb-sm">📋 Job Details</h5>
+          <div style="height:.75rem;"></div>
+          <div class="info-grid">
+            <div><div class="info-label">Dumpster Size</div><div class="info-value">20 Yard</div></div>
+            <div><div class="info-label">Assigned Unit</div><div class="info-value">D-05 <span class="badge badge-in-use" style="font-size:.68rem;">In Use</span></div></div>
+            <div><div class="info-label">Delivery Date</div><div class="info-value">May 12, 2026</div></div>
+            <div><div class="info-label">Pickup Date</div><div class="info-value">May 22, 2026</div></div>
+            <div><div class="info-label">Project Type</div><div class="info-value">Home Renovation</div></div>
+            <div><div class="info-label">Amount</div><div class="info-value fw-bold" style="color:var(--or);">$1,275.00</div></div>
+          </div>
+        </div>
+        <div class="tp-card">
+          <h5 class="mb-sm">👤 Customer</h5>
+          <div style="height:.75rem;"></div>
+          <div class="info-grid">
+            <div><div class="info-label">Name</div><div class="info-value">Sarah Johnson</div></div>
+            <div><div class="info-label">Phone</div><div class="info-value" style="color:var(--bl);">(251) 555-0102</div></div>
+            <div><div class="info-label">Email</div><div class="info-value text-sm">sarah.j@email.com</div></div>
+            <div><div class="info-label">Service Address</div><div class="info-value text-sm">456 Gulf Beach Hwy<br>Gulf Shores, AL 36542</div></div>
+          </div>
+        </div>
+      </div>
+      <!-- Right column — timeline -->
+      <div>
+        <div class="tp-card" style="height:100%;">
+          <div class="flex-between mb-md">
+            <h5>🕐 Activity Timeline</h5>
+            <button class="btn btn-ghost btn-sm">＋ Add Note</button>
+          </div>
+          <ul class="timeline">
+            <li class="tl-item">
+              <div class="tl-dot green">✓</div>
+              <div class="tl-body">
+                <div class="tl-msg">Status changed: Scheduled → Delivered</div>
+                <div class="tl-meta">May 12, 2026 at 8:42 AM · John Doe</div>
+              </div>
+            </li>
+            <li class="tl-item">
+              <div class="tl-dot orange">●</div>
+              <div class="tl-body">
+                <div class="tl-msg">Status changed: Delivered → Active</div>
+                <div class="tl-meta">May 12, 2026 at 2:15 PM · John Doe</div>
+              </div>
+            </li>
+            <li class="tl-item">
+              <div class="tl-dot blue">✎</div>
+              <div class="tl-body">
+                <div class="tl-msg">Note added: Customer confirmed they need until the 22nd. Renovation taking longer than expected.</div>
+                <div class="tl-meta">May 15, 2026 at 10:30 AM · Jane Smith</div>
+              </div>
+            </li>
+            <li class="tl-item">
+              <div class="tl-dot" style="background:rgba(249,115,22,.1);border-color:rgba(249,115,22,.3);">📧</div>
+              <div class="tl-body">
+                <div class="tl-msg">Delivery confirmation email sent to customer</div>
+                <div class="tl-meta">May 12, 2026 at 8:43 AM · System</div>
+              </div>
+            </li>
+            <li class="tl-item">
+              <div class="tl-dot">+</div>
+              <div class="tl-body">
+                <div class="tl-msg">Work order created from booking BK-2026-001</div>
+                <div class="tl-meta">May 8, 2026 at 3:22 PM · John Doe</div>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- VIEW: Bookings ─────────────────────────────────────────────────── -->
+  <div id="view-bookings" style="display:none;">
+    <div class="flex-between mb-md">
+      <div><div class="page-title">Bookings</div><div class="page-sub">8 total · $7,145 this month</div></div>
+      <button class="btn btn-primary btn-sm">＋ New Booking</button>
+    </div>
+    <div class="filter-tabs">
+      <button class="ftab active">All <span class="ftab-count">8</span></button>
+      <button class="ftab">Pending <span class="ftab-count">1</span></button>
+      <button class="ftab">Confirmed <span class="ftab-count">4</span></button>
+      <button class="ftab">Paid <span class="ftab-count">2</span></button>
+      <button class="ftab">Completed <span class="ftab-count">2</span></button>
+      <button class="ftab">Upcoming <span class="ftab-count">3</span></button>
+    </div>
+    <div class="toolbar">
+      <input class="search-box" placeholder="🔍  Search bookings, customer, email…" value="">
+      <button class="btn btn-ghost btn-sm">All Time</button>
+      <button class="btn btn-ghost btn-sm">This Month</button>
+      <button class="btn btn-ghost btn-sm">This Week</button>
+    </div>
+    <div class="tp-card p-0">
+      <table class="tp-table">
+        <thead><tr>
+          <th>Booking #</th><th>Customer</th><th>Unit</th>
+          <th>Dates</th><th>Days</th><th>Total</th><th>Method</th><th>Payment</th><th>Status</th><th></th>
+        </tr></thead>
+        <tbody>
+          <tr><td><a class="wo-num" href="#">BK-2026-001</a></td><td><div>Sarah Johnson</div><div class="td-gray">sarah.j@email.com</div></td><td class="td-gray">20 yd (×1)</td><td class="td-gray">May 12 – 22</td><td class="td-gray">10</td><td style="font-weight:700;">$850.00</td><td><span class="badge badge-stripe">Stripe</span></td><td><span class="badge badge-paid">Paid</span></td><td><span class="badge badge-confirmed">Confirmed</span></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">BK-2026-002</a></td><td><div>Robert Taylor</div><div class="td-gray">rtaylor@email.com</div></td><td class="td-gray">20 yd (×1)</td><td class="td-gray">May 22 – 30</td><td class="td-gray">8</td><td style="font-weight:700;">$680.00</td><td><span class="badge badge-cash">Cash</span></td><td><span class="badge badge-unpaid">Unpaid</span></td><td><span class="badge badge-pending">Pending</span></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">BK-2026-003</a></td><td><div>James Lee</div><div class="td-gray">jlee@email.com</div></td><td class="td-gray">10 yd (×1)</td><td class="td-gray">May 5 – 15</td><td class="td-gray">10</td><td style="font-weight:700;">$850.00</td><td><span class="badge badge-check">Check</span></td><td><span class="badge badge-paid">Paid</span></td><td><span class="badge badge-completed">Completed</span></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">BK-2026-004</a></td><td><div>Linda Wilson</div><div class="td-gray">lwilson@email.com</div></td><td class="td-gray">30 yd (×1)</td><td class="td-gray">May 20 – 30</td><td class="td-gray">10</td><td style="font-weight:700;">$1,200.00</td><td><span class="badge badge-stripe">Stripe</span></td><td><span class="badge badge-paid">Paid</span></td><td><span class="badge badge-confirmed">Confirmed</span></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">BK-2026-005</a></td><td><div>Tom Brown</div><div class="td-gray">tombrown@email.com</div></td><td class="td-gray">10 yd (×1)</td><td class="td-gray">May 8 – 18</td><td class="td-gray">10</td><td style="font-weight:700;">$850.00</td><td><span class="badge badge-stripe">Stripe</span></td><td><span class="badge badge-paid">Paid</span></td><td><span class="badge badge-paid">Paid</span></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">BK-2026-006</a></td><td><div>Carol Martinez</div><div class="td-gray">carol.m@email.com</div></td><td class="td-gray">20 yd (×1)</td><td class="td-gray">May 18 – 28</td><td class="td-gray">10</td><td style="font-weight:700;">$850.00</td><td><span class="badge badge-stripe">Stripe</span></td><td><span class="badge badge-paid">Paid</span></td><td><span class="badge badge-confirmed">Confirmed</span></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">BK-2026-007</a></td><td><div>John Smith</div><div class="td-gray">jsmith@email.com</div></td><td class="td-gray">10 yd (×1)</td><td class="td-gray">May 20 – 28</td><td class="td-gray">8</td><td style="font-weight:700;">$680.00</td><td><span class="badge badge-cash">Cash</span></td><td><span class="badge badge-unpaid">Unpaid</span></td><td><span class="badge badge-confirmed">Confirmed</span></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">BK-2026-008</a></td><td><div>Nancy Chen</div><div class="td-gray">nchen@email.com</div></td><td class="td-gray">15 yd (×1)</td><td class="td-gray">Apr 28 – May 8</td><td class="td-gray">10</td><td style="font-weight:700;">$850.00</td><td><span class="badge badge-check">Check</span></td><td><span class="badge badge-paid">Paid</span></td><td><span class="badge badge-completed">Completed</span></td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- VIEW: Invoices ─────────────────────────────────────────────────── -->
+  <div id="view-invoices" style="display:none;">
+    <div class="flex-between mb-md">
+      <div><div class="page-title">Invoices</div><div class="page-sub">7 invoices · $5,537.50 paid this month</div></div>
+      <button class="btn btn-primary btn-sm">＋ New Invoice</button>
+    </div>
+    <div class="filter-tabs">
+      <button class="ftab active">All <span class="ftab-count">7</span></button>
+      <button class="ftab">Draft <span class="ftab-count">1</span></button>
+      <button class="ftab">Sent <span class="ftab-count">1</span></button>
+      <button class="ftab">Paid <span class="ftab-count">5</span></button>
+      <button class="ftab">Void <span class="ftab-count">0</span></button>
+    </div>
+    <div class="toolbar">
+      <input class="search-box" placeholder="🔍  Search invoice #, customer…" value="">
+    </div>
+    <div class="tp-card p-0">
+      <table class="tp-table">
+        <thead><tr>
+          <th>Invoice #</th><th>Customer</th><th>Amount</th>
+          <th>Status</th><th>Due Date</th><th>Payment Link</th><th>Created</th><th></th>
+        </tr></thead>
+        <tbody>
+          <tr><td><a class="wo-num" href="#">INV-2026-001</a></td><td>John Smith</td><td style="font-weight:700;">$850.00</td><td><span class="badge badge-draft">Draft</span></td><td class="td-gray">May 25</td><td><button class="btn btn-blue btn-xs">Generate Link</button></td><td class="td-gray">May 18</td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">INV-2026-002</a></td><td>Sarah Johnson</td><td style="font-weight:700;">$1,275.00</td><td><span class="badge badge-sent">Sent</span></td><td class="td-gray">May 22</td><td><button class="btn btn-blue btn-xs">stripe.com ↗</button></td><td class="td-gray">May 12</td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">INV-2026-003</a></td><td>Mike Davis</td><td style="font-weight:700;">$1,062.50</td><td><span class="badge badge-paid">Paid</span></td><td class="td-gray">May 20</td><td class="td-gray">—</td><td class="td-gray">May 14</td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">INV-2026-004</a></td><td>Linda Wilson</td><td style="font-weight:700;">$1,500.00</td><td><span class="badge badge-paid">Paid</span></td><td class="td-gray">May 22</td><td class="td-gray">—</td><td class="td-gray">May 8</td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">INV-2026-005</a></td><td>Tom Brown</td><td style="font-weight:700;">$850.00</td><td><span class="badge badge-paid">Paid</span></td><td class="td-gray">May 18</td><td class="td-gray">—</td><td class="td-gray">May 10</td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">INV-2026-006</a></td><td>James Lee</td><td style="font-weight:700;">$850.00</td><td><span class="badge badge-paid">Paid</span></td><td class="td-gray">May 15</td><td class="td-gray">—</td><td class="td-gray">May 5</td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+          <tr><td><a class="wo-num" href="#">INV-2026-007</a></td><td>Nancy Chen</td><td style="font-weight:700;">$1,062.50</td><td><span class="badge badge-paid">Paid</span></td><td class="td-gray">May 10</td><td class="td-gray">—</td><td class="td-gray">Apr 30</td><td><button class="btn btn-ghost btn-xs">⋯</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- VIEW: Inventory ────────────────────────────────────────────────── -->
+  <div id="view-inventory" style="display:none;">
+    <div class="flex-between mb-md">
+      <div><div class="page-title">Dumpster Inventory</div><div class="page-sub">8 units · 5 active, 1 reserved, 1 available, 1 maintenance</div></div>
+      <div class="flex-center">
+        <button class="btn btn-ghost btn-sm">↑ Sync to Stripe</button>
+        <button class="btn btn-primary btn-sm">＋ Add Dumpster</button>
+      </div>
+    </div>
+    <div class="tp-card p-0">
+      <table class="tp-table">
+        <thead><tr>
+          <th>Unit Code</th><th>Size</th><th>Status</th><th>Base Price</th>
+          <th>Included Days</th><th>Extra Day</th><th>Assignment</th><th>Last Service</th><th></th>
+        </tr></thead>
+        <tbody>
+          <tr><td class="fw-bold">D-01</td><td class="td-gray">10 Yard</td><td><span class="badge badge-in-use">In Use</span></td><td>$85.00 /day</td><td class="td-gray">7 days</td><td class="td-gray">$12.00</td><td><a href="#" style="color:var(--or);font-size:.8rem;">WO-2026-005</a></td><td class="td-gray">Mar 15</td><td><button class="btn btn-ghost btn-xs">Edit</button></td></tr>
+          <tr><td class="fw-bold">D-02</td><td class="td-gray">10 Yard</td><td><span class="badge badge-in-use">In Use</span></td><td>$85.00 /day</td><td class="td-gray">7 days</td><td class="td-gray">$12.00</td><td><a href="#" style="color:var(--or);font-size:.8rem;">WO-2026-001</a></td><td class="td-gray">Mar 15</td><td><button class="btn btn-ghost btn-xs">Edit</button></td></tr>
+          <tr><td class="fw-bold">D-03</td><td class="td-gray">15 Yard</td><td><span class="badge badge-in-use">In Use</span></td><td>$107.00 /day</td><td class="td-gray">7 days</td><td class="td-gray">$15.00</td><td><a href="#" style="color:var(--or);font-size:.8rem;">WO-2026-003</a></td><td class="td-gray">Apr 2</td><td><button class="btn btn-ghost btn-xs">Edit</button></td></tr>
+          <tr><td class="fw-bold">D-04</td><td class="td-gray">15 Yard</td><td><span class="badge badge-available">Available</span></td><td>$107.00 /day</td><td class="td-gray">7 days</td><td class="td-gray">$15.00</td><td class="td-gray">—</td><td class="td-gray">Apr 2</td><td><button class="btn btn-ghost btn-xs">Edit</button></td></tr>
+          <tr><td class="fw-bold">D-05</td><td class="td-gray">20 Yard</td><td><span class="badge badge-in-use">In Use</span></td><td>$125.00 /day</td><td class="td-gray">7 days</td><td class="td-gray">$18.00</td><td><a href="#" style="color:var(--or);font-size:.8rem;">WO-2026-002</a></td><td class="td-gray">Mar 28</td><td><button class="btn btn-ghost btn-xs">Edit</button></td></tr>
+          <tr><td class="fw-bold">D-06</td><td class="td-gray">20 Yard</td><td><span class="badge badge-in-use">In Use</span></td><td>$125.00 /day</td><td class="td-gray">7 days</td><td class="td-gray">$18.00</td><td><a href="#" style="color:var(--or);font-size:.8rem;">WO-2026-006</a></td><td class="td-gray">Mar 28</td><td><button class="btn btn-ghost btn-xs">Edit</button></td></tr>
+          <tr><td class="fw-bold">D-07</td><td class="td-gray">30 Yard</td><td><span class="badge badge-reserved">Reserved</span></td><td>$150.00 /day</td><td class="td-gray">7 days</td><td class="td-gray">$22.00</td><td><a href="#" style="color:var(--or);font-size:.8rem;">WO-2026-004</a></td><td class="td-gray">Feb 14</td><td><button class="btn btn-ghost btn-xs">Edit</button></td></tr>
+          <tr><td class="fw-bold">D-08</td><td class="td-gray">40 Yard</td><td><span class="badge badge-maintenance">Maintenance</span></td><td>$175.00 /day</td><td class="td-gray">7 days</td><td class="td-gray">$25.00</td><td class="td-gray">—</td><td class="td-gray" style="color:var(--rd);">Feb 5 <span style="font-size:.68rem;background:rgba(239,68,68,.1);color:var(--rd);padding:.05rem .3rem;border-radius:3px;margin-left:3px;">DUE</span></td><td><button class="btn btn-ghost btn-xs">Edit</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- VIEW: Calendar ─────────────────────────────────────────────────── -->
+  <div id="view-calendar" style="display:none;">
+    <div class="flex-between mb-md">
+      <div><div class="page-title">📆 Calendar</div><div class="page-sub">Deliveries, pickups, and blocked dates</div></div>
+      <div class="flex-center">
+        <button class="btn btn-ghost btn-sm">← May</button>
+        <button class="btn btn-ghost btn-sm">Today</button>
+        <button class="btn btn-ghost btn-sm">Jun →</button>
+        <button class="btn btn-primary btn-sm">🚫 Block Dates</button>
+      </div>
+    </div>
+    <!-- Legend -->
+    <div class="flex-center gap-sm mb-md" style="font-size:.75rem;">
+      <span style="display:inline-flex;align-items:center;gap:.3rem;"><span style="width:12px;height:12px;border-radius:3px;background:rgba(249,115,22,.55);display:inline-block;"></span>Delivery</span>
+      <span style="display:inline-flex;align-items:center;gap:.3rem;"><span style="width:12px;height:12px;border-radius:3px;background:rgba(59,130,246,.55);display:inline-block;"></span>Pickup</span>
+      <span style="display:inline-flex;align-items:center;gap:.3rem;"><span style="width:12px;height:12px;border-radius:3px;background:rgba(16,185,129,.5);display:inline-block;"></span>Active</span>
+      <span style="display:inline-flex;align-items:center;gap:.3rem;"><span style="width:12px;height:12px;border-radius:3px;background:rgba(239,68,68,.25);display:inline-block;"></span>Blocked</span>
+    </div>
+    <div class="tp-card p-0" style="overflow:hidden;">
+    <div class="cal-grid">
+      <div class="cal-day-header">Sun</div><div class="cal-day-header">Mon</div><div class="cal-day-header">Tue</div><div class="cal-day-header">Wed</div><div class="cal-day-header">Thu</div><div class="cal-day-header">Fri</div><div class="cal-day-header">Sat</div>
+      <!-- Row 1: Apr 27 - May 3 -->
+      <div class="cal-cell other-month"><div class="cal-date">27</div></div>
+      <div class="cal-cell other-month"><div class="cal-date">28</div><div class="cal-event ev-blue">↗ Nancy Chen</div></div>
+      <div class="cal-cell other-month"><div class="cal-date">29</div></div>
+      <div class="cal-cell other-month"><div class="cal-date">30</div></div>
+      <div class="cal-cell"><div class="cal-date">1</div></div>
+      <div class="cal-cell"><div class="cal-date">2</div></div>
+      <div class="cal-cell"><div class="cal-date">3</div></div>
+      <!-- Row 2: May 4-10 -->
+      <div class="cal-cell"><div class="cal-date">4</div></div>
+      <div class="cal-cell"><div class="cal-date">5</div><div class="cal-event ev-blue">↗ James Lee</div></div>
+      <div class="cal-cell"><div class="cal-date">6</div></div>
+      <div class="cal-cell"><div class="cal-date">7</div></div>
+      <div class="cal-cell"><div class="cal-date">8</div><div class="cal-event ev-blue">↗ Tom Brown</div><div class="cal-event ev-green">● Nancy Chen ends</div></div>
+      <div class="cal-cell"><div class="cal-date">9</div></div>
+      <div class="cal-cell"><div class="cal-date">10</div></div>
+      <!-- Row 3: May 11-17 -->
+      <div class="cal-cell"><div class="cal-date">11</div></div>
+      <div class="cal-cell"><div class="cal-date">12</div><div class="cal-event ev-orange">↗ Sarah Johnson</div></div>
+      <div class="cal-cell"><div class="cal-date">13</div></div>
+      <div class="cal-cell"><div class="cal-date">14</div><div class="cal-event ev-orange">↗ Patricia Moore</div></div>
+      <div class="cal-cell"><div class="cal-date">15</div><div class="cal-event ev-green">✓ James Lee ends</div></div>
+      <div class="cal-cell"><div class="cal-date">16</div></div>
+      <div class="cal-cell"><div class="cal-date">17</div></div>
+      <!-- Row 4: May 18-24 -->
+      <div class="cal-cell"><div class="cal-date">18</div><div class="cal-event ev-orange">↗ Carol Martinez</div><div class="cal-event ev-green">✓ Tom Brown ends</div></div>
+      <div class="cal-cell"><div class="cal-date">19</div></div>
+      <div class="cal-cell today"><div class="cal-date">20</div><div class="cal-event ev-orange">↗ John Smith</div><div class="cal-event ev-orange">↗ Linda Wilson</div><div class="cal-event ev-orange">↗ R. Taylor</div></div>
+      <div class="cal-cell"><div class="cal-date">21</div></div>
+      <div class="cal-cell"><div class="cal-date">22</div><div class="cal-event ev-blue">⬇ Sarah Johnson</div></div>
+      <div class="cal-cell"><div class="cal-date">23</div></div>
+      <div class="cal-cell"><div class="cal-date">24</div><div class="cal-event ev-blue">⬇ Patricia Moore</div></div>
+      <!-- Row 5: May 25-31 -->
+      <div class="cal-cell"><div class="cal-date">25</div></div>
+      <div class="cal-cell"><div class="cal-date">26</div></div>
+      <div class="cal-cell"><div class="cal-date">27</div></div>
+      <div class="cal-cell"><div class="cal-date">28</div><div class="cal-event ev-blue">⬇ Carol Martinez</div></div>
+      <div class="cal-cell"><div class="cal-date">29</div></div>
+      <div class="cal-cell"><div class="cal-date">30</div><div class="cal-event ev-blue">⬇ John Smith</div><div class="cal-event ev-blue">⬇ Linda Wilson</div></div>
+      <div class="cal-cell"><div class="cal-date">31</div></div>
+    </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- VIEW: Reports ──────────────────────────────────────────────────── -->
+  <div id="view-reports" style="display:none;">
+    <div class="flex-between mb-md">
+      <div><div class="page-title">Reports &amp; Revenue</div><div class="page-sub">May 1 – 18, 2026</div></div>
+      <div class="flex-center">
+        <input class="date-input" type="date" value="2026-05-01">
+        <span style="color:var(--gy);">→</span>
+        <input class="date-input" type="date" value="2026-05-18">
+        <button class="btn btn-ghost btn-sm">All Time</button>
+        <button class="btn btn-primary btn-sm">↓ Export CSV</button>
+      </div>
+    </div>
+    <!-- Primary KPIs -->
+    <div class="kpi-row">
+      <div class="kpi-card orange">
+        <div class="kpi-icon">💰</div>
+        <div>
+          <div class="kpi-value">$12,450</div>
+          <div class="kpi-label">Total Revenue This Month</div>
+          <div class="kpi-note">↑ 18% vs last month</div>
+        </div>
+      </div>
+      <div class="kpi-card blue">
+        <div class="kpi-icon">📦</div>
+        <div>
+          <div class="kpi-value">8</div>
+          <div class="kpi-label">Active Bookings</div>
+          <div class="kpi-note">3 pending pickup</div>
+        </div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-icon">✅</div>
+        <div>
+          <div class="kpi-value">$5,537</div>
+          <div class="kpi-label">Invoices Paid This Month</div>
+          <div class="kpi-note">5 of 7 invoices</div>
+        </div>
+      </div>
+      <div class="kpi-card amber">
+        <div class="kpi-icon">⏳</div>
+        <div>
+          <div class="kpi-value">$2,125</div>
+          <div class="kpi-label">Outstanding Balance</div>
+          <div class="kpi-note">2 unpaid invoices</div>
+        </div>
+      </div>
+    </div>
+    <!-- Revenue by method + chart -->
+    <div class="row2 mb-md" style="gap:1rem;">
+      <div class="tp-card">
+        <h5 class="mb-sm">Revenue by Payment Method</h5>
+        <div style="height:.65rem;"></div>
+        <div class="rev-grid">
+          <div class="rev-method"><div class="rev-method-val" style="color:#6366f1;">$8,200</div><div class="rev-method-lbl">Stripe / Card</div></div>
+          <div class="rev-method"><div class="rev-method-val" style="color:var(--gr);">$2,750</div><div class="rev-method-lbl">Cash</div></div>
+          <div class="rev-method"><div class="rev-method-val" style="color:var(--gy);">$1,500</div><div class="rev-method-lbl">Check</div></div>
+        </div>
+        <!-- Simple bar representation -->
+        <div style="display:flex;gap:4px;height:12px;border-radius:6px;overflow:hidden;margin-top:.4rem;">
+          <div style="flex:8200;background:#6366f1;opacity:.75;"></div>
+          <div style="flex:2750;background:var(--gr);opacity:.75;"></div>
+          <div style="flex:1500;background:var(--st2);"></div>
+        </div>
+        <div style="display:flex;gap:.85rem;margin-top:.5rem;font-size:.72rem;color:var(--gy);">
+          <span>■ <span style="color:#6366f1;">Stripe 65.9%</span></span>
+          <span>■ <span style="color:var(--gr);">Cash 22.1%</span></span>
+          <span>■ <span style="color:var(--gy);">Check 12.0%</span></span>
+        </div>
+      </div>
+      <div class="tp-card">
+        <h5 class="mb-sm">6-Month Revenue Trend</h5>
+        <div style="height:.65rem;"></div>
+        <div class="rev-chart" id="rev-chart">
+          <div class="rev-bar-wrap"><div class="rev-bar" style="height:52%;"></div><div class="rev-bar-label">Dec</div><div class="rev-bar-val" style="font-size:.6rem;">$9.1k</div></div>
+          <div class="rev-bar-wrap"><div class="rev-bar" style="height:61%;"></div><div class="rev-bar-label">Jan</div><div class="rev-bar-val" style="font-size:.6rem;">$10.6k</div></div>
+          <div class="rev-bar-wrap"><div class="rev-bar" style="height:70%;"></div><div class="rev-bar-label">Feb</div><div class="rev-bar-val" style="font-size:.6rem;">$12.2k</div></div>
+          <div class="rev-bar-wrap"><div class="rev-bar" style="height:65%;"></div><div class="rev-bar-label">Mar</div><div class="rev-bar-val" style="font-size:.6rem;">$11.3k</div></div>
+          <div class="rev-bar-wrap"><div class="rev-bar" style="height:60%;background:linear-gradient(180deg,rgba(249,115,22,.5),rgba(249,115,22,.3));border:1px dashed rgba(249,115,22,.4);"></div><div class="rev-bar-label">Apr</div><div class="rev-bar-val" style="font-size:.6rem;">$10.5k</div></div>
+          <div class="rev-bar-wrap"><div class="rev-bar" style="height:72%;"></div><div class="rev-bar-label">May</div><div class="rev-bar-val" style="font-size:.6rem;">$12.5k</div></div>
+        </div>
+      </div>
+    </div>
+    <!-- Work order status breakdown + all-time -->
+    <div class="row2">
+      <div class="tp-card">
+        <h5 class="mb-sm">Work Order Status This Month</h5>
+        <div style="height:.65rem;"></div>
+        <div class="kpi-row kpi-row-3" style="gap:.6rem;">
+          <div class="kpi-card scheduled" style="border-left:3px solid #6366f1;padding:.7rem .8rem;">
+            <div><div class="kpi-value" style="font-size:1.3rem;color:#6366f1;">3</div><div class="kpi-label">Scheduled</div></div>
+          </div>
+          <div class="kpi-card" style="border-left:3px solid var(--gr);padding:.7rem .8rem;">
+            <div><div class="kpi-value" style="font-size:1.3rem;color:var(--gr);">5</div><div class="kpi-label">Active / Delivered</div></div>
+          </div>
+          <div class="kpi-card" style="border-left:3px solid var(--am);padding:.7rem .8rem;">
+            <div><div class="kpi-value" style="font-size:1.3rem;color:var(--am);">2</div><div class="kpi-label">Pickup Req.</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="tp-card">
+        <h5 class="mb-sm">All-Time Totals</h5>
+        <div style="height:.65rem;"></div>
+        <div class="kpi-row kpi-row-3" style="gap:.6rem;">
+          <div class="kpi-card orange" style="padding:.7rem .8rem;">
+            <div><div class="kpi-value" style="font-size:1.3rem;">$284k</div><div class="kpi-label">Total Revenue</div></div>
+          </div>
+          <div class="kpi-card blue" style="padding:.7rem .8rem;">
+            <div><div class="kpi-value" style="font-size:1.3rem;">487</div><div class="kpi-label">Work Orders</div></div>
+          </div>
+          <div class="kpi-card green" style="padding:.7rem .8rem;">
+            <div><div class="kpi-value" style="font-size:1.3rem;">312</div><div class="kpi-label">Customers</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /page-content -->
+</div><!-- /main -->
+
+<script>
+var VIEWS = ['work-orders','wo-detail','bookings','invoices','inventory','calendar','reports'];
+var NAV_MAP = {
+  'work-orders': 'nav-work-orders',
+  'wo-detail':   'nav-work-orders',
+  'bookings':    'nav-bookings',
+  'invoices':    'nav-invoices',
+  'inventory':   'nav-inventory',
+  'calendar':    'nav-calendar',
+  'reports':     'nav-reports',
+};
+var TITLES = {
+  'work-orders':'Work Orders',
+  'wo-detail':'WO-2026-002 — Sarah Johnson',
+  'bookings':'Bookings',
+  'invoices':'Invoices',
+  'inventory':'Dumpster Inventory',
+  'calendar':'Calendar — May 2026',
+  'reports':'Reports',
+};
+
+window.showView = function(name) {
+  VIEWS.forEach(function(v) {
+    var el = document.getElementById('view-' + v);
+    if (el) el.style.display = (v === name) ? '' : 'none';
+  });
+  document.querySelectorAll('.sb-item').forEach(function(el) { el.classList.remove('active'); });
+  var navId = NAV_MAP[name];
+  if (navId) { var nav = document.getElementById(navId); if (nav) nav.classList.add('active'); }
+  var t = document.getElementById('topbar-title');
+  if (t) t.textContent = TITLES[name] || name;
+};
+
+// Default view
+showView('work-orders');
+</script>
+</body>
+</html>

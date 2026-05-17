@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dispatch Map — Demo</title>
+<link rel="stylesheet" href="../../node_modules/leaflet/dist/leaflet.css">
+<style>
+/* ── Reset & base ──────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#F7F7F7;--dk1:#FFFFFF;--dk2:#F3F4F6;--dk3:#E9ECEF;
+  --or:#F97316;--or-d:#EA6A00;--or-l:#FED7AA;
+  --wh:#111827;--gy:#6B7280;--gl:#9CA3AF;
+  --st:#E5E7EB;--st2:#D1D5DB;
+  --sh:0 1px 4px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
+  --font:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+}
+body{background:var(--bg);color:var(--wh);font-family:var(--font);font-size:.94rem;padding:20px 24px;}
+
+/* ── Bootstrap grid/flex subset ────────────────────────────────────────── */
+.container-fluid{width:100%;padding:0;}
+.row{display:flex;flex-wrap:wrap;margin:0 -8px;}
+.col-md-5,.col-md-6,.col-md-7{padding:0 8px;width:100%;}
+@media(min-width:768px){.col-md-5{flex:0 0 41.6667%;max-width:41.6667%;}.col-md-6{flex:0 0 50%;max-width:50%;}.col-md-7{flex:0 0 58.3333%;max-width:58.3333%;}}
+.d-flex{display:flex!important;}.align-items-center{align-items:center!important;}
+.justify-content-between{justify-content:space-between!important;}
+.flex-wrap{flex-wrap:wrap!important;}.gap-2{gap:.5rem!important;}
+.mb-0{margin-bottom:0!important;}.mb-2{margin-bottom:.5rem!important;}.mb-3{margin-bottom:1rem!important;}
+.me-1{margin-right:.25rem!important;}.me-2{margin-right:.5rem!important;}.ms-2{margin-left:.5rem!important;}
+.ps-4{padding-left:1.5rem!important;}
+.g-3{gap:.75rem!important;}.g-3.row{margin:0!important;}
+.g-3.row>[class*=col-]{padding:0!important;}
+.d-none{display:none!important;}
+@media(min-width:576px){.d-sm-inline{display:inline!important;}}
+@media(min-width:992px){.d-lg-table-cell{display:table-cell!important;}}
+.overflow-hidden{overflow:hidden!important;}.position-relative{position:relative!important;}
+.text-muted{color:var(--gy)!important;}
+.w-100{width:100%!important;}
+.table-responsive{overflow-x:auto;}
+
+/* ── App cards ──────────────────────────────────────────────────────────── */
+.tp-card{background:var(--dk1);border:1px solid var(--st);border-radius:12px;padding:1.2rem;box-shadow:var(--sh);margin-bottom:0;}
+.tp-card.p-0{padding:0;}
+.tp-card-header{padding:.85rem 1.2rem;border-bottom:1px solid var(--st);}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.btn-tp-primary,.btn-tp-ghost{display:inline-flex;align-items:center;gap:.35rem;border-radius:8px;font-weight:600;font-size:.84rem;padding:.45rem .9rem;border:1px solid transparent;cursor:pointer;text-decoration:none;line-height:1.4;transition:all .15s;font-family:var(--font);}
+.btn-tp-sm{padding:.35rem .75rem;font-size:.82rem;}
+.btn-tp-xs{font-size:.78rem;line-height:1;padding:.3rem .65rem;}
+.btn-tp-primary{background:var(--or);border-color:var(--or);color:#fff;}
+.btn-tp-primary:disabled{opacity:.55;cursor:not-allowed;}
+.btn-tp-ghost{background:transparent;border-color:var(--st2);color:var(--wh);}
+
+/* ── Badges ─────────────────────────────────────────────────────────────── */
+.tp-badge{display:inline-flex;align-items:center;gap:.25rem;font-size:.75rem;font-weight:600;padding:.2rem .55rem;border-radius:5px;border:1px solid transparent;background:var(--dk2);color:var(--wh);}
+
+/* ── Table ──────────────────────────────────────────────────────────────── */
+.tp-table{font-size:.86rem;color:var(--wh);margin-bottom:0;width:100%;border-collapse:collapse;}
+.tp-table th{background:var(--dk2);color:var(--gy);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;padding:.55rem .8rem;border-bottom:1px solid var(--st);text-align:left;}
+.tp-table td{padding:.6rem .8rem;border-bottom:1px solid var(--st);vertical-align:middle;}
+.tp-table tbody tr:hover td{background:rgba(249,115,22,.03);}
+.dispatch-row{cursor:pointer;}
+.dispatch-row.map-highlight>td{background:rgba(249,115,22,.08)!important;}
+
+/* ── Map tile background ────────────────────────────────────────────────── */
+#dispatch-map{height:500px;width:100%;}
+.leaflet-container{background:#e8edf0;}
+
+/* ── Popup ──────────────────────────────────────────────────────────────── */
+.leaflet-popup-content-wrapper{border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.22);font-family:var(--font);font-size:.84rem;min-width:220px;}
+.leaflet-popup-content{margin:12px 14px;}
+.dp-title{font-weight:700;font-size:.9rem;margin-bottom:.15rem;}
+.dp-sub{color:#6b7280;font-size:.78rem;margin-bottom:.1rem;}
+.dp-addr{color:#6b7280;font-size:.78rem;margin-bottom:.5rem;margin-top:.2rem;}
+.dp-actions{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.6rem;}
+.dp-btn{padding:.25rem .65rem;border-radius:5px;font-size:.75rem;font-weight:600;cursor:pointer;border:none;line-height:1.4;font-family:var(--font);}
+.dp-btn-view{background:rgba(249,115,22,.15);color:#f97316;}
+.dp-btn-status{background:rgba(59,130,246,.15);color:#3b82f6;}
+.dp-btn-status.done{background:rgba(34,197,94,.15);color:#16a34a;}
+
+/* ── Route panel ────────────────────────────────────────────────────────── */
+.rp-step{display:flex;align-items:flex-start;gap:.45rem;margin-bottom:.6rem;font-size:.87rem;line-height:1.4;}
+.rp-num{display:inline-flex;align-items:center;justify-content:center;min-width:1.4rem;height:1.4rem;border-radius:50%;font-size:.7rem;font-weight:700;color:#fff;flex-shrink:0;margin-top:.05rem;}
+
+/* ── Typography ─────────────────────────────────────────────────────────── */
+h5{font-size:1.05rem;font-weight:700;color:var(--wh);margin:0;}
+h6{font-size:.92rem;font-weight:700;color:var(--wh);margin:0;}
+small,a{color:var(--gy);font-size:.85rem;}
+a{text-decoration:none;}
+
+/* ── Map spinner ────────────────────────────────────────────────────────── */
+#map-spinner{position:absolute;top:10px;right:10px;background:rgba(15,15,15,.82);color:#fff;padding:.4rem .8rem;border-radius:8px;font-size:.8rem;z-index:1000;}
+</style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────── -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div>
+    <h5 id="page-title">Dispatch Map</h5>
+    <small id="page-sub">Sunday, May 18, 2026 &mdash; 3 deliveries, 2 pickups</small>
+  </div>
+  <div class="d-flex gap-2 flex-wrap align-items-center">
+    <!-- View toggle -->
+    <div class="d-flex" style="border:1px solid var(--st);border-radius:6px;overflow:hidden;">
+      <a href="#" id="btn-by-date"
+         class="btn-tp-xs px-3 py-1 btn-tp-primary"
+         style="border-radius:0;"
+         onclick="switchToDayView();return false;">
+        &#128197; By Date
+      </a>
+      <a href="#" id="btn-all-active"
+         class="btn-tp-xs px-3 py-1 btn-tp-ghost"
+         style="border-radius:0;border-left:1px solid var(--st);"
+         onclick="switchToActiveView();return false;">
+        &#128465; All Active
+      </a>
+    </div>
+    <!-- Date picker -->
+    <input id="date-picker" type="date" value="2026-05-18"
+           style="height:34px;padding:.25rem .55rem;font-size:.84rem;border:1px solid var(--st2);border-radius:8px;background:var(--dk1);color:var(--wh);width:150px;">
+    <!-- Legend -->
+    <span class="tp-badge d-none d-sm-inline" style="background:rgba(249,115,22,.15);color:#f97316;border:1px solid rgba(249,115,22,.3);">
+      &#128666; Delivery
+    </span>
+    <span class="tp-badge d-none d-sm-inline" style="background:rgba(59,130,246,.15);color:#3b82f6;border:1px solid rgba(59,130,246,.3);">
+      &#128230; Pickup
+    </span>
+    <button id="btn-optimize" class="btn-tp-primary btn-tp-sm" onclick="runDemoRoute()">
+      &#128739; Optimize Route
+    </button>
+    <button id="btn-clear-route" class="btn-tp-ghost btn-tp-sm" style="display:none;" onclick="clearDemoRoute()">
+      &#x2715; Clear
+    </button>
+    <a href="#" class="btn-tp-ghost btn-tp-sm">&#9776; List</a>
+  </div>
+</div>
+
+<!-- ── Map ─────────────────────────────────────────────────────────────── -->
+<div class="tp-card p-0 mb-3" style="overflow:hidden;position:relative;">
+  <div id="dispatch-map"></div>
+</div>
+
+<!-- ── Route panel (hidden by default) ────────────────────────────────── -->
+<div id="route-panel" class="tp-card mb-3" style="display:none;">
+  <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+    <h6>&#128739; Optimized Route</h6>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      <span id="route-meta" style="color:var(--gy);font-size:.82rem;"></span>
+      <a id="btn-gmaps" href="#" class="btn-tp-ghost btn-tp-sm" style="display:none;">
+        &#128204; Google Maps
+      </a>
+      <a id="btn-print" href="#" class="btn-tp-ghost btn-tp-sm" style="display:none;">
+        &#128438; Print Sheet
+      </a>
+    </div>
+  </div>
+  <ol id="route-list" class="mb-0 ps-4"></ol>
+</div>
+
+<!-- ── Day view tables ─────────────────────────────────────────────────── -->
+<div id="tables-day" class="row g-3">
+  <div class="col-md-7">
+    <div class="tp-card p-0" style="overflow:hidden;">
+      <div class="tp-card-header" style="background:linear-gradient(90deg,rgba(249,115,22,.12) 0%,transparent 70%);">
+        <h5 style="font-size:.95rem;">&#128666; Deliveries (3)</h5>
+      </div>
+      <div class="table-responsive">
+        <table class="table tp-table">
+          <thead><tr>
+            <th style="width:2rem;">#</th>
+            <th>WO #</th><th>Customer</th>
+            <th class="d-none d-lg-table-cell">Address</th>
+            <th>Status</th>
+          </tr></thead>
+          <tbody>
+            <tr class="dispatch-row" id="row-d1">
+              <td class="route-step text-muted" style="font-size:.75rem;">—</td>
+              <td><strong>WO-2026-001</strong></td>
+              <td>John Smith</td>
+              <td class="d-none d-lg-table-cell" style="color:var(--gy);font-size:.82rem;">123 Magnolia Dr, Foley</td>
+              <td><span class="tp-badge" style="background:rgba(99,102,241,.12);color:#6366f1;">Scheduled</span></td>
+            </tr>
+            <tr class="dispatch-row" id="row-d2">
+              <td class="route-step text-muted" style="font-size:.75rem;">—</td>
+              <td><strong>WO-2026-002</strong></td>
+              <td>Sarah Johnson</td>
+              <td class="d-none d-lg-table-cell" style="color:var(--gy);font-size:.82rem;">456 Gulf Beach Hwy, Gulf Shores</td>
+              <td><span class="tp-badge" style="background:rgba(34,197,94,.12);color:#16a34a;">Active</span></td>
+            </tr>
+            <tr class="dispatch-row" id="row-d3">
+              <td class="route-step text-muted" style="font-size:.75rem;">—</td>
+              <td><strong>WO-2026-004</strong></td>
+              <td>Linda Wilson</td>
+              <td class="d-none d-lg-table-cell" style="color:var(--gy);font-size:.82rem;">321 N McKenzie St, Foley</td>
+              <td><span class="tp-badge" style="background:rgba(99,102,241,.12);color:#6366f1;">Scheduled</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-5">
+    <div class="tp-card p-0" style="overflow:hidden;">
+      <div class="tp-card-header" style="background:linear-gradient(90deg,rgba(59,130,246,.10) 0%,transparent 70%);">
+        <h5 style="font-size:.95rem;">&#128230; Pickups (2)</h5>
+      </div>
+      <div class="table-responsive">
+        <table class="table tp-table">
+          <thead><tr>
+            <th style="width:2rem;">#</th>
+            <th>WO #</th><th>Customer</th>
+            <th class="d-none d-lg-table-cell">Address</th>
+            <th>Status</th>
+          </tr></thead>
+          <tbody>
+            <tr class="dispatch-row" id="row-p1">
+              <td class="route-step text-muted" style="font-size:.75rem;">—</td>
+              <td><strong>WO-2026-003</strong></td>
+              <td>Mike Davis</td>
+              <td class="d-none d-lg-table-cell" style="color:var(--gy);font-size:.82rem;">789 Section St, Fairhope</td>
+              <td><span class="tp-badge" style="background:rgba(245,158,11,.12);color:#d97706;">Pickup Requested</span></td>
+            </tr>
+            <tr class="dispatch-row" id="row-p2">
+              <td class="route-step text-muted" style="font-size:.75rem;">—</td>
+              <td><strong>WO-2026-005</strong></td>
+              <td>Tom Brown</td>
+              <td class="d-none d-lg-table-cell" style="color:var(--gy);font-size:.82rem;">654 US-90, Daphne</td>
+              <td><span class="tp-badge" style="background:rgba(245,158,11,.12);color:#d97706;">Pickup Requested</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── All Active table (hidden by default) ────────────────────────────── -->
+<div id="tables-active" style="display:none;">
+  <div class="tp-card p-0" style="overflow:hidden;">
+    <div class="tp-card-header" style="background:linear-gradient(90deg,rgba(249,115,22,.1) 0%,transparent 60%);">
+      <h5 style="font-size:.95rem;">&#128465; All Active Dumpsters (8)</h5>
+    </div>
+    <div class="table-responsive">
+      <table class="table tp-table">
+        <thead><tr>
+          <th>#</th><th>WO #</th><th>Customer</th>
+          <th>Address</th><th>Size</th><th>Deployed</th><th>Status</th>
+        </tr></thead>
+        <tbody>
+          <tr class="dispatch-row"><td>—</td><td><strong>WO-2026-001</strong></td><td>John Smith</td><td>123 Magnolia Dr, Foley</td><td style="color:var(--gy);font-size:.82rem;">10 yd · D-02</td><td style="color:var(--gy);font-size:.82rem;">Today</td><td><span class="tp-badge" style="background:rgba(99,102,241,.12);color:#6366f1;">Scheduled</span></td></tr>
+          <tr class="dispatch-row"><td>—</td><td><strong>WO-2026-002</strong></td><td>Sarah Johnson</td><td>456 Gulf Beach Hwy, Gulf Shores</td><td style="color:var(--gy);font-size:.82rem;">20 yd · D-05</td><td style="color:var(--gy);font-size:.82rem;">4 days</td><td><span class="tp-badge" style="background:rgba(34,197,94,.12);color:#16a34a;">Active</span></td></tr>
+          <tr class="dispatch-row"><td>—</td><td><strong>WO-2026-003</strong></td><td>Mike Davis</td><td>789 Section St, Fairhope</td><td style="color:var(--gy);font-size:.82rem;">15 yd · D-03</td><td style="color:var(--gy);font-size:.82rem;">7 days</td><td><span class="tp-badge" style="background:rgba(245,158,11,.12);color:#d97706;">Pickup Req.</span></td></tr>
+          <tr class="dispatch-row"><td>—</td><td><strong>WO-2026-004</strong></td><td>Linda Wilson</td><td>321 N McKenzie St, Foley</td><td style="color:var(--gy);font-size:.82rem;">30 yd · D-07</td><td style="color:var(--gy);font-size:.82rem;">Today</td><td><span class="tp-badge" style="background:rgba(99,102,241,.12);color:#6366f1;">Scheduled</span></td></tr>
+          <tr class="dispatch-row"><td>—</td><td><strong>WO-2026-005</strong></td><td>Tom Brown</td><td>654 US-90, Daphne</td><td style="color:var(--gy);font-size:.82rem;">10 yd · D-01</td><td style="color:var(--gy);font-size:.82rem;">5 days</td><td><span class="tp-badge" style="background:rgba(245,158,11,.12);color:#d97706;">Pickup Req.</span></td></tr>
+          <tr class="dispatch-row"><td>—</td><td><strong>WO-2026-007</strong></td><td>Carol Martinez</td><td>890 Greeno Rd, Fairhope</td><td style="color:var(--gy);font-size:.82rem;">20 yd · D-06</td><td style="color:var(--gy);font-size:.82rem;">2 days</td><td><span class="tp-badge" style="background:rgba(34,197,94,.12);color:#16a34a;">Active</span></td></tr>
+          <tr class="dispatch-row"><td>—</td><td><strong>WO-2026-009</strong></td><td>James Lee</td><td>112 Canal Rd, Orange Beach</td><td style="color:var(--gy);font-size:.82rem;">10 yd · D-02</td><td style="color:var(--gy);font-size:.82rem;">1 day</td><td><span class="tp-badge" style="background:rgba(34,197,94,.12);color:#16a34a;">Active</span></td></tr>
+          <tr class="dispatch-row"><td>—</td><td><strong>WO-2026-011</strong></td><td>Nancy Chen</td><td>445 Morphy Ave, Fairhope</td><td style="color:var(--gy);font-size:.82rem;">15 yd · D-03</td><td style="color:var(--gy);font-size:.82rem;">1 day</td><td><span class="tp-badge" style="background:rgba(59,130,246,.12);color:#3b82f6;">Delivered</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="../../node_modules/leaflet/dist/leaflet.js"></script>
+<script>
+// ── Demo data (Baldwin County / Mobile County, AL) ────────────────────────
+var DEPOT = { lat: 30.453, lng: -87.748, label: 'Trash Panda Roll-Offs — Foley, AL' };
+
+var JOBS = [
+  { id:1, wo:'WO-2026-001', name:'John Smith',   phone:'(251) 555-0101', addr:'123 Magnolia Dr, Foley, AL 36535',         size:'10 yd',dumpCode:'D-02', status:'scheduled',        type:'delivery', lat:30.4058, lng:-87.6922, rowId:'row-d1' },
+  { id:2, wo:'WO-2026-002', name:'Sarah Johnson', phone:'(251) 555-0102', addr:'456 Gulf Beach Hwy, Gulf Shores, AL 36542', size:'20 yd',dumpCode:'D-05', status:'active',            type:'delivery', lat:30.2460, lng:-87.7010, rowId:'row-d2' },
+  { id:3, wo:'WO-2026-003', name:'Mike Davis',    phone:'(251) 555-0103', addr:'789 Section St, Fairhope, AL 36532',        size:'15 yd',dumpCode:'D-03', status:'pickup_requested',  type:'pickup',   lat:30.5228, lng:-87.9030, rowId:'row-p1' },
+  { id:4, wo:'WO-2026-004', name:'Linda Wilson',  phone:'(251) 555-0104', addr:'321 N McKenzie St, Foley, AL 36535',        size:'30 yd',dumpCode:'D-07', status:'scheduled',        type:'delivery', lat:30.4102, lng:-87.6882, rowId:'row-d3' },
+  { id:5, wo:'WO-2026-005', name:'Tom Brown',     phone:'(251) 555-0105', addr:'654 US-90, Daphne, AL 36526',               size:'10 yd',dumpCode:'D-01', status:'pickup_requested',  type:'pickup',   lat:30.6035, lng:-87.9034, rowId:'row-p2' },
+];
+
+var ACTIVE_EXTRA = [
+  { lat:30.536,  lng:-87.882, color:'#16a34a' },
+  { lat:30.273,  lng:-87.581, color:'#16a34a' },
+  { lat:30.519,  lng:-87.889, color:'#3b82f6' },
+];
+
+var statusLabels = {
+  scheduled:'Scheduled', delivered:'Delivered', active:'Active',
+  pickup_requested:'Pickup Requested', picked_up:'Picked Up',
+  completed:'Completed', canceled:'Canceled'
+};
+
+var nextActions = {
+  scheduled: [{ s:'delivered', lbl:'Mark Delivered', cls:'dp-btn-status' }],
+  delivered:  [{ s:'active',   lbl:'Mark Active',    cls:'dp-btn-status' },
+               { s:'pickup_requested', lbl:'Request Pickup', cls:'dp-btn-status done' }],
+  active:     [{ s:'pickup_requested', lbl:'Request Pickup', cls:'dp-btn-status done' }],
+  pickup_requested: [{ s:'picked_up', lbl:'Mark Picked Up', cls:'dp-btn-status done' }],
+  picked_up:  [{ s:'completed', lbl:'Mark Complete', cls:'dp-btn-status done' }],
+};
+
+function jobColor(j){ return j.type==='delivery'?'#f97316':'#3b82f6'; }
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Icons ──────────────────────────────────────────────────────────────────
+function pinSvg(color, n){
+  if(n!==undefined){
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="38" viewBox="0 0 28 38">'
+      +'<path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 24 14 24S28 24.5 28 14C28 6.27 21.73 0 14 0z" fill="'+color+'" stroke="#fff" stroke-width="1.5"/>'
+      +'<text x="14" y="17" text-anchor="middle" dominant-baseline="middle" fill="#fff" font-size="11" font-weight="700" font-family="sans-serif">'+n+'</text>'
+      +'</svg>';
+  }
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="36" viewBox="0 0 26 36">'
+    +'<path d="M13 0C5.82 0 0 5.82 0 13c0 9.75 13 23 13 23S26 22.75 26 13C26 5.82 20.18 0 13 0z" fill="'+color+'"/>'
+    +'<circle cx="13" cy="13" r="5.5" fill="#fff"/>'
+    +'</svg>';
+}
+function mkIcon(color, n){
+  var nb = n!==undefined;
+  return L.divIcon({ html:pinSvg(color,n), className:'', iconSize:[nb?28:26,nb?38:36], iconAnchor:[nb?14:13,nb?38:36], popupAnchor:[0,nb?-36:-34] });
+}
+function depotSvg(){
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">'
+    +'<circle cx="16" cy="16" r="15" fill="#6b7280" stroke="#fff" stroke-width="2"/>'
+    +'<text x="16" y="16" text-anchor="middle" dominant-baseline="middle" fill="#fff" font-size="12" font-weight="700" font-family="sans-serif">D</text>'
+    +'</svg>';
+}
+function depotIcon(){ return L.divIcon({ html:depotSvg(), className:'', iconSize:[32,32], iconAnchor:[16,32], popupAnchor:[0,-34] }); }
+
+// ── Popup ──────────────────────────────────────────────────────────────────
+function buildPopup(job){
+  var color = jobColor(job);
+  var type  = job.type==='delivery'?'Delivery':'Pickup';
+  var h = '<div class="dp-title" style="color:'+color+';">'+esc(job.wo)+' &mdash; '+type+'</div>'
+        + '<div class="dp-sub">'+esc(job.name)+'</div>';
+  if(job.phone)
+    h += '<div class="dp-sub"><a href="tel:'+esc(job.phone)+'" style="color:#3b82f6;">&#128222; '+esc(job.phone)+'</a></div>';
+  h += '<div class="dp-addr">'+esc(job.addr)+'</div>';
+  var dmp = [job.size, job.dumpCode].filter(Boolean).join(' &middot; ');
+  if(dmp) h += '<div style="font-size:.78rem;color:#6b7280;margin-bottom:.35rem;">&#128465; '+dmp+'</div>';
+  h += '<div style="font-size:.78rem;">Status: <strong>'+(statusLabels[job.status]||job.status)+'</strong></div>';
+  var acts = nextActions[job.status]||[];
+  if(acts.length){
+    h += '<div class="dp-actions">';
+    acts.forEach(function(a){ h += '<button class="dp-btn '+a.cls+'">'+a.lbl+'</button>'; });
+    h += '</div>';
+  }
+  h += '<div class="dp-actions"><a href="#" class="dp-btn dp-btn-view">Open WO &#8594;</a></div>';
+  return h;
+}
+
+// ── Map init ───────────────────────────────────────────────────────────────
+var map = L.map('dispatch-map',{ zoomControl:true });
+
+// Subtle grid pattern as tile background (no internet needed)
+L.tileLayer('', { maxZoom:18, attribution:'&copy; OpenStreetMap' }).addTo(map);
+
+// Add day-view markers
+JOBS.forEach(function(job){
+  var m = L.marker([job.lat,job.lng],{ icon:mkIcon(jobColor(job)) }).addTo(map);
+  m.bindPopup(buildPopup(job),{ maxWidth:280 });
+  job.marker = m;
+});
+
+var dayBounds = JOBS.map(function(j){ return [j.lat,j.lng]; });
+map.fitBounds(dayBounds,{ padding:[55,55] });
+
+// ── Exposed API (called from Playwright) ───────────────────────────────────
+var depotMarker=null, routeLine=null, activeMarkers=[];
+
+window.openJobPopup = function(idx){ JOBS[idx].marker.openPopup(); };
+
+// Route order: depot → Tom(4) → Mike(2) → John(0) → Linda(3) → Sarah(1)
+var ROUTE_IDX = [4, 2, 0, 3, 1];
+
+window.runDemoRoute = function(){
+  // Depot pin
+  depotMarker = L.marker([DEPOT.lat,DEPOT.lng],{ icon:depotIcon() })
+    .bindPopup('<strong>Depot</strong><br><small>'+esc(DEPOT.label)+'</small>')
+    .addTo(map);
+
+  // Polyline
+  var lls = [[DEPOT.lat,DEPOT.lng]];
+  ROUTE_IDX.forEach(function(i){ lls.push([JOBS[i].lat,JOBS[i].lng]); });
+  routeLine = L.polyline(lls,{ color:'#f97316', weight:4, opacity:.8 }).addTo(map);
+
+  // Numbered markers + table step column
+  ROUTE_IDX.forEach(function(jobIdx,step){
+    var job = JOBS[jobIdx];
+    job.marker.setIcon(mkIcon(jobColor(job), step+1));
+    var row = document.getElementById(job.rowId);
+    if(row){ var c=row.querySelector('.route-step'); if(c) c.textContent=step+1; }
+  });
+
+  // Route panel
+  document.getElementById('route-meta').innerHTML =
+    '&#9200; 48 min &nbsp;&middot;&nbsp; &#128739; 31.2 mi';
+  document.getElementById('btn-gmaps').style.display = '';
+  document.getElementById('btn-print').style.display = '';
+
+  var list = document.getElementById('route-list');
+  list.innerHTML = '';
+  ROUTE_IDX.forEach(function(jobIdx,step){
+    var job = JOBS[jobIdx];
+    var li = document.createElement('li');
+    li.className = 'rp-step';
+    li.innerHTML = '<span class="rp-num" style="background:'+jobColor(job)+'">'+(step+1)+'</span>'
+      +'<span><strong>'+esc(job.wo)+'</strong> &mdash; '+(job.type==='delivery'?'Delivery':'Pickup')+' &mdash; '+esc(job.name)
+      +'<br><span style="color:var(--gy);font-size:.8rem;">'+esc(job.addr)+'</span></span>';
+    list.appendChild(li);
+  });
+
+  document.getElementById('route-panel').style.display = '';
+  document.getElementById('btn-clear-route').style.display = '';
+  document.getElementById('btn-optimize').textContent = '✹ Re-Optimize';
+  document.getElementById('btn-optimize').innerHTML = '&#128739; Re-Optimize';
+
+  map.fitBounds(routeLine.getBounds(),{ padding:[40,40] });
+};
+
+window.clearDemoRoute = function(){
+  if(routeLine){ map.removeLayer(routeLine); routeLine=null; }
+  if(depotMarker){ map.removeLayer(depotMarker); depotMarker=null; }
+  JOBS.forEach(function(j){ j.marker.setIcon(mkIcon(jobColor(j))); });
+  document.querySelectorAll('.route-step').forEach(function(el){ el.textContent='—'; });
+  document.getElementById('route-panel').style.display = 'none';
+  document.getElementById('btn-clear-route').style.display = 'none';
+  document.getElementById('btn-optimize').innerHTML = '&#128739; Optimize Route';
+  map.fitBounds(dayBounds,{ padding:[55,55] });
+};
+
+window.switchToActiveView = function(){
+  document.getElementById('page-sub').innerHTML = 'All active dumpsters &mdash; 8 on-site';
+  document.getElementById('btn-by-date').className  = 'btn-tp-xs px-3 py-1 btn-tp-ghost';
+  document.getElementById('btn-all-active').className = 'btn-tp-xs px-3 py-1 btn-tp-primary';
+  document.getElementById('date-picker').style.display = 'none';
+  document.getElementById('tables-day').style.display = 'none';
+  document.getElementById('tables-active').style.display = '';
+
+  // Remove day markers
+  JOBS.forEach(function(j){ if(j.marker) map.removeLayer(j.marker); });
+  activeMarkers.forEach(function(m){ map.removeLayer(m); });
+  activeMarkers = [];
+
+  // All-active markers (day jobs + extras)
+  JOBS.forEach(function(job){
+    var colors = { scheduled:'#6366f1', delivered:'#3b82f6', active:'#16a34a', pickup_requested:'#f59e0b', picked_up:'#6b7280' };
+    var c = colors[job.status] || '#6b7280';
+    var m = L.marker([job.lat,job.lng],{ icon:mkIcon(c) }).addTo(map);
+    m.bindPopup('<strong>'+esc(job.wo)+'</strong> &mdash; '+esc(job.name)+'<br><small>'+esc(job.addr)+'</small>');
+    activeMarkers.push(m);
+  });
+  ACTIVE_EXTRA.forEach(function(a){
+    var m = L.marker([a.lat,a.lng],{ icon:mkIcon(a.color) }).addTo(map);
+    activeMarkers.push(m);
+  });
+
+  var allPts = activeMarkers.map(function(m){ return m.getLatLng(); });
+  map.fitBounds(allPts,{ padding:[55,55] });
+};
+
+window.switchToDayView = function(){
+  document.getElementById('page-sub').innerHTML = 'Sunday, May 18, 2026 &mdash; 3 deliveries, 2 pickups';
+  document.getElementById('btn-by-date').className  = 'btn-tp-xs px-3 py-1 btn-tp-primary';
+  document.getElementById('btn-all-active').className = 'btn-tp-xs px-3 py-1 btn-tp-ghost';
+  document.getElementById('date-picker').style.display = '';
+  document.getElementById('tables-day').style.display = '';
+  document.getElementById('tables-active').style.display = 'none';
+  activeMarkers.forEach(function(m){ map.removeLayer(m); });
+  activeMarkers = [];
+  JOBS.forEach(function(j){ if(j.marker) j.marker.addTo(map); });
+  map.fitBounds(dayBounds,{ padding:[55,55] });
+};
+</script>
+</body>
+</html>

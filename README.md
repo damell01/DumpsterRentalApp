@@ -110,6 +110,56 @@ The platform helped modernize the business while keeping the system simple, reli
 
 </details>
 
+**Work Orders** — the day-to-day operations list. Every rental is a work order with a status badge (Scheduled → Delivered → Active → Pickup Requested → Picked Up → Completed), priority tag, search/filter toolbar, and quick-action icons. High and Urgent jobs surface at the top.
+
+![Work Orders list](docs/screenshots/admin-work-orders.png)
+
+**Work Order Detail** — a two-column layout showing all job info (dumpster size, delivery/pickup dates, driver assignment, address), customer contact panel, and a full timestamped activity timeline. From here staff can update status, add notes, print the work order, or generate an invoice — all on one page.
+
+![Work Order detail with timeline](docs/screenshots/admin-wo-detail.png)
+
+**Bookings** — online and admin-created rental requests with filter tabs for status (All / Pending / Confirmed / Completed / Canceled) and payment method (Stripe / Cash / Check). Each row shows the booking reference, customer, unit, dates, and payment status at a glance.
+
+![Bookings list with filter tabs](docs/screenshots/admin-bookings.png)
+
+**Invoices** — create custom invoices with unlimited line items and flexible rate types (fixed, daily, weekly, monthly). Statuses flow from Draft → Sent → Paid. Paid-online invoices show the Stripe payment link button; cash and check payments can be quick-marked directly from the list.
+
+![Invoices list with Stripe links](docs/screenshots/admin-invoices.png)
+
+**Inventory** — the full dumpster fleet. Each row shows the unit code, size, current availability status (Available / Reserved / In Use / Maintenance), base price, and a "DUE" badge if the unit should have been returned. Editing a unit syncs it to Stripe for online booking.
+
+![Inventory fleet management](docs/screenshots/admin-inventory.png)
+
+**Calendar** — a full monthly grid showing every scheduled delivery (orange) and pickup (blue) as clickable event chips. Today's date is highlighted. Useful for spotting scheduling conflicts or gaps at a glance before dispatching drivers.
+
+![Calendar monthly view](docs/screenshots/admin-calendar.png)
+
+**Reports** — KPI summary cards (revenue, work orders, customers, average job value), a revenue-by-payment-method breakdown, a 6-month revenue trend chart, a work-order status breakdown, and all-time totals — all on a single page with date-range filter.
+
+![Reports with KPI cards and charts](docs/screenshots/admin-reports.png)
+
+---
+
+### Dispatch Map
+
+The dispatch map is the day-to-day operational hub. It shows every delivery and pickup for a selected date, or every dumpster currently on-site across the entire fleet.
+
+**Day view** — date picker, color-coded delivery (orange) and pickup (blue) pins, job tables below.
+
+![Dispatch map day view](docs/screenshots/dispatch-map-day-view.png)
+
+**Job popup** — tap any pin to see customer phone (click-to-call), dumpster size and unit code, current status, and one-tap action buttons to advance the status without leaving the map.
+
+![Dispatch map popup with phone and status actions](docs/screenshots/dispatch-map-popup.png)
+
+**Optimized route** — click *Optimize Route* to run a TSP solve via the OSRM routing engine. Markers become numbered stops, the map draws the actual road path, and the route panel shows drive time, mileage, a Google Maps multi-stop link for the driver's phone, and a printable route sheet.
+
+![Dispatch map with optimized route](docs/screenshots/dispatch-map-route.png)
+
+**All Active view** — switch from the date picker to *All Active* to see every dumpster currently deployed across all jobs, regardless of delivery or pickup date. Useful for answering "where are all my dumpsters right now?"
+
+![Dispatch map all-active fleet view](docs/screenshots/dispatch-map-active.png)
+
 ---
 
 ## Project Structure
