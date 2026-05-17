@@ -124,6 +124,34 @@ The platform went from zero to production-ready in a single development cycle. I
 
 </details>
 
+**Work Orders** — the day-to-day operations list. Every rental is a work order with a status badge (Scheduled → Delivered → Active → Pickup Requested → Picked Up → Completed), priority tag, search/filter toolbar, and quick-action icons. High and Urgent jobs surface at the top.
+
+![Work Orders list](docs/screenshots/admin-work-orders.png)
+
+**Work Order Detail** — a two-column layout showing all job info (dumpster size, delivery/pickup dates, driver assignment, address), customer contact panel, and a full timestamped activity timeline. From here staff can update status, add notes, print the work order, or generate an invoice — all on one page.
+
+![Work Order detail with timeline](docs/screenshots/admin-wo-detail.png)
+
+**Bookings** — online and admin-created rental requests with filter tabs for status (All / Pending / Confirmed / Completed / Canceled) and payment method (Stripe / Cash / Check). Each row shows the booking reference, customer, unit, dates, and payment status at a glance.
+
+![Bookings list with filter tabs](docs/screenshots/admin-bookings.png)
+
+**Invoices** — create custom invoices with unlimited line items and flexible rate types (fixed, daily, weekly, monthly). Statuses flow from Draft → Sent → Paid. Paid-online invoices show the Stripe payment link button; cash and check payments can be quick-marked directly from the list.
+
+![Invoices list with Stripe links](docs/screenshots/admin-invoices.png)
+
+**Inventory** — the full dumpster fleet. Each row shows the unit code, size, current availability status (Available / Reserved / In Use / Maintenance), base price, and a "DUE" badge if the unit should have been returned. Editing a unit syncs it to Stripe for online booking.
+
+![Inventory fleet management](docs/screenshots/admin-inventory.png)
+
+**Calendar** — a full monthly grid showing every scheduled delivery (orange) and pickup (blue) as clickable event chips. Today's date is highlighted. Useful for spotting scheduling conflicts or gaps at a glance before dispatching drivers.
+
+![Calendar monthly view](docs/screenshots/admin-calendar.png)
+
+**Reports** — KPI summary cards (revenue, work orders, customers, average job value), a revenue-by-payment-method breakdown, a 6-month revenue trend chart, a work-order status breakdown, and all-time totals — all on a single page with date-range filter.
+
+![Reports with KPI cards and charts](docs/screenshots/admin-reports.png)
+
 ---
 
 ### Dispatch Map
