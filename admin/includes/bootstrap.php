@@ -6,101 +6,6 @@
  * Trash Panda Roll-Offs
  */
 
-// ── Temporary Debug Mode (?debug=1) ─────────────────────────────────────────
-// Use this on a failing admin URL to surface HTTP 500 root-cause details.
-$debugMode = (
-    defined('APP_ENV') && APP_ENV !== 'production' && isset($_GET['debug']) && $_GET['debug'] === '1'
-) || (defined('APP_DEBUG') && APP_DEBUG === true);
-
-if ($debugMode) {
-    ini_set('display_errors', '1');
-    ini_set('display_startup_errors', '1');
-    error_reporting(E_ALL);
-
-    set_exception_handler(function (Throwable $e): void {
-        if (!headers_sent()) {
-            http_response_code(500);
-        }
-        echo '<pre style="white-space:pre-wrap;background:#111;color:#f5f5f5;padding:16px;border:1px solid #444;">';
-        echo 'UNCAUGHT EXCEPTION\n';
-        echo get_class($e) . ': ' . $e->getMessage() . "\n\n";
-        echo $e->getFile() . ':' . $e->getLine() . "\n\n";
-        echo $e->getTraceAsString();
-        echo '</pre>';
-    });
-
-    register_shutdown_function(function (): void {
-        $err = error_get_last();
-        if (!$err) {
-            return;
-        }
-
-        $fatalTypes = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR];
-        if (!in_array($err['type'], $fatalTypes, true)) {
-            return;
-        }
-
-        if (!headers_sent()) {
-            http_response_code(500);
-        }
-
-        echo '<pre style="white-space:pre-wrap;background:#111;color:#f5f5f5;padding:16px;border:1px solid #444;">';
-        echo 'FATAL ERROR\n';
-        echo ($err['message'] ?? 'Unknown error') . "\n\n";
-        echo ($err['file'] ?? 'unknown file') . ':' . ($err['line'] ?? 0);
-        echo '</pre>';
-    });
-} else {
-    // Production mode: show a friendly error page instead of a blank white screen.
-    set_exception_handler(function (Throwable $e): void {
-        error_log('[TP Admin] Uncaught ' . get_class($e) . ': ' . $e->getMessage()
-            . ' in ' . $e->getFile() . ':' . $e->getLine());
-        if (!headers_sent()) {
-            http_response_code(500);
-        }
-        echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
-            . '<title>Error – Trash Panda Roll-Offs Admin</title>'
-            . '<style>body{font-family:Arial,sans-serif;background:#0f0f0f;color:#f0f0f0;display:flex;'
-            . 'align-items:center;justify-content:center;min-height:100vh;margin:0;}'
-            . '.box{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:2rem 2.5rem;'
-            . 'max-width:520px;text-align:center;}'
-            . 'h2{color:#f97316;margin:0 0 .75rem;} p{color:#9ca3af;margin:.5rem 0;}'
-            . 'a{color:#f97316;}</style></head><body>'
-            . '<div class="box"><h2>Something went wrong</h2>'
-            . '<p>An unexpected error occurred. Please try again or contact your administrator.</p>'
-            . '<p style="margin-top:1.5rem;"><a href="javascript:history.back()">← Go back</a></p>'
-            . '</div></body></html>';
-    });
-
-    register_shutdown_function(function (): void {
-        $err = error_get_last();
-        if (!$err) {
-            return;
-        }
-        $fatalTypes = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR];
-        if (!in_array($err['type'], $fatalTypes, true)) {
-            return;
-        }
-        error_log('[TP Admin] Fatal error: ' . ($err['message'] ?? '') . ' in '
-            . ($err['file'] ?? '') . ':' . ($err['line'] ?? 0));
-        if (!headers_sent()) {
-            http_response_code(500);
-        }
-        echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
-            . '<title>Error – Trash Panda Roll-Offs Admin</title>'
-            . '<style>body{font-family:Arial,sans-serif;background:#0f0f0f;color:#f0f0f0;display:flex;'
-            . 'align-items:center;justify-content:center;min-height:100vh;margin:0;}'
-            . '.box{background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:2rem 2.5rem;'
-            . 'max-width:520px;text-align:center;}'
-            . 'h2{color:#f97316;margin:0 0 .75rem;} p{color:#9ca3af;margin:.5rem 0;}'
-            . 'a{color:#f97316;}</style></head><body>'
-            . '<div class="box"><h2>Something went wrong</h2>'
-            . '<p>An unexpected error occurred. Please try again or contact your administrator.</p>'
-            . '<p style="margin-top:1.5rem;"><a href="javascript:history.back()">← Go back</a></p>'
-            . '</div></body></html>';
-    });
-}
-
 // ── Security Headers ─────────────────────────────────────────────────────────
 header('X-Frame-Options: SAMEORIGIN');
 header('X-Content-Type-Options: nosniff');
@@ -111,18 +16,23 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' https://c
 // ── 1. Configuration ────────────────────────────────────────────────────────
 require_once __DIR__ . '/../config/config.php';
 
-// ── 1b. Composer autoloader (installed via `composer install` in /admin/) ───
-// Loaded here once so all Composer packages (Stripe SDK, PHPMailer, etc.)
-// are available throughout the application without repeating require_once.
+// ── 2. Error handling (after config so APP_DEBUG / APP_LOG_DIR are defined) ─
+// Debug mode: ?debug=1 on non-production env, or APP_DEBUG=true in .env
+$debugMode = (
+    defined('APP_ENV') && APP_ENV !== 'production' && isset($_GET['debug']) && $_GET['debug'] === '1'
+) || (defined('APP_DEBUG') && APP_DEBUG === true);
+
+require_once INC_PATH . '/error_handler.php';
+tp_install_error_handler(false);
+
+// ── 3. Composer autoloader (installed via `composer install` in /admin/) ────
 $_composer_autoload = __DIR__ . '/../vendor/autoload.php';
 if (file_exists($_composer_autoload)) {
     require_once $_composer_autoload;
 }
 unset($_composer_autoload);
 
-// ── 1c. TrashPanda namespace autoloader ──────────────────────────────────────
-// Maps TrashPanda\ to <project-root>/src/ so the billing service classes load
-// whether or not `composer install` has been run in /admin/.
+// ── 3b. TrashPanda namespace autoloader ──────────────────────────────────────
 spl_autoload_register(static function (string $class): void {
     $prefix = 'TrashPanda\\';
     if (strncmp($class, $prefix, strlen($prefix)) !== 0) {
@@ -135,8 +45,7 @@ spl_autoload_register(static function (string $class): void {
     }
 });
 
-// ── 2. Core includes (order matters: db first, then auth which calls db helpers,
-//        then helpers which may call db helpers too) ──────────────────────────
+// ── 4. Core includes (order matters: db → auth → helpers → mailer → billing) ─
 require_once INC_PATH . '/db.php';
 require_once INC_PATH . '/auth.php';
 require_once INC_PATH . '/helpers.php';

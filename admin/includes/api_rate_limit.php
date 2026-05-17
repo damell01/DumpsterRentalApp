@@ -10,15 +10,38 @@
  */
 
 /**
+ * Return the real client IP, respecting X-Forwarded-For when the direct
+ * connection comes from a known private/loopback address (i.e. behind a proxy).
+ */
+function tp_client_ip(): string
+{
+    $remote = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+
+    // Only trust X-Forwarded-For if the direct connection is from a private/loopback address
+    $xff = trim($_SERVER['HTTP_X_FORWARDED_FOR'] ?? '');
+    if ($xff !== '' && filter_var($remote, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+        // Take the left-most (client) IP from the header
+        $candidate = trim(explode(',', $xff)[0]);
+        if (filter_var($candidate, FILTER_VALIDATE_IP)) {
+            return $candidate;
+        }
+    }
+
+    return $remote;
+}
+
+/**
  * @param string $action      Short endpoint identifier, e.g. 'create_booking'.
  * @param int    $max         Max requests allowed within the window.
  * @param int    $window_sec  Window size in seconds.
  * @param int    $lockout_sec Hard lockout after limit exceeded (0 = window-expiry only).
+ * @param string $key         Optional alternative bucket key (e.g. hashed email).
+ *                            When supplied the bucket is action:key instead of action:ip.
  */
-function api_rate_limit(string $action, int $max, int $window_sec, int $lockout_sec = 0): void
+function api_rate_limit(string $action, int $max, int $window_sec, int $lockout_sec = 0, string $key = ''): void
 {
-    $ip     = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-    $bucket = substr($action . ':' . $ip, 0, 120);
+    $ip     = tp_client_ip();
+    $bucket = substr($action . ':' . ($key !== '' ? $key : $ip), 0, 120);
     $now    = time();
 
     // Opportunistic cleanup: 1% of requests prune expired rows older than 2× the window
