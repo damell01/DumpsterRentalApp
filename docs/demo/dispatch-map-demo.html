@@ -62,9 +62,9 @@ body{background:var(--bg);color:var(--wh);font-family:var(--font);font-size:.94r
 .dispatch-row{cursor:pointer;}
 .dispatch-row.map-highlight>td{background:rgba(249,115,22,.08)!important;}
 
-/* ── Map tile background ────────────────────────────────────────────────── */
+/* ── Map background ─────────────────────────────────────────────────────── */
 #dispatch-map{height:500px;width:100%;}
-.leaflet-container{background:#e8edf0;}
+.leaflet-container{background:#e8e2cc;}
 
 /* ── Popup ──────────────────────────────────────────────────────────────── */
 .leaflet-popup-content-wrapper{border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.22);font-family:var(--font);font-size:.84rem;min-width:220px;}
@@ -350,8 +350,154 @@ function buildPopup(job){
 // ── Map init ───────────────────────────────────────────────────────────────
 var map = L.map('dispatch-map',{ zoomControl:true });
 
-// Subtle grid pattern as tile background (no internet needed)
-L.tileLayer('', { maxZoom:18, attribution:'&copy; OpenStreetMap' }).addTo(map);
+// ── Vector basemap — Baldwin County, AL ────────────────────────────────────
+(function buildBasemap(){
+  var W = { color:'#6ea8c8', weight:.5, fillColor:'#aacfe0', fillOpacity:1 };
+  var ROAD_HWY  = { color:'#ffffff', weight:3.5, opacity:.95 };
+  var ROAD_SEC  = { color:'#f8f4ec', weight:2,   opacity:.8  };
+  var ROAD_LOC  = { color:'#f0ebe0', weight:1.2, opacity:.7  };
+
+  // ── Water bodies ──────────────────────────────────────────────────────────
+
+  // Gulf of Mexico (southern band)
+  L.polygon([
+    [30.27,-88.3],[30.27,-87.15],[30.0,-87.15],[30.0,-88.3]
+  ], W).addTo(map);
+
+  // Little Lagoon (thin intracoastal strip behind Gulf Shores beach)
+  L.polygon([
+    [30.275,-87.78],[30.275,-87.58],[30.258,-87.58],[30.258,-87.78]
+  ], W).addTo(map);
+
+  // Mobile Bay
+  L.polygon([
+    [30.73,-87.935],[30.77,-87.945],[30.80,-87.96],[30.82,-88.02],
+    [30.80,-88.12],[30.73,-88.13],[30.58,-88.12],[30.48,-88.10],
+    [30.41,-88.04],[30.37,-88.00],[30.35,-87.975],[30.38,-87.95],
+    [30.44,-87.935],[30.50,-87.915],[30.58,-87.905],[30.67,-87.915]
+  ], W).addTo(map);
+
+  // Bon Secour Bay / lower bay
+  L.polygon([
+    [30.35,-87.975],[30.36,-87.955],[30.34,-87.935],
+    [30.30,-87.93],[30.28,-87.945],[30.28,-87.975]
+  ], W).addTo(map);
+
+  // Perdido Bay (far east, near Florida)
+  L.polygon([
+    [30.32,-87.46],[30.29,-87.43],[30.27,-87.44],[30.27,-87.47],[30.30,-87.47]
+  ], W).addTo(map);
+
+  // ── Major highways ────────────────────────────────────────────────────────
+
+  // I-10 (east-west, northern Baldwin County)
+  L.polyline([
+    [30.470,-88.06],[30.474,-87.975],[30.478,-87.90],
+    [30.497,-87.815],[30.535,-87.720],[30.565,-87.620]
+  ], ROAD_HWY).addTo(map);
+
+  // US-90 (parallels I-10 closer to bay, through Daphne/Spanish Fort)
+  L.polyline([
+    [30.545,-87.965],[30.542,-87.90],[30.538,-87.845],
+    [30.535,-87.785],[30.545,-87.725]
+  ], ROAD_HWY).addTo(map);
+
+  // Foley Beach Express / US-59 (N-S spine through Foley to Gulf Shores)
+  L.polyline([
+    [30.715,-87.671],[30.650,-87.672],[30.560,-87.673],
+    [30.480,-87.674],[30.404,-87.681],[30.335,-87.685],
+    [30.273,-87.695],[30.248,-87.702]
+  ], ROAD_HWY).addTo(map);
+
+  // US-98 / Greeno Rd (N-S east side, through Foley east)
+  L.polyline([
+    [30.620,-87.590],[30.555,-87.600],[30.480,-87.618],
+    [30.415,-87.638],[30.345,-87.660]
+  ], ROAD_HWY).addTo(map);
+
+  // US-98 W / Miflin Rd (Daphne to Foley, diagonal)
+  L.polyline([
+    [30.540,-87.915],[30.505,-87.875],[30.470,-87.838],
+    [30.435,-87.800],[30.400,-87.765]
+  ], ROAD_HWY).addTo(map);
+
+  // AL-59 beach spur (Gulf Shores east to Orange Beach)
+  L.polyline([
+    [30.248,-87.702],[30.245,-87.570],[30.245,-87.460]
+  ], ROAD_HWY).addTo(map);
+
+  // AL-181 (N-S connector, central Baldwin)
+  L.polyline([
+    [30.720,-87.775],[30.650,-87.782],[30.570,-87.790],
+    [30.490,-87.803],[30.415,-87.820]
+  ], ROAD_SEC).addTo(map);
+
+  // AL-225 / Eastern Shore Pkwy (along bay)
+  L.polyline([
+    [30.724,-87.958],[30.700,-87.958],[30.660,-87.962],
+    [30.604,-87.963],[30.550,-87.950]
+  ], ROAD_SEC).addTo(map);
+
+  // Causeway / US-98 (bridge across bay, east-west)
+  L.polyline([
+    [30.540,-87.915],[30.540,-87.950],[30.540,-88.00],[30.540,-88.05]
+  ], ROAD_SEC).addTo(map);
+
+  // Gulf Shores Blvd (east-west beach road)
+  L.polyline([
+    [30.248,-87.79],[30.248,-87.73],[30.248,-87.68],
+    [30.248,-87.60],[30.248,-87.53]
+  ], ROAD_SEC).addTo(map);
+
+  // Local connectors
+  L.polyline([[30.406,-87.630],[30.406,-87.681],[30.406,-87.742]],ROAD_LOC).addTo(map);
+  L.polyline([[30.480,-87.674],[30.480,-87.740],[30.480,-87.800]],ROAD_LOC).addTo(map);
+  L.polyline([[30.345,-87.660],[30.345,-87.681]],ROAD_LOC).addTo(map);
+
+  // ── City labels ───────────────────────────────────────────────────────────
+  var labelIcon = function(txt){
+    return L.divIcon({
+      className:'',
+      html:'<div style="font-size:10px;font-weight:700;color:#5a4a2a;white-space:nowrap;'
+          +'text-shadow:0 0 3px #e8e2cc,0 0 3px #e8e2cc;letter-spacing:.03em;opacity:.75;">'+txt+'</div>',
+      iconAnchor:[0,0]
+    });
+  };
+  var cities = [
+    [30.406,-87.681,'Foley'],
+    [30.250,-87.700,'Gulf Shores'],
+    [30.250,-87.490,'Orange Beach'],
+    [30.602,-87.903,'Daphne'],
+    [30.523,-87.903,'Fairhope'],
+    [30.545,-87.750,'Loxley'],
+    [30.548,-87.652,'Robertsdale'],
+    [30.345,-87.662,'Elberta'],
+    [30.722,-87.780,'Bay Minette']
+  ];
+  cities.forEach(function(c){
+    L.marker([c[0],c[1]],{icon:labelIcon(c[2]),interactive:false}).addTo(map);
+  });
+
+  // Gulf of Mexico label
+  L.marker([30.17,-87.72],{
+    icon:L.divIcon({
+      className:'',
+      html:'<div style="font-size:11px;font-weight:700;color:#2a5a7a;letter-spacing:.08em;'
+          +'text-transform:uppercase;white-space:nowrap;opacity:.7;">Gulf of Mexico</div>',
+      iconAnchor:[45,0]
+    }),interactive:false
+  }).addTo(map);
+
+  // Mobile Bay label
+  L.marker([30.58,-88.06],{
+    icon:L.divIcon({
+      className:'',
+      html:'<div style="font-size:10px;font-weight:700;color:#2a5a7a;letter-spacing:.06em;'
+          +'text-transform:uppercase;white-space:nowrap;opacity:.7;transform:rotate(-15deg);">Mobile Bay</div>',
+      iconAnchor:[30,0]
+    }),interactive:false
+  }).addTo(map);
+})();
 
 // Add day-view markers
 JOBS.forEach(function(job){
