@@ -8,7 +8,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "screenshots": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node scripts/capture-screenshots.js"
+    "screenshots": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node scripts/capture-screenshots.js",
+    "map-screenshots": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node scripts/capture-map-screenshots.js"
   },
   "repository": {
     "type": "git",
@@ -18,6 +19,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "leaflet": "^1.9.4",
     "playwright": "^1.60.0"
   }
 }

@@ -126,6 +126,28 @@ The platform went from zero to production-ready in a single development cycle. I
 
 ---
 
+### Dispatch Map
+
+The dispatch map is the day-to-day operational hub. It shows every delivery and pickup for a selected date, or every dumpster currently on-site across the entire fleet.
+
+**Day view** — date picker, color-coded delivery (orange) and pickup (blue) pins, job tables below.
+
+![Dispatch map day view](docs/screenshots/dispatch-map-day-view.png)
+
+**Job popup** — tap any pin to see customer phone (click-to-call), dumpster size and unit code, current status, and one-tap action buttons to advance the status without leaving the map.
+
+![Dispatch map popup with phone and status actions](docs/screenshots/dispatch-map-popup.png)
+
+**Optimized route** — click *Optimize Route* to run a TSP solve via the OSRM routing engine. Markers become numbered stops, the map draws the actual road path, and the route panel shows drive time, mileage, a Google Maps multi-stop link for the driver's phone, and a printable route sheet.
+
+![Dispatch map with optimized route](docs/screenshots/dispatch-map-route.png)
+
+**All Active view** — switch from the date picker to *All Active* to see every dumpster currently deployed across all jobs, regardless of delivery or pickup date. Useful for answering "where are all my dumpsters right now?"
+
+![Dispatch map all-active fleet view](docs/screenshots/dispatch-map-active.png)
+
+---
+
 ## Project Structure
 
 ```
