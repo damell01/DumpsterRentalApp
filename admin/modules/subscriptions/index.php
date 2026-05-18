@@ -70,6 +70,49 @@ $paymentMethods = db_fetchall(
      ORDER BY pm.is_default DESC, pm.updated_at DESC'
 );
 
+// Last payment per subscription (for table column)
+$rawLastPayments = db_fetchall(
+    'SELECT ril.subscription_id, ril.status, ril.amount, ril.billing_date, ril.failure_message
+     FROM recurring_invoice_logs ril
+     INNER JOIN (
+         SELECT subscription_id, MAX(id) AS max_id
+         FROM recurring_invoice_logs
+         GROUP BY subscription_id
+     ) t ON t.subscription_id = ril.subscription_id AND t.max_id = ril.id'
+);
+$lastPayment = [];
+foreach ($rawLastPayments as $r) {
+    $lastPayment[(int)$r['subscription_id']] = $r;
+}
+
+// Recent activity feed (last 30 across all subscriptions)
+$recentLogs = db_fetchall(
+    'SELECT ril.id, ril.subscription_id, ril.amount, ril.status, ril.billing_date,
+            ril.failure_message, s.service_name, c.name AS customer_name
+     FROM recurring_invoice_logs ril
+     JOIN subscriptions s ON s.id = ril.subscription_id
+     JOIN customers c ON c.id = s.customer_id
+     ORDER BY ril.billing_date DESC LIMIT 30'
+);
+
+// All logs grouped by subscription_id for the history modal
+$allLogs = db_fetchall(
+    'SELECT subscription_id, amount, status, billing_date, failure_message
+     FROM recurring_invoice_logs
+     ORDER BY billing_date DESC
+     LIMIT 300'
+);
+$logsBySubId = [];
+foreach ($allLogs as $l) {
+    $sid = (int)$l['subscription_id'];
+    $logsBySubId[$sid][] = [
+        'd' => $l['billing_date'] ? date('M j, Y g:i a', strtotime($l['billing_date'])) : '',
+        'a' => fmt_money((float)$l['amount']),
+        's' => $l['status'],
+        'm' => $l['failure_message'] ?? '',
+    ];
+}
+
 layout_start('Subscriptions', 'subscriptions');
 ?>
 <div class="row g-4">
@@ -108,6 +151,7 @@ layout_start('Subscriptions', 'subscriptions');
                                 <th>Amount</th>
                                 <th>Cycle</th>
                                 <th>Next Bill</th>
+                                <th>Last Payment</th>
                                 <th>Status</th>
                                 <th></th>
                             </tr>
@@ -128,6 +172,24 @@ layout_start('Subscriptions', 'subscriptions');
                                 <td class="fw-semibold"><?= e(fmt_money($subscription['amount'])) ?></td>
                                 <td>Every <?= (int)$subscription['interval_count'] . ' ' . e($subscription['interval_unit']) . ((int)$subscription['interval_count'] === 1 ? '' : 's') ?></td>
                                 <td><?= e(fmt_date($subscription['next_billing_date'])) ?></td>
+                                <td>
+                                    <?php $lp = $lastPayment[(int)$subscription['id']] ?? null; ?>
+                                    <?php if ($lp): ?>
+                                        <?php if ($lp['status'] === 'paid'): ?>
+                                        <span class="tp-badge badge-paid"><i class="fa-solid fa-check me-1"></i>Paid</span>
+                                        <?php elseif ($lp['status'] === 'failed'): ?>
+                                        <span class="tp-badge badge-canceled"><i class="fa-solid fa-xmark me-1"></i>Failed</span>
+                                        <?php else: ?>
+                                        <span class="tp-badge badge-void"><?= e(ucfirst($lp['status'])) ?></span>
+                                        <?php endif; ?>
+                                        <div style="font-size:.75rem;color:var(--gy);margin-top:.15rem;"><?= e(fmt_date($lp['billing_date'])) ?></div>
+                                        <?php if ($lp['status'] === 'failed' && !empty($lp['failure_message'])): ?>
+                                        <div style="font-size:.72rem;color:#ef4444;max-width:180px;white-space:normal;"><?= e(mb_strimwidth($lp['failure_message'], 0, 55, '…')) ?></div>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <span class="text-muted" style="font-size:.8rem;">No history</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td><?= subscription_badge($subscription['status']) ?></td>
                                 <td class="text-nowrap">
                                     <?php if ((int)$subscription['saved_method_count'] === 0 && $subscription['status'] !== 'canceled'): ?>
@@ -167,6 +229,10 @@ layout_start('Subscriptions', 'subscriptions');
                                         <button type="submit" class="btn-tp-danger btn-tp-xs">Cancel</button>
                                     </form>
                                     <?php endif; ?>
+                                    <button type="button" class="btn-tp-ghost btn-tp-xs"
+                                            onclick="openSubHistory(<?= (int)$subscription['id'] ?>, <?= e(json_encode($subscription['service_name'] . ' — ' . $subscription['customer_name'])) ?>)">
+                                        <i class="fa-solid fa-clock-rotate-left me-1"></i>History
+                                    </button>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -261,17 +327,67 @@ layout_start('Subscriptions', 'subscriptions');
         </div>
     </div>
 </div>
+
+<?php if ($recentLogs): ?>
+<div class="row g-4 mt-0">
+    <div class="col-12">
+        <div class="tp-card">
+            <div class="tp-card-header d-flex justify-content-between align-items-center">
+                <span><i class="fa-solid fa-clock-rotate-left me-2 text-muted"></i>Recent Payment Activity</span>
+                <span class="text-muted" style="font-size:.8rem;"><?= count($recentLogs) ?> most recent</span>
+            </div>
+            <div class="tp-card-body p-0">
+                <div class="table-responsive">
+                    <table class="table tp-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Customer</th>
+                                <th>Service</th>
+                                <th>Amount</th>
+                                <th>Result</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($recentLogs as $log): ?>
+                            <tr>
+                                <td class="text-nowrap" style="font-size:.83rem;"><?= e(fmt_datetime($log['billing_date'])) ?></td>
+                                <td><?= e($log['customer_name']) ?></td>
+                                <td><?= e($log['service_name']) ?></td>
+                                <td class="fw-semibold"><?= e(fmt_money($log['amount'])) ?></td>
+                                <td>
+                                    <?php if ($log['status'] === 'paid'): ?>
+                                    <span class="tp-badge badge-paid"><i class="fa-solid fa-check me-1"></i>Paid</span>
+                                    <?php elseif ($log['status'] === 'failed'): ?>
+                                    <span class="tp-badge badge-canceled"><i class="fa-solid fa-xmark me-1"></i>Failed</span>
+                                    <?php else: ?>
+                                    <span class="tp-badge badge-void"><?= e(ucfirst($log['status'])) ?></span>
+                                    <?php endif; ?>
+                                </td>
+                                <td style="font-size:.8rem;color:var(--gy);"><?= !empty($log['failure_message']) ? e($log['failure_message']) : '' ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <!-- Edit Subscription Modal -->
 <div class="modal fade" id="editSubModal" tabindex="-1" aria-labelledby="editSubModalLabel" aria-hidden="true">
   <div class="modal-dialog">
-    <div class="modal-content" style="background:var(--card-bg,#1e2130);color:var(--body-color,#e2e8f0);border:1px solid var(--border,#2d3148);">
+    <div class="modal-content">
       <form method="POST" action="index.php">
         <?= csrf_field() ?>
         <input type="hidden" name="action" value="update">
         <input type="hidden" name="id" id="editSubId">
-        <div class="modal-header" style="border-bottom:1px solid var(--border,#2d3148);">
+        <div class="modal-header">
           <h5 class="modal-title" id="editSubModalLabel">Edit Subscription</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
           <div class="mb-3">
@@ -307,7 +423,7 @@ layout_start('Subscriptions', 'subscriptions');
           </div>
           <p class="text-muted mt-2 mb-0" style="font-size:.8rem;">Changing amount or interval will create a new Stripe price and update the subscription immediately with no proration.</p>
         </div>
-        <div class="modal-footer" style="border-top:1px solid var(--border,#2d3148);">
+        <div class="modal-footer">
           <button type="button" class="btn-tp-ghost btn-tp-sm" data-bs-dismiss="modal">Cancel</button>
           <button type="submit" class="btn-tp-primary btn-tp-sm">Save Changes</button>
         </div>
@@ -316,7 +432,22 @@ layout_start('Subscriptions', 'subscriptions');
   </div>
 </div>
 
+<!-- Subscription History Modal -->
+<div class="modal fade" id="subHistoryModal" tabindex="-1" aria-labelledby="subHistoryTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="subHistoryTitle">Payment History</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0" id="subHistoryBody"></div>
+    </div>
+  </div>
+</div>
+
 <script>
+var subLogs = <?= json_encode($logsBySubId, JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+
 function openEditSub(id, name, address, amount, intervalUnit, intervalCount, autopay) {
     document.getElementById('editSubId').value = id;
     document.getElementById('editSubServiceName').value = name;
@@ -326,6 +457,38 @@ function openEditSub(id, name, address, amount, intervalUnit, intervalCount, aut
     document.getElementById('editSubIntervalCount').value = intervalCount;
     document.getElementById('editSubAutopay').checked = autopay == 1;
     new bootstrap.Modal(document.getElementById('editSubModal')).show();
+}
+
+function openSubHistory(subId, label) {
+    var logs = subLogs[subId] || [];
+    document.getElementById('subHistoryTitle').textContent = 'Payment History — ' + label;
+    var body = document.getElementById('subHistoryBody');
+    if (!logs.length) {
+        body.innerHTML = '<p class="text-muted p-3 mb-0">No payment history recorded yet.</p>';
+    } else {
+        var rows = logs.map(function(l) {
+            var isPaid = l.s === 'paid';
+            var badge = isPaid
+                ? '<span class="tp-badge badge-paid"><i class="fa-solid fa-check me-1"></i>Paid</span>'
+                : (l.s === 'failed'
+                    ? '<span class="tp-badge badge-canceled"><i class="fa-solid fa-xmark me-1"></i>Failed</span>'
+                    : '<span class="tp-badge badge-void">' + escH(l.s) + '</span>');
+            var note = l.m ? '<div style="font-size:.75rem;color:#ef4444;margin-top:.15rem;">' + escH(l.m) + '</div>' : '';
+            return '<tr>'
+                + '<td style="font-size:.83rem;white-space:nowrap;">' + escH(l.d) + '</td>'
+                + '<td class="fw-semibold">' + escH(l.a) + '</td>'
+                + '<td>' + badge + note + '</td>'
+                + '</tr>';
+        }).join('');
+        body.innerHTML = '<div class="table-responsive"><table class="table tp-table mb-0">'
+            + '<thead><tr><th>Date</th><th>Amount</th><th>Result</th></tr></thead>'
+            + '<tbody>' + rows + '</tbody></table></div>';
+    }
+    new bootstrap.Modal(document.getElementById('subHistoryModal')).show();
+}
+
+function escH(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 </script>
 <?php layout_end(); ?>
