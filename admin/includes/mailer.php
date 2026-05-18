@@ -274,6 +274,7 @@ function email_template(string $title, string $body_html, string $cta_text = '',
     $company_phone   = get_setting('company_phone',   '');
     $company_email   = get_setting('company_email',   '');
     $company_address = get_setting('company_address', '');
+    $logo_public_url = resolve_logo_public_url();
 
     $cta_block = '';
     if ($cta_text && $cta_url) {
@@ -304,8 +305,8 @@ function email_template(string $title, string $body_html, string $cta_text = '',
           <!-- Header -->
           <tr>
             <td style="background:#1a1d27;padding:24px 32px;border-radius:8px 8px 0 0;">' .
-              (($logo = get_setting('logo_url', '') ?: get_setting('logo_path', ''))
-                ? '<img src="' . htmlspecialchars($logo, ENT_QUOTES, 'UTF-8') . '"
+              ($logo_public_url
+                ? '<img src="' . htmlspecialchars($logo_public_url, ENT_QUOTES, 'UTF-8') . '"
                         alt="' . htmlspecialchars($company_name, ENT_QUOTES, 'UTF-8') . '"
                         style="max-height:55px;max-width:200px;object-fit:contain;display:block;margin-bottom:10px;">'
                 : '<h1 style="margin:0 0 6px;color:#f97316;font-size:1.5rem;font-weight:700;letter-spacing:.04em;">'
@@ -425,6 +426,62 @@ function resolve_logo_file_path(): ?string
     }
 
     return null;
+}
+
+function resolve_logo_public_url(): string
+{
+    $basePublicUrl = '';
+    if (defined('APP_URL')) {
+        $basePublicUrl = rtrim((string)preg_replace('#/admin/?$#', '', APP_URL), '/');
+    }
+
+    $values = [
+        get_setting('logo_url', ''),
+        get_setting('logo_path', ''),
+    ];
+
+    foreach ($values as $value) {
+        $value = trim((string)$value);
+        if ($value === '') {
+            continue;
+        }
+
+        if (preg_match('#^https?://#i', $value)) {
+            return $value;
+        }
+
+        if ($basePublicUrl === '') {
+            continue;
+        }
+
+        $normalized = str_replace('\\', '/', $value);
+
+        if (strpos($normalized, '/admin/uploads/') !== false) {
+            return $basePublicUrl . substr($normalized, strpos($normalized, '/admin/uploads/'));
+        }
+
+        if (strpos($normalized, '/uploads/') !== false) {
+            return $basePublicUrl . substr($normalized, strpos($normalized, '/uploads/'));
+        }
+
+        if (strpos($normalized, '/public/') !== false) {
+            return $basePublicUrl . substr($normalized, strpos($normalized, '/public/'));
+        }
+
+        if ($normalized[0] === '/') {
+            return $basePublicUrl . $normalized;
+        }
+
+        if (strpos($normalized, 'uploads/') === 0 || strpos($normalized, 'public/') === 0) {
+            return $basePublicUrl . '/' . ltrim($normalized, '/');
+        }
+    }
+
+    if ($basePublicUrl !== '') {
+        return $basePublicUrl . '/public/assets/logo.jpeg';
+    }
+
+    return '';
 }
 
 function booking_terms_logo_jpeg(): ?array
