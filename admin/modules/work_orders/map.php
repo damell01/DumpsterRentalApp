@@ -354,24 +354,6 @@ layout_start('Dispatch Map', 'dispatch_map');
     </div>
 </div>
 <?php endif; ?>
-<?php if (!empty($incomplete_jobs)): ?>
-<div class="alert alert-warning mb-3" style="border:1px solid rgba(245,158,11,.25);background:rgba(245,158,11,.08);">
-    <div class="fw-semibold mb-1">
-        <i class="fa-solid fa-triangle-exclamation me-1"></i>
-        <?= count($incomplete_jobs) ?> stop<?= count($incomplete_jobs) === 1 ? '' : 's' ?> need<?= count($incomplete_jobs) === 1 ? 's' : '' ?> a fuller address before they can pin correctly.
-    </div>
-    <div style="font-size:.9rem;color:#7c2d12;">
-        Add at least a street address plus city, state, or ZIP on the booking, customer, or work order record.
-    </div>
-    <div class="mt-2 d-flex flex-wrap gap-2">
-        <?php foreach ($incomplete_jobs as $wo): ?>
-            <a href="view.php?id=<?= (int)$wo['id'] ?>" class="btn-tp-ghost btn-tp-xs" style="border-color:rgba(245,158,11,.35);">
-                <?= e($wo['wo_number']) ?>: <?= e($wo['cust_name']) ?>
-            </a>
-        <?php endforeach; ?>
-    </div>
-</div>
-<?php endif; ?>
 
 <!-- ── Job cards ───────────────────────────────────────────────────────────── -->
 <div class="row g-3">
@@ -741,11 +723,35 @@ function hasMappableAddress(job) {
     return !!(job && job.address_complete && (job.full_address || job.service_address));
 }
 
+function ensureRowBadge(row, text, styles) {
+    if (!row) return;
+    var cell = row.querySelector('td:nth-child(4)');
+    if (!cell) return;
+    var existing = cell.querySelector('[data-map-badge]');
+    if (existing) existing.remove();
+    var badge = document.createElement('span');
+    badge.setAttribute('data-map-badge', '1');
+    badge.className = 'tp-badge ms-1';
+    badge.textContent = text;
+    badge.style.cssText = styles || '';
+    cell.appendChild(document.createTextNode(' '));
+    cell.appendChild(badge);
+}
+
 function markRowAddressIssue(jobId, issue) {
     var row = rowMap[jobId];
     if (!row) return;
     row.style.background = 'rgba(245,158,11,.06)';
     row.title = issue || 'This stop needs a fuller address before it can be pinned.';
+    ensureRowBadge(row, 'Address incomplete', 'background:rgba(245,158,11,.12);color:#b45309;border:1px solid rgba(245,158,11,.2);');
+}
+
+function markRowGeocodeFailure(jobId, issue) {
+    var row = rowMap[jobId];
+    if (!row) return;
+    row.style.background = 'rgba(239,68,68,.05)';
+    row.title = issue || 'This stop could not be pinned from the saved address.';
+    ensureRowBadge(row, 'Pin failed', 'background:rgba(239,68,68,.1);color:#b91c1c;border:1px solid rgba(239,68,68,.2);');
 }
 
 function milesBetween(a, b) {
@@ -913,6 +919,10 @@ function saveToCache(address, lat, lng) {
 }
 
 function geocodeAddress(addr) {
+    return geocodeSearch(addr);
+}
+
+function geocodeSearch(addr) {
     var params = [
         'format=json',
         'limit=6',
@@ -940,6 +950,49 @@ function geocodeAddress(addr) {
             var best = chooseBestGeocodeResult(results, addr);
             return best ? [best] : [];
         });
+}
+
+function buildGeocodeQueries(job) {
+    var street = String(job.service_address || '').trim();
+    var city = String(job.service_city || '').trim();
+    var state = String(job.service_state || '').trim();
+    var zip = String(job.service_zip || '').trim();
+    var full = String(job.full_address || '').trim();
+    var variants = [];
+
+    function push(q) {
+        q = String(q || '').trim();
+        if (!q) return;
+        if (variants.indexOf(q) === -1) variants.push(q);
+    }
+
+    push(full);
+    push([street, city, state, zip].filter(Boolean).join(', '));
+    push([street, city, state].filter(Boolean).join(', '));
+    push([street, city].filter(Boolean).join(', '));
+    push([street, state, zip].filter(Boolean).join(', '));
+    push([street, zip].filter(Boolean).join(', '));
+
+    return variants;
+}
+
+function geocodeJob(job) {
+    var queries = buildGeocodeQueries(job);
+    var idx = 0;
+
+    function next() {
+        if (idx >= queries.length) return Promise.resolve([]);
+        var q = queries[idx++];
+        return geocodeSearch(q)
+            .then(function(results) {
+                return (results && results.length) ? results : next();
+            })
+            .catch(function() {
+                return next();
+            });
+    }
+
+    return next();
 }
 
 // ── Sequential geocoder (only for cache misses) ──────────────────────────────
@@ -977,16 +1030,20 @@ function geocodeNext() {
         return;
     }
 
-    geocodeAddress(addr)
+    geocodeJob(job)
         .then(function (results) {
             if (results && results.length > 0) {
                 var lat = parseFloat(results[0].lat);
                 var lng = parseFloat(results[0].lon);
                 addMarker(job, lat, lng);
                 saveToCache(addr, lat, lng);
+            } else {
+                markRowGeocodeFailure(job.id, 'Address could not be geocoded. Try a fuller address or pick one from autocomplete.');
             }
         })
-        .catch(function () {})
+        .catch(function () {
+            markRowGeocodeFailure(job.id, 'Address could not be geocoded. Try a fuller address or pick one from autocomplete.');
+        })
         .finally(function () {
             geocodePending--;
             updateGeocodeProgress();
