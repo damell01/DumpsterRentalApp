@@ -6,6 +6,12 @@ require_once TMPL_PATH . '/layout.php';
 require_login();
 require_role('admin', 'office');
 
+try {
+    billing_subscription_service()->repairMissingHistory();
+} catch (Throwable $e) {
+    error_log('[subscriptions/index] repairMissingHistory failed: ' . $e->getMessage());
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $action = trim((string)($_POST['action'] ?? 'create'));
@@ -71,8 +77,10 @@ $paymentMethods = db_fetchall(
 );
 
 $rawLastPayments = db_fetchall(
-    'SELECT ril.subscription_id, ril.status, ril.amount, ril.billing_date, ril.failure_message
+    'SELECT ril.subscription_id, ril.status, ril.amount, ril.billing_date, ril.failure_message,
+            i.invoice_number
      FROM recurring_invoice_logs ril
+     LEFT JOIN invoices i ON i.id = ril.invoice_id
      INNER JOIN (
          SELECT subscription_id, MAX(id) AS max_id
          FROM recurring_invoice_logs
@@ -84,18 +92,45 @@ foreach ($rawLastPayments as $r) {
     $lastPayment[(int)$r['subscription_id']] = $r;
 }
 
+$fallbackInvoicePayments = db_fetchall(
+    "SELECT i.subscription_id, i.total AS amount, i.paid_at AS billing_date, i.invoice_number
+     FROM invoices i
+     INNER JOIN (
+         SELECT subscription_id, MAX(id) AS max_id
+         FROM invoices
+         WHERE subscription_id IS NOT NULL AND status = 'paid'
+         GROUP BY subscription_id
+     ) t ON t.subscription_id = i.subscription_id AND t.max_id = i.id"
+);
+foreach ($fallbackInvoicePayments as $r) {
+    $sid = (int)($r['subscription_id'] ?? 0);
+    if ($sid > 0 && !isset($lastPayment[$sid])) {
+        $lastPayment[$sid] = [
+            'subscription_id' => $sid,
+            'status' => 'paid',
+            'amount' => $r['amount'],
+            'billing_date' => $r['billing_date'],
+            'failure_message' => null,
+            'invoice_number' => $r['invoice_number'] ?? '',
+        ];
+    }
+}
+
 $recentLogs = db_fetchall(
     'SELECT ril.id, ril.subscription_id, ril.amount, ril.status, ril.billing_date,
-            ril.failure_message, s.service_name, c.name AS customer_name
+            ril.failure_message, s.service_name, c.name AS customer_name, i.invoice_number
      FROM recurring_invoice_logs ril
      JOIN subscriptions s ON s.id = ril.subscription_id
      JOIN customers c ON c.id = s.customer_id
+     LEFT JOIN invoices i ON i.id = ril.invoice_id
      ORDER BY ril.billing_date DESC LIMIT 30'
 );
 
 $allLogs = db_fetchall(
-    'SELECT subscription_id, amount, status, billing_date, failure_message
-     FROM recurring_invoice_logs
+    'SELECT ril.subscription_id, ril.amount, ril.status, ril.billing_date, ril.failure_message,
+            i.invoice_number
+     FROM recurring_invoice_logs ril
+     LEFT JOIN invoices i ON i.id = ril.invoice_id
      ORDER BY billing_date DESC
      LIMIT 300'
 );
@@ -107,6 +142,7 @@ foreach ($allLogs as $l) {
         'a' => fmt_money((float)$l['amount']),
         's' => $l['status'],
         'm' => $l['failure_message'] ?? '',
+        'i' => $l['invoice_number'] ?? '',
     ];
 }
 
@@ -192,6 +228,9 @@ layout_start('Subscriptions', 'subscriptions');
                             <span class="tp-badge badge-void"><?= e(ucfirst($lp['status'])) ?></span>
                             <?php endif; ?>
                             <div style="font-size:.75rem;color:var(--gy);margin-top:.15rem;"><?= e(fmt_date($lp['billing_date'])) ?></div>
+                            <?php if (!empty($lp['invoice_number'])): ?>
+                            <div style="font-size:.72rem;color:var(--gy);">Invoice <?= e($lp['invoice_number']) ?></div>
+                            <?php endif; ?>
                             <?php if ($lp['status'] === 'failed' && !empty($lp['failure_message'])): ?>
                             <div style="font-size:.72rem;color:#ef4444;max-width:180px;white-space:normal;"><?= e(mb_strimwidth($lp['failure_message'], 0, 55, '…')) ?></div>
                             <?php endif; ?>
@@ -267,6 +306,7 @@ layout_start('Subscriptions', 'subscriptions');
                     <th>Date</th>
                     <th>Customer</th>
                     <th>Service</th>
+                    <th>Invoice</th>
                     <th>Amount</th>
                     <th>Result</th>
                     <th>Notes</th>
@@ -278,6 +318,7 @@ layout_start('Subscriptions', 'subscriptions');
                     <td class="text-nowrap" style="font-size:.83rem;"><?= e(fmt_datetime($log['billing_date'])) ?></td>
                     <td><?= e($log['customer_name']) ?></td>
                     <td><?= e($log['service_name']) ?></td>
+                    <td class="text-nowrap"><?= !empty($log['invoice_number']) ? e($log['invoice_number']) : '—' ?></td>
                     <td class="fw-semibold"><?= e(fmt_money($log['amount'])) ?></td>
                     <td>
                         <?php if ($log['status'] === 'paid'): ?>
@@ -479,12 +520,13 @@ function openSubHistory(subId, label) {
             var note = l.m ? '<div style="font-size:.75rem;color:#ef4444;margin-top:.15rem;">' + escH(l.m) + '</div>' : '';
             return '<tr>'
                 + '<td style="font-size:.83rem;white-space:nowrap;">' + escH(l.d) + '</td>'
+                + '<td style="white-space:nowrap;">' + (l.i ? escH(l.i) : '—') + '</td>'
                 + '<td class="fw-semibold">' + escH(l.a) + '</td>'
                 + '<td>' + badge + note + '</td>'
                 + '</tr>';
         }).join('');
         body.innerHTML = '<div class="table-responsive"><table class="tp-table mb-0">'
-            + '<thead><tr><th>Date</th><th>Amount</th><th>Result</th></tr></thead>'
+            + '<thead><tr><th>Date</th><th>Invoice</th><th>Amount</th><th>Result</th></tr></thead>'
             + '<tbody>' + rows + '</tbody></table></div>';
     }
     new bootstrap.Modal(document.getElementById('subHistoryModal')).show();
