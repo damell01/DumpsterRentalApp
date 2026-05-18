@@ -269,19 +269,19 @@ layout_start('Reports', 'reports');
 </div>
 
 <!-- Filter Bar -->
-<div class="tp-card mb-4">
-    <form method="GET" action="index.php" class="row g-2 align-items-end">
-        <div class="col-auto">
+<div class="tp-card tp-filter-form-compact mb-4">
+    <form method="GET" action="index.php" class="tp-filter-grid-compact">
+        <div>
             <label class="form-label mb-1" for="date_from">From</label>
             <input type="date" id="date_from" name="date_from" class="form-control form-control-sm"
                    value="<?= e($all_time ? '' : $date_from) ?>" <?= $all_time ? 'disabled' : '' ?>>
         </div>
-        <div class="col-auto">
+        <div>
             <label class="form-label mb-1" for="date_to">To</label>
             <input type="date" id="date_to" name="date_to" class="form-control form-control-sm"
                    value="<?= e($all_time ? '' : $date_to) ?>" <?= $all_time ? 'disabled' : '' ?>>
         </div>
-        <div class="col-auto">
+        <div>
             <label class="form-label mb-1" for="pay_method">Payment Method</label>
             <select id="pay_method" name="pay_method" class="form-select form-select-sm">
                 <option value="all"    <?= $pay_method==='all'    ? 'selected':'' ?>>All Methods</option>
@@ -291,7 +291,7 @@ layout_start('Reports', 'reports');
                 <option value="check"  <?= $pay_method==='check'  ? 'selected':'' ?>>Check</option>
             </select>
         </div>
-        <div class="col-auto">
+        <div>
             <label class="form-label mb-1" for="pay_status">Status</label>
             <select id="pay_status" name="pay_status" class="form-select form-select-sm">
                 <option value="all"     <?= $pay_status==='all'     ? 'selected':'' ?>>All Statuses</option>
@@ -299,20 +299,20 @@ layout_start('Reports', 'reports');
                 <option value="pending" <?= $pay_status==='pending' ? 'selected':'' ?>>Pending</option>
             </select>
         </div>
-        <div class="col-auto">
+        <div>
             <div class="form-check mt-3 mb-1">
                 <input type="checkbox" id="all_time" name="all_time" value="1" class="form-check-input"
                        <?= $all_time ? 'checked' : '' ?> onchange="this.form.submit()">
                 <label for="all_time" class="form-check-label" style="font-size:.85rem;">All Time</label>
             </div>
         </div>
-        <div class="col-auto">
+        <div class="tp-filter-actions-compact">
             <button type="submit" class="btn-tp-primary btn-tp-sm">
                 <i class="fa-solid fa-magnifying-glass"></i> Filter
             </button>
-            <a href="index.php" class="btn-tp-ghost btn-tp-sm ms-1">Reset</a>
+            <a href="index.php" class="btn-tp-ghost btn-tp-sm">Reset</a>
         </div>
-        <div class="col-auto ms-auto">
+        <div>
             <?php
             $export_qs = http_build_query(array_filter([
                 'date_from'  => $all_time ? '' : $date_from,

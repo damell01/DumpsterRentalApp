@@ -150,6 +150,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'save_company' => [
             'company_name', 'company_phone', 'company_email', 'company_address',
             'quote_terms', 'wo_footer', 'invoice_footer', 'booking_terms', 'currency',
+            'payment_note_cash', 'payment_note_check',
+            'booking_success_pending_intro', 'booking_success_confirmed_intro',
+            'booking_success_terms_text', 'booking_success_keep_title',
+            'booking_success_keep_body', 'booking_success_contact_prompt',
+            'invoice_paid_intro_named', 'invoice_paid_intro_generic',
+            'invoice_paid_contact_prompt', 'invoice_canceled_intro',
+            'invoice_canceled_contact_prompt', 'portal_request_lead',
+            'portal_request_sub', 'portal_request_success',
+            'portal_request_security_note', 'portal_link_email_subject',
+            'portal_link_email_intro', 'portal_link_email_button',
+            'invoice_paid_email_subject', 'invoice_paid_email_body',
             'hide_launch_checklist',
         ],
         'save_email' => [
@@ -377,6 +388,125 @@ layout_start('Settings', 'settings');
                 <textarea id="booking_terms" name="booking_terms" class="form-control" rows="4"
                           placeholder="Terms &amp; conditions shown to customers on the public booking page…"><?= e(get_setting('booking_terms', '')) ?></textarea>
                 <div class="form-text" style="color:var(--gy);">Displayed to customers on the booking page. They must scroll and agree before submitting.</div>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="payment_note_cash">Cash Payment Note</label>
+                <textarea id="payment_note_cash" name="payment_note_cash" class="form-control" rows="2"
+                          placeholder="Shown to customers on the booking success page when they choose cash…"><?= e(get_setting('payment_note_cash', 'Please have cash payment ready at time of delivery.')) ?></textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="payment_note_check">Check Payment Note</label>
+                <textarea id="payment_note_check" name="payment_note_check" class="form-control" rows="2"
+                          placeholder="Shown to customers on the booking success page when they choose check…"><?= e(get_setting('payment_note_check', 'Please have your check made out to {company_name} ready at time of delivery.')) ?></textarea>
+                <div class="form-text" style="color:var(--gy);">You can use <code>{company_name}</code> and it will be replaced automatically.</div>
+            </div>
+        </div>
+
+        <h6 class="mb-3" style="font-weight:600;border-bottom:1px solid #e5e7eb;padding-bottom:.5rem;">
+            <i class="fa-solid fa-language" style="color:#f97316;"></i> Customer-Facing Copy
+        </h6>
+
+        <div class="row g-3 mb-4">
+            <div class="col-12">
+                <label class="form-label" for="booking_success_pending_intro">Booking Success: Pending Review Intro</label>
+                <textarea id="booking_success_pending_intro" name="booking_success_pending_intro" class="form-control" rows="3"
+                          placeholder="Shown when the booking is waiting for approval…"><?= e(get_setting('booking_success_pending_intro', 'Thank you, {customer_name}. {subject_phrase} been submitted for review. We will follow up with approval details and payment instructions if needed.')) ?></textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="booking_success_confirmed_intro">Booking Success: Confirmed Intro</label>
+                <textarea id="booking_success_confirmed_intro" name="booking_success_confirmed_intro" class="form-control" rows="3"
+                          placeholder="Shown after the booking is confirmed…"><?= e(get_setting('booking_success_confirmed_intro', 'Thank you, {customer_name}! {subject_phrase} been booked.')) ?></textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="booking_success_terms_text">Booking Success: Terms Card Text</label>
+                <textarea id="booking_success_terms_text" name="booking_success_terms_text" class="form-control" rows="2"
+                          placeholder="Shown above the terms PDF button…"><?= e(get_setting('booking_success_terms_text', 'Keep a copy of the signed rental terms for your records.')) ?></textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="booking_success_keep_title">Booking Success: Reminder Title</label>
+                <input type="text" id="booking_success_keep_title" name="booking_success_keep_title" class="form-control"
+                       value="<?= e(get_setting('booking_success_keep_title', 'Keep this page handy.')) ?>">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="booking_success_contact_prompt">Booking Success: Contact Prompt</label>
+                <input type="text" id="booking_success_contact_prompt" name="booking_success_contact_prompt" class="form-control"
+                       value="<?= e(get_setting('booking_success_contact_prompt', 'Questions? Call us at')) ?>">
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="booking_success_keep_body">Booking Success: Reminder Body</label>
+                <textarea id="booking_success_keep_body" name="booking_success_keep_body" class="form-control" rows="2"
+                          placeholder="Shown below the booking details…"><?= e(get_setting('booking_success_keep_body', 'Use these booking numbers when you call, email, or check your order in the customer portal.')) ?></textarea>
+                <div class="form-text" style="color:var(--gy);">Supported placeholders: <code>{company_name}</code>, <code>{customer_name}</code>, <code>{subject_phrase}</code>.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="invoice_paid_intro_named">Invoice Paid: Thank-you Message</label>
+                <textarea id="invoice_paid_intro_named" name="invoice_paid_intro_named" class="form-control" rows="2"
+                          placeholder="Shown when the customer name is known…"><?= e(get_setting('invoice_paid_intro_named', 'Thank you, {customer_name}! Your invoice has been paid.')) ?></textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="invoice_paid_intro_generic">Invoice Paid: Generic Message</label>
+                <textarea id="invoice_paid_intro_generic" name="invoice_paid_intro_generic" class="form-control" rows="2"
+                          placeholder="Shown when no customer name is available…"><?= e(get_setting('invoice_paid_intro_generic', 'Your invoice payment has been received. Thank you!')) ?></textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="invoice_paid_contact_prompt">Invoice Paid: Contact Prompt</label>
+                <input type="text" id="invoice_paid_contact_prompt" name="invoice_paid_contact_prompt" class="form-control"
+                       value="<?= e(get_setting('invoice_paid_contact_prompt', 'Questions? Call us at')) ?>">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="invoice_canceled_contact_prompt">Payment Not Completed: Contact Prompt</label>
+                <input type="text" id="invoice_canceled_contact_prompt" name="invoice_canceled_contact_prompt" class="form-control"
+                       value="<?= e(get_setting('invoice_canceled_contact_prompt', 'Need help? Call us at')) ?>">
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="invoice_canceled_intro">Payment Not Completed: Message</label>
+                <textarea id="invoice_canceled_intro" name="invoice_canceled_intro" class="form-control" rows="2"
+                          placeholder="Shown when checkout is canceled or abandoned…"><?= e(get_setting('invoice_canceled_intro', 'Your payment was not completed and the invoice has not been charged. No amount has been collected.')) ?></textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="portal_request_lead">Portal Request: Hero Text</label>
+                <textarea id="portal_request_lead" name="portal_request_lead" class="form-control" rows="2"
+                          placeholder="Shown on the billing portal request page…"><?= e(get_setting('portal_request_lead', 'Get a secure one-time link to review invoices, payment history, saved billing methods, and subscription activity without needing a password.')) ?></textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="portal_request_sub">Portal Request: Form Intro</label>
+                <textarea id="portal_request_sub" name="portal_request_sub" class="form-control" rows="2"
+                          placeholder="Shown above the email field…"><?= e(get_setting('portal_request_sub', 'Enter your billing email and we’ll send a secure one-time link to access your invoices, subscriptions, and saved payment methods.')) ?></textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="portal_request_success">Portal Request: Success Message</label>
+                <textarea id="portal_request_success" name="portal_request_success" class="form-control" rows="2"
+                          placeholder="Shown after a portal link request is submitted…"><?= e(get_setting('portal_request_success', 'If that email address is on file, a secure portal link has been sent. Check your inbox.')) ?></textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="portal_request_security_note">Portal Request: Security Note</label>
+                <textarea id="portal_request_security_note" name="portal_request_security_note" class="form-control" rows="2"
+                          placeholder="Shown under the send button…"><?= e(get_setting('portal_request_security_note', 'Links are single-use and expire automatically. No password needed.')) ?></textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="portal_link_email_subject">Portal Link Email Subject</label>
+                <input type="text" id="portal_link_email_subject" name="portal_link_email_subject" class="form-control"
+                       value="<?= e(get_setting('portal_link_email_subject', 'Your {company_name} Billing Portal Link')) ?>">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="portal_link_email_button">Portal Link Email Button Label</label>
+                <input type="text" id="portal_link_email_button" name="portal_link_email_button" class="form-control"
+                       value="<?= e(get_setting('portal_link_email_button', 'Open Billing Portal')) ?>">
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="portal_link_email_intro">Portal Link Email Body</label>
+                <textarea id="portal_link_email_intro" name="portal_link_email_intro" class="form-control" rows="2"
+                          placeholder="Shown inside the portal access email…"><?= e(get_setting('portal_link_email_intro', 'Your secure {company_name} billing portal link is ready. This link expires automatically.')) ?></textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="invoice_paid_email_subject">Invoice Paid Email Subject</label>
+                <input type="text" id="invoice_paid_email_subject" name="invoice_paid_email_subject" class="form-control"
+                       value="<?= e(get_setting('invoice_paid_email_subject', 'Invoice Paid — {invoice_number}')) ?>">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="invoice_paid_email_body">Invoice Paid Email Body</label>
+                <textarea id="invoice_paid_email_body" name="invoice_paid_email_body" class="form-control" rows="3"
+                          placeholder="Shown in the payment receipt email…"><?= e(get_setting('invoice_paid_email_body', 'Hi {customer_name}, Your payment of {amount} for invoice {invoice_number} has been received. Thank you!')) ?></textarea>
             </div>
         </div>
 

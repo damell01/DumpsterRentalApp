@@ -74,6 +74,57 @@ $counts[''] = array_sum($counts);
 layout_start('Invoices', 'invoices');
 ?>
 
+<style>
+.invoice-filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .85rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+    background: var(--dk2);
+    border: 1px solid var(--st2);
+    border-radius: var(--radius);
+    padding: .75rem .9rem;
+}
+.invoice-filter-tabs {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex: 1 1 420px;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+}
+.invoice-filter-tabs .filter-tab {
+    flex: 0 0 auto;
+    min-height: 38px;
+}
+.invoice-filter-search {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex: 0 1 420px;
+    margin-left: auto;
+}
+.invoice-filter-search .form-control {
+    min-width: 0;
+}
+@media (max-width: 767px) {
+    .invoice-filter-bar {
+        align-items: stretch;
+        padding: .72rem .8rem;
+    }
+    .invoice-filter-tabs,
+    .invoice-filter-search {
+        flex-basis: 100%;
+        margin-left: 0;
+    }
+}
+</style>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 class="mb-0">Invoices</h5>
     <?php if (has_role('admin', 'office')): ?>
@@ -84,7 +135,8 @@ layout_start('Invoices', 'invoices');
 </div>
 
 <!-- Filter tabs -->
-<div class="filter-bar mb-3">
+<div class="invoice-filter-bar">
+    <div class="invoice-filter-tabs">
     <?php
     $tab_defs = [
         ''      => 'All',
@@ -103,9 +155,10 @@ layout_start('Invoices', 'invoices');
         <span class="tp-badge"><?= $cnt ?></span>
     </a>
     <?php endforeach; ?>
+    </div>
 
     <!-- Search -->
-    <form method="get" action="" class="ms-auto d-flex gap-2" style="max-width:280px;">
+    <form method="get" action="" class="invoice-filter-search">
         <input type="hidden" name="filter" value="<?= e($filter) ?>">
         <input type="text" name="q" value="<?= e($search) ?>"
                class="form-control form-control-sm"

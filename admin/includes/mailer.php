@@ -764,14 +764,22 @@ function send_customer_portal_link_email(array $customer): bool
     $token = billing_portal_access_service()->issueTokenForCustomer($customerId, (int)get_setting('portal_link_ttl_minutes', '30'));
     $basePublicUrl = preg_replace('#/admin$#', '', APP_URL);
     $portalUrl = rtrim((string)$basePublicUrl, '/') . '/portal/index.php?customer_id=' . $customerId . '&token=' . urlencode($token);
+    $copyTokens = [
+        'company_name' => get_setting('company_name', 'Trash Panda Roll-Offs'),
+        'customer_name' => (string)($customer['name'] ?? ''),
+    ];
     $html = email_template(
         'Customer Billing Portal',
-        '<p>Your secure Trash Panda billing portal link is ready.</p><p>This link expires automatically.</p>',
-        'Open Billing Portal',
+        '<p>' . nl2br(htmlspecialchars(setting_text(
+            'portal_link_email_intro',
+            'Your secure {company_name} billing portal link is ready. This link expires automatically.',
+            $copyTokens
+        ), ENT_QUOTES, 'UTF-8')) . '</p>',
+        setting_text('portal_link_email_button', 'Open Billing Portal', $copyTokens),
         $portalUrl
     );
 
-    $sent = send_email($email, 'Your Trash Panda Billing Portal Link', $html);
+    $sent = send_email($email, setting_text('portal_link_email_subject', 'Your {company_name} Billing Portal Link', $copyTokens), $html);
     if ($sent) {
         log_activity(
             'portal_link_emailed',

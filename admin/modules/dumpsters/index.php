@@ -154,7 +154,7 @@ layout_start('Inventory', 'inventory');
 <?php endif; ?>
 
 <!-- Status filter tabs -->
-<div class="tp-filter-tabs mb-3">
+<div class="tp-filter-tabs tp-filter-strip mb-3">
     <?php foreach ($tabs as $key => $tab): ?>
     <a class="tp-filter-tab <?= $status_filter === $key ? 'active' : '' ?>"
        href="?status=<?= urlencode($key) ?>">

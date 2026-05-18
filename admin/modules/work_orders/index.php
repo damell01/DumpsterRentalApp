@@ -144,7 +144,7 @@ layout_start('Work Orders', 'work_orders');
 </div>
 
 <!-- Status Tabs -->
-<div class="tp-filter-tabs mb-3">
+<div class="tp-filter-tabs tp-filter-strip mb-3">
     <?php foreach ($status_labels as $sv => $sl): ?>
     <a class="tp-filter-tab <?= $status_filter === $sv ? 'active' : '' ?>"
        href="?<?= wo_qs(['status' => $sv, 'page' => 1]) ?>">
@@ -154,7 +154,7 @@ layout_start('Work Orders', 'work_orders');
 </div>
 
 <!-- Search & Date Filters -->
-<form method="get" class="mb-3" action="">
+<form method="get" class="mb-3 tp-filter-form-compact" action="">
     <?php if ($status_filter): ?>
         <input type="hidden" name="status" value="<?= htmlspecialchars($status_filter) ?>">
     <?php endif; ?>

@@ -71,7 +71,7 @@ layout_start('Leads', 'leads');
     <span class="text-muted" style="font-size:.85rem;"><?= (int)$total ?> total</span>
 </div>
 
-<div class="tp-filter-bar mb-3">
+<div class="tp-filter-bar tp-filter-bar-compact mb-3">
     <div class="filter-tabs">
         <?php foreach ($tabs as $key => $tab):
             $is_active = ($status_filter === $key);
@@ -85,8 +85,8 @@ layout_start('Leads', 'leads');
         <?php endforeach; ?>
     </div>
 
-    <div class="mt-2">
-        <form method="get" action="<?= APP_URL ?>/modules/leads/index.php" class="d-flex gap-2 flex-wrap">
+    <div class="tp-filter-search">
+        <form method="get" action="<?= APP_URL ?>/modules/leads/index.php" class="tp-filter-search">
             <?php if ($status_filter !== ''): ?>
             <input type="hidden" name="status" value="<?= e($status_filter) ?>">
             <?php endif; ?>
@@ -95,8 +95,7 @@ layout_start('Leads', 'leads');
                    name="q"
                    value="<?= e($q) ?>"
                    placeholder="Search name, phone, email, project, message..."
-                   class="tp-search form-control form-control-sm"
-                   style="min-width:260px;">
+                   class="tp-search form-control form-control-sm">
 
             <button type="submit" class="btn-tp-primary btn-tp-sm">
                 <i class="fa-solid fa-magnifying-glass"></i> Search

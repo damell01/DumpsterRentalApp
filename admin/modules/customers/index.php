@@ -118,7 +118,7 @@ layout_start('Customers', 'customers');
     <?php endif; ?>
 </div>
 
-<div class="tp-filter-bar mb-3">
+<div class="tp-filter-bar tp-filter-bar-compact mb-3">
     <div class="filter-tabs">
         <?php foreach ($tabs as $key => $tab):
             $is_active = ($type_filter === $key);
@@ -132,8 +132,8 @@ layout_start('Customers', 'customers');
         <?php endforeach; ?>
     </div>
 
-    <div class="mt-2">
-        <form method="get" action="<?= APP_URL ?>/modules/customers/index.php" class="d-flex gap-2 flex-wrap">
+    <div class="tp-filter-search">
+        <form method="get" action="<?= APP_URL ?>/modules/customers/index.php" class="tp-filter-search">
             <?php if ($type_filter !== ''): ?>
                 <input type="hidden" name="type" value="<?= e($type_filter) ?>">
             <?php endif; ?>
@@ -144,7 +144,6 @@ layout_start('Customers', 'customers');
                 value="<?= e($q) ?>"
                 placeholder="Search name, company, phone, email..."
                 class="tp-search form-control form-control-sm"
-                style="min-width:240px;"
             >
 
             <button type="submit" class="btn-tp-primary btn-tp-sm">

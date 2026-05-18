@@ -387,6 +387,32 @@ function get_setting(string $key, string $default = ''): string
 }
 
 /**
+ * Retrieve a configurable text setting and replace simple {token} placeholders.
+ *
+ * Example:
+ *   setting_text('payment_note_check', 'Pay {company_name}', ['company_name' => 'Trash Panda'])
+ *
+ * @param string $key
+ * @param string $default
+ * @param array<string, scalar|null> $tokens
+ * @return string
+ */
+function setting_text(string $key, string $default = '', array $tokens = []): string
+{
+    $text = get_setting($key, $default);
+    if ($text === '' || empty($tokens)) {
+        return $text;
+    }
+
+    $replace = [];
+    foreach ($tokens as $token => $value) {
+        $replace['{' . $token . '}'] = trim((string)$value);
+    }
+
+    return strtr($text, $replace);
+}
+
+/**
  * Persist a setting value using INSERT … ON DUPLICATE KEY UPDATE.
  *
  * @param string $key

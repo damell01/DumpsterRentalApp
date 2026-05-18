@@ -391,9 +391,9 @@ layout_start('Payments', 'payments');
 <?php endif; ?>
 
 <!-- ── Filters ── -->
-<div class="filter-bar">
+<div class="filter-bar tp-filter-form-compact">
     <!-- Date quick-selectors -->
-    <div class="tp-date-qs mb-3 pb-2" style="border-bottom:1px solid var(--st2);">
+    <div class="tp-date-qs">
         <span style="font-size:.72rem;color:var(--gy);font-family:var(--font-cond);letter-spacing:.06em;text-transform:uppercase;margin-right:.25rem;">Quick:</span>
         <?php
         $today_str      = date('Y-m-d');
@@ -423,8 +423,8 @@ layout_start('Payments', 'payments');
         <a href="<?= e($month_href) ?>" class="<?= $is_month ? 'active' : '' ?>">This Month</a>
     </div>
 
-    <form method="GET" action="index.php" class="row g-2 align-items-end">
-        <div class="col-6 col-md-2">
+    <form method="GET" action="index.php" class="tp-filter-grid-compact">
+        <div>
             <label class="form-label" style="font-size:.8rem;">Method</label>
             <select name="pay_method" class="form-select form-select-sm">
                 <?php foreach (['all' => 'All Methods', 'stripe' => 'Card', 'ach' => 'ACH', 'cash' => 'Cash', 'check' => 'Check'] as $v => $l): ?>
@@ -432,7 +432,7 @@ layout_start('Payments', 'payments');
                 <?php endforeach; ?>
             </select>
         </div>
-        <div class="col-6 col-md-2">
+        <div>
             <label class="form-label" style="font-size:.8rem;">Status</label>
             <select name="pay_status" class="form-select form-select-sm">
                 <?php foreach (['all' => 'All Statuses', 'paid' => 'Paid', 'pending' => 'Pending', 'processing' => 'Processing', 'failed' => 'Failed', 'refunded' => 'Refunded/Void'] as $v => $l): ?>
@@ -440,7 +440,7 @@ layout_start('Payments', 'payments');
                 <?php endforeach; ?>
             </select>
         </div>
-        <div class="col-6 col-md-2">
+        <div>
             <label class="form-label" style="font-size:.8rem;">Source</label>
             <select name="source" class="form-select form-select-sm">
                 <?php foreach (['all' => 'All Sources', 'booking' => 'Bookings', 'invoice' => 'Invoices'] as $v => $l): ?>
@@ -448,17 +448,17 @@ layout_start('Payments', 'payments');
                 <?php endforeach; ?>
             </select>
         </div>
-        <div class="col-6 col-md-2">
+        <div>
             <label class="form-label" style="font-size:.8rem;">From</label>
             <input type="date" name="date_from" class="form-control form-control-sm"
                    value="<?= e($date_from) ?>">
         </div>
-        <div class="col-6 col-md-2">
+        <div>
             <label class="form-label" style="font-size:.8rem;">To</label>
             <input type="date" name="date_to" class="form-control form-control-sm"
                    value="<?= e($date_to) ?>">
         </div>
-        <div class="col-6 col-md-2 d-flex gap-1">
+        <div class="tp-filter-actions-compact">
             <button type="submit" class="btn-tp-primary btn-tp-sm flex-fill">
                 <i class="fa-solid fa-filter"></i> Filter
             </button>

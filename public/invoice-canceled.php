@@ -11,6 +11,9 @@ require_once INC_PATH . '/helpers.php';
 
 $company_name  = get_setting('company_name', 'Trash Panda Roll-Offs');
 $company_phone = get_setting('company_phone', '');
+$copy_tokens = [
+    'company_name' => $company_name,
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -49,13 +52,20 @@ $company_phone = get_setting('company_phone', '');
     <div class="cancel-icon"><i class="fas fa-times"></i></div>
     <div class="page-title">PAYMENT NOT COMPLETED</div>
     <p style="color:var(--gray-light);margin-bottom:2rem;">
-        Your payment was not completed and the invoice has not been charged.
-        No amount has been collected.
+        <?= nl2br(htmlspecialchars(setting_text(
+            'invoice_canceled_intro',
+            'Your payment was not completed and the invoice has not been charged. No amount has been collected.',
+            $copy_tokens
+        ), ENT_QUOTES, 'UTF-8')) ?>
     </p>
 
     <?php if ($company_phone): ?>
     <p style="color:var(--gray);font-size:.9rem;margin-bottom:1.5rem;">
-        Need help? Call us at
+        <?= htmlspecialchars(setting_text(
+            'invoice_canceled_contact_prompt',
+            'Need help? Call us at',
+            $copy_tokens
+        ), ENT_QUOTES, 'UTF-8') ?>
         <a href="tel:<?= htmlspecialchars(preg_replace('/\D/', '', $company_phone), ENT_QUOTES, 'UTF-8') ?>"
            style="color:var(--orange);"><?= htmlspecialchars(fmt_phone($company_phone), ENT_QUOTES, 'UTF-8') ?></a>
     </p>

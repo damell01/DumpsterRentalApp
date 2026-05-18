@@ -1,6 +1,6 @@
-<?php
+﻿<?php
 /**
- * Invoice Payment Success — Trash Panda Roll-Offs
+ * Invoice Payment Success â€” Trash Panda Roll-Offs
  * Customer lands here after paying an invoice via Stripe.
  */
 
@@ -56,7 +56,7 @@ if ($sessionId !== '' && ($inv['status'] ?? '') !== 'paid') {
                 $inv['status']  = 'paid';
                 $inv['paid_at'] = date('Y-m-d H:i:s');
 
-                // Send confirmation email (only if this page is finalizing — webhook sends if it fires first)
+                // Send confirmation email (only if this page is finalizing â€” webhook sends if it fires first)
                 $alreadyEmailed = (bool)db_value(
                     "SELECT COUNT(*) FROM activity_log WHERE action = 'invoice_paid_emailed' AND entity_id = ?",
                     [$id]
@@ -65,19 +65,32 @@ if ($sessionId !== '' && ($inv['status'] ?? '') !== 'paid') {
                     $custEmail = trim($inv['customer_email'] ?? '');
                     $custName  = $inv['cust_name'] ?? '';
                     if ($custEmail !== '' && filter_var($custEmail, FILTER_VALIDATE_EMAIL)) {
-                        $body = '<p>' . ($custName ? 'Hi ' . htmlspecialchars($custName, ENT_QUOTES, 'UTF-8') . ',' : 'Hello,') . '</p>'
-                            . '<p>Your payment of <strong>' . htmlspecialchars(fmt_money((float)$inv['total']), ENT_QUOTES, 'UTF-8')
-                            . '</strong> for invoice <strong>' . htmlspecialchars($inv['invoice_number'], ENT_QUOTES, 'UTF-8')
-                            . '</strong> has been received. Thank you!</p>';
+                        $mailTokens = [
+                            'company_name' => $company_name,
+                            'customer_name' => $custName,
+                            'invoice_number' => (string)$inv['invoice_number'],
+                            'amount' => fmt_money((float)$inv['total']),
+                        ];
+                        $bodyText = setting_text(
+                            'invoice_paid_email_body',
+                            'Hi {customer_name}, Your payment of {amount} for invoice {invoice_number} has been received. Thank you!',
+                            $mailTokens
+                        );
+                        $body = '<p>' . nl2br(htmlspecialchars($bodyText, ENT_QUOTES, 'UTF-8')) . '</p>';
                         $html = email_template('Invoice Paid', $body);
-                        send_email($custEmail, 'Invoice Paid — ' . $inv['invoice_number'], $html);
+                        $subject = setting_text(
+                            'invoice_paid_email_subject',
+                            'Invoice Paid — {invoice_number}',
+                            $mailTokens
+                        );
+                        send_email($custEmail, $subject, $html);
                     }
                     $adminBody = '<p>Invoice <strong>' . htmlspecialchars($inv['invoice_number'], ENT_QUOTES, 'UTF-8')
                         . '</strong> has been paid.'
                         . ($inv['cust_name'] ? ' Customer: <strong>' . htmlspecialchars($inv['cust_name'], ENT_QUOTES, 'UTF-8') . '</strong>.' : '')
                         . ' Amount: <strong>' . htmlspecialchars(fmt_money((float)$inv['total']), ENT_QUOTES, 'UTF-8') . '</strong>.</p>';
                     notify_admins(
-                        'Invoice Paid — ' . $inv['invoice_number'] . ($inv['cust_name'] ? ' (' . $inv['cust_name'] . ')' : ''),
+                        'Invoice Paid â€” ' . $inv['invoice_number'] . ($inv['cust_name'] ? ' (' . $inv['cust_name'] . ')' : ''),
                         $adminBody
                     );
                     log_activity('invoice_paid_emailed', 'Sent invoice paid notification for ' . $inv['invoice_number'], 'invoice', $id);
@@ -91,17 +104,23 @@ if ($sessionId !== '' && ($inv['status'] ?? '') !== 'paid') {
 
 $company_name  = get_setting('company_name', 'Trash Panda Roll-Offs');
 $company_phone = get_setting('company_phone', '');
-$inv_num   = $inv['invoice_number'] ?? '—';
+$inv_num   = $inv['invoice_number'] ?? 'â€”';
 $cust_name = $inv['cust_name'] ?? '';
 $total     = (float)($inv['total'] ?? 0);
 $paid_at   = !empty($inv['paid_at']) ? date('F j, Y', strtotime($inv['paid_at'])) : date('F j, Y');
+$copy_tokens = [
+    'company_name' => $company_name,
+    'customer_name' => $cust_name,
+    'invoice_number' => $inv_num,
+    'amount' => fmt_money($total),
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice Paid — <?= htmlspecialchars($company_name, ENT_QUOTES, 'UTF-8') ?></title>
+    <title>Invoice Paid â€” <?= htmlspecialchars($company_name, ENT_QUOTES, 'UTF-8') ?></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap">
@@ -150,9 +169,17 @@ $paid_at   = !empty($inv['paid_at']) ? date('F j, Y', strtotime($inv['paid_at'])
     <div class="page-title">PAYMENT <span>RECEIVED!</span></div>
 
     <?php if ($cust_name): ?>
-    <p style="color:var(--gray-light);">Thank you, <?= htmlspecialchars($cust_name, ENT_QUOTES, 'UTF-8') ?>! Your invoice has been paid.</p>
+    <p style="color:var(--gray-light);"><?= nl2br(htmlspecialchars(setting_text(
+        'invoice_paid_intro_named',
+        'Thank you, {customer_name}! Your invoice has been paid.',
+        $copy_tokens
+    ), ENT_QUOTES, 'UTF-8')) ?></p>
     <?php else: ?>
-    <p style="color:var(--gray-light);">Your invoice payment has been received. Thank you!</p>
+    <p style="color:var(--gray-light);"><?= nl2br(htmlspecialchars(setting_text(
+        'invoice_paid_intro_generic',
+        'Your invoice payment has been received. Thank you!',
+        $copy_tokens
+    ), ENT_QUOTES, 'UTF-8')) ?></p>
     <?php endif; ?>
 
     <div class="inv-badge"><?= htmlspecialchars($inv_num, ENT_QUOTES, 'UTF-8') ?></div>
@@ -175,7 +202,11 @@ $paid_at   = !empty($inv['paid_at']) ? date('F j, Y', strtotime($inv['paid_at'])
 
     <?php if ($company_phone): ?>
     <p style="color:var(--gray);font-size:.85rem;margin-top:1.5rem;">
-        Questions? Call us at
+        <?= htmlspecialchars(setting_text(
+            'invoice_paid_contact_prompt',
+            'Questions? Call us at',
+            $copy_tokens
+        ), ENT_QUOTES, 'UTF-8') ?>
         <a href="tel:<?= htmlspecialchars(preg_replace('/\D/', '', $company_phone), ENT_QUOTES, 'UTF-8') ?>"
            style="color:var(--orange);"><?= htmlspecialchars(fmt_phone($company_phone), ENT_QUOTES, 'UTF-8') ?></a>
     </p>
