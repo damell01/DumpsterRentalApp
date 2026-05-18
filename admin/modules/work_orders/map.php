@@ -866,7 +866,7 @@ function optimizeWithOSRM(pts, depotLL) {
     pts.forEach(function (p) { waypoints.push(p.lng + ',' + p.lat); });
 
     var url = 'https://router.project-osrm.org/trip/v1/driving/' + waypoints.join(';')
-            + '?roundtrip=false&source=first&destination=any&overview=full&geometries=geojson&annotations=false';
+            + '?roundtrip=false&source=first&destination=last&overview=full&geometries=geojson&annotations=false';
 
     return fetchWithTimeout(url, {}, 9000)
         .then(function (r) { return r.json(); })
@@ -983,7 +983,11 @@ function drawRoute(ordered, distance, duration, geometry, depotLL) {
 }
 
 function runOptimize() {
-    if (geocodedPts.length < 2) return;
+    if (geocodedPts.length < 2) {
+        setSpinner('Need at least 2 mapped stops to optimize.');
+        setTimeout(function () { setSpinner(null); }, 2200);
+        return;
+    }
     setSpinner('Calculating route…');
 
     var depotLL = depotLatLng;
@@ -992,13 +996,21 @@ function runOptimize() {
 
     optimizeWithOSRM(geocodedPts, depotLL)
         .then(function (result) {
+            if (!result || !Array.isArray(result.ordered) || result.ordered.length < 2) {
+                throw new Error('Not enough routed stops returned.');
+            }
             setSpinner(null);
             drawRoute(result.ordered, result.distance, result.duration, result.geometry, depotLL);
         })
         .catch(function () {
             // Fallback: nearest-neighbor with straight-line distances
-            setSpinner(null);
             var ordered = nearestNeighbor(geocodedPts, sLat, sLng);
+            if (!ordered || ordered.length < 2) {
+                setSpinner('Need at least 2 mapped stops to optimize.');
+                setTimeout(function () { setSpinner(null); }, 2200);
+                return;
+            }
+            setSpinner(null);
             var dist = 0, lat = sLat, lng = sLng;
             ordered.forEach(function (p) { dist += haversine({lat:lat,lng:lng}, p) * 1000; lat = p.lat; lng = p.lng; });
             drawRoute(ordered, dist, null, null, depotLL);
@@ -1302,7 +1314,11 @@ function rbClearAll() {
 }
 
 function rbRunOptimize() {
-    if (rbStops.length < 2) return;
+    if (rbStops.length < 2) {
+        rbSetSpinner('Need at least 2 stops to optimize.');
+        setTimeout(function () { rbSetSpinner(null); }, 2200);
+        return;
+    }
     rbClearRoute();
     var useDepot = document.getElementById('rb-use-depot').checked;
     var dLL = (useDepot && depotLatLng) ? depotLatLng : null;
@@ -1312,12 +1328,20 @@ function rbRunOptimize() {
 
     optimizeWithOSRM(rbStops, dLL)
         .then(function (res) {
+            if (!res || !Array.isArray(res.ordered) || res.ordered.length < 2) {
+                throw new Error('Not enough routed stops returned.');
+            }
             rbSetSpinner(null);
             rbDrawRoute(res.ordered, res.distance, res.duration, res.geometry, dLL);
         })
         .catch(function () {
-            rbSetSpinner(null);
             var ord  = nearestNeighbor(rbStops, sLat, sLng);
+            if (!ord || ord.length < 2) {
+                rbSetSpinner('Need at least 2 stops to optimize.');
+                setTimeout(function () { rbSetSpinner(null); }, 2200);
+                return;
+            }
+            rbSetSpinner(null);
             var dist = 0, la = sLat, ln = sLng;
             ord.forEach(function (s) { dist += haversine({lat:la,lng:ln}, s) * 1000; la = s.lat; ln = s.lng; });
             rbDrawRoute(ord, dist, null, null, dLL);
