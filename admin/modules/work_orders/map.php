@@ -998,10 +998,9 @@ function runOptimize() {
     setSpinner('Calculating route…');
 
     var depotLL = depotLatLng;
-    var sLat = depotLL ? depotLL[0] : geocodedPts[0].lat;
-    var sLng = depotLL ? depotLL[1] : geocodedPts[0].lng;
+    var ordered = optimizeOrderLocally(geocodedPts, depotLL);
 
-    optimizeWithOSRM(geocodedPts, depotLL)
+    fetchRouteGeometryForOrder(ordered, depotLL)
         .then(function (result) {
             if (!result || !Array.isArray(result.ordered) || result.ordered.length < 2) {
                 throw new Error('Not enough routed stops returned.');
@@ -1011,16 +1010,192 @@ function runOptimize() {
         })
         .catch(function () {
             // Fallback: nearest-neighbor with straight-line distances
-            var ordered = nearestNeighbor(geocodedPts, sLat, sLng);
             if (!ordered || ordered.length < 2) {
                 setSpinner('Need at least 2 mapped stops to optimize.');
                 setTimeout(function () { setSpinner(null); }, 2200);
                 return;
             }
             setSpinner(null);
-            var dist = 0, lat = sLat, lng = sLng;
-            ordered.forEach(function (p) { dist += haversine({lat:lat,lng:lng}, p) * 1000; lat = p.lat; lng = p.lng; });
+            var dist = routeDistanceForOrder(ordered, depotLL);
             drawRoute(ordered, dist, estimateDriveDuration(dist), null, depotLL);
+        });
+}
+
+function routeDistanceForOrder(order, depotLL) {
+    if (!order || !order.length) return 0;
+    var dist = 0;
+    var prev = depotLL ? { lat: depotLL[0], lng: depotLL[1] } : order[0];
+    var startIndex = depotLL ? 0 : 1;
+    for (var i = startIndex; i < order.length; i++) {
+        dist += haversine(prev, order[i]) * 1000;
+        prev = order[i];
+    }
+    return dist;
+}
+
+function improveOrder2Opt(order, depotLL) {
+    var improved = order.slice();
+    var changed = true;
+    var bestDistance = routeDistanceForOrder(improved, depotLL);
+
+    while (changed) {
+        changed = false;
+        for (var a = 0; a < improved.length - 1; a++) {
+            for (var b = a + 1; b < improved.length; b++) {
+                var swapped = improved.slice(0, a)
+                    .concat(improved.slice(a, b + 1).reverse(), improved.slice(b + 1));
+                var swappedDistance = routeDistanceForOrder(swapped, depotLL);
+                if (swappedDistance + 1 < bestDistance) {
+                    improved = swapped;
+                    bestDistance = swappedDistance;
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    return improved;
+}
+
+function improveOrderRelocate(order, depotLL) {
+    var improved = order.slice();
+    var changed = true;
+    var bestDistance = routeDistanceForOrder(improved, depotLL);
+
+    while (changed) {
+        changed = false;
+        for (var from = 0; from < improved.length; from++) {
+            for (var to = 0; to < improved.length; to++) {
+                if (from === to) continue;
+                var moved = improved.slice();
+                var item = moved.splice(from, 1)[0];
+                moved.splice(to, 0, item);
+                var movedDistance = routeDistanceForOrder(moved, depotLL);
+                if (movedDistance + 1 < bestDistance) {
+                    improved = moved;
+                    bestDistance = movedDistance;
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    return improved;
+}
+
+function buildNearestNeighborSeed(stops, depotLL, startStop) {
+    if (!stops.length) return [];
+    if (depotLL) return nearestNeighbor(stops, depotLL[0], depotLL[1]);
+
+    var first = startStop || stops[0];
+    var rem = stops.filter(function (s) { return s !== first; });
+    return [first].concat(nearestNeighbor(rem, first.lat, first.lng));
+}
+
+function optimizeOrderLocally(pts, depotLL) {
+    var stops = pts.slice();
+    if (stops.length <= 1) return stops;
+
+    if (stops.length <= 9) {
+        var bestOrder = null;
+        var bestDistance = Infinity;
+        var used = new Array(stops.length).fill(false);
+        var current = [];
+
+        function walk(prevPoint, distanceSoFar) {
+            if (distanceSoFar >= bestDistance) return;
+            if (current.length === stops.length) {
+                bestDistance = distanceSoFar;
+                bestOrder = current.slice();
+                return;
+            }
+
+            for (var i = 0; i < stops.length; i++) {
+                if (used[i]) continue;
+                var stop = stops[i];
+                var nextDistance = distanceSoFar;
+                if (prevPoint) nextDistance += haversine(prevPoint, stop) * 1000;
+                used[i] = true;
+                current.push(stop);
+                walk(stop, nextDistance);
+                current.pop();
+                used[i] = false;
+            }
+        }
+
+        walk(depotLL ? { lat: depotLL[0], lng: depotLL[1] } : null, 0);
+        return bestOrder || stops;
+    }
+
+    var candidates = [];
+    var seenKeys = {};
+
+    function pushCandidate(order) {
+        if (!order || !order.length) return;
+        var key = order.map(function (s) { return s.id || s.label || (s.lat + ',' + s.lng); }).join('|');
+        if (seenKeys[key]) return;
+        seenKeys[key] = true;
+        candidates.push(order);
+    }
+
+    if (depotLL) {
+        pushCandidate(buildNearestNeighborSeed(stops, depotLL, null));
+    } else {
+        stops.forEach(function (candidate) {
+            pushCandidate(buildNearestNeighborSeed(stops, null, candidate));
+        });
+
+        var sortedByLat = stops.slice().sort(function (a, b) { return a.lat - b.lat; });
+        var sortedByLng = stops.slice().sort(function (a, b) { return a.lng - b.lng; });
+        [
+            sortedByLat[0],
+            sortedByLat[sortedByLat.length - 1],
+            sortedByLng[0],
+            sortedByLng[sortedByLng.length - 1]
+        ].forEach(function (candidate) {
+            if (candidate) pushCandidate(buildNearestNeighborSeed(stops, null, candidate));
+        });
+    }
+
+    pushCandidate(stops.slice());
+
+    var bestOrder = stops.slice();
+    var bestDistance = routeDistanceForOrder(bestOrder, depotLL);
+
+    candidates.forEach(function (candidate) {
+        var improved = improveOrder2Opt(candidate, depotLL);
+        improved = improveOrderRelocate(improved, depotLL);
+        improved = improveOrder2Opt(improved, depotLL);
+        var candidateDistance = routeDistanceForOrder(improved, depotLL);
+        if (candidateDistance + 1 < bestDistance) {
+            bestOrder = improved;
+            bestDistance = candidateDistance;
+        }
+    });
+
+    return bestOrder;
+}
+
+function fetchRouteGeometryForOrder(ordered, depotLL) {
+    var waypoints = [];
+    if (depotLL) waypoints.push(depotLL[1] + ',' + depotLL[0]);
+    ordered.forEach(function (p) { waypoints.push(p.lng + ',' + p.lat); });
+
+    var url = 'https://router.project-osrm.org/route/v1/driving/' + waypoints.join(';')
+        + '?overview=full&geometries=geojson&steps=false&annotations=false';
+
+    return fetchWithTimeout(url, {}, 9000)
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.code !== 'Ok' || !data.routes || !data.routes[0]) {
+                throw new Error('OSRM route error: ' + data.code);
+            }
+            return {
+                ordered: ordered,
+                distance: data.routes[0].distance,
+                duration: data.routes[0].duration,
+                geometry: data.routes[0].geometry,
+            };
         });
 }
 
@@ -1331,11 +1506,10 @@ function rbRunOptimize() {
     rbClearRoute();
     var useDepot = document.getElementById('rb-use-depot').checked;
     var dLL = (useDepot && depotLatLng) ? depotLatLng : null;
-    var sLat = dLL ? dLL[0] : rbStops[0].lat;
-    var sLng = dLL ? dLL[1] : rbStops[0].lng;
+    var ordered = optimizeOrderLocally(rbStops, dLL);
     rbSetSpinner('Calculating route…');
 
-    optimizeWithOSRM(rbStops, dLL)
+    fetchRouteGeometryForOrder(ordered, dLL)
         .then(function (res) {
             if (!res || !Array.isArray(res.ordered) || res.ordered.length < 2) {
                 throw new Error('Not enough routed stops returned.');
@@ -1344,16 +1518,14 @@ function rbRunOptimize() {
             rbDrawRoute(res.ordered, res.distance, res.duration, res.geometry, dLL);
         })
         .catch(function () {
-            var ord  = nearestNeighbor(rbStops, sLat, sLng);
-            if (!ord || ord.length < 2) {
+            var dist = routeDistanceForOrder(ordered, dLL);
+            if (!ordered || ordered.length < 2) {
                 rbSetSpinner('Need at least 2 stops to optimize.');
                 setTimeout(function () { rbSetSpinner(null); }, 2200);
                 return;
             }
             rbSetSpinner(null);
-            var dist = 0, la = sLat, ln = sLng;
-            ord.forEach(function (s) { dist += haversine({lat:la,lng:ln}, s) * 1000; la = s.lat; ln = s.lng; });
-            rbDrawRoute(ord, dist, estimateDriveDuration(dist), null, dLL);
+            rbDrawRoute(ordered, dist, estimateDriveDuration(dist), null, dLL);
         });
 }
 
