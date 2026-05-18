@@ -211,51 +211,64 @@ layout_start('Dispatch Map', 'work_orders');
             <?php endif; ?>
         </small>
     </div>
-    <div class="d-flex gap-2 flex-wrap align-items-center">
-        <!-- View toggle -->
-        <div class="d-flex" style="border:1px solid var(--bd);border-radius:6px;overflow:hidden;">
-            <a href="?view=day&date=<?= urlencode($view_date) ?>"
-               class="btn-tp-xs px-3 py-1 text-decoration-none <?= $view_mode === 'day' ? 'btn-tp-primary' : 'btn-tp-ghost' ?>"
-               style="border-radius:0;">
-                <i class="fa-solid fa-calendar-day me-1"></i>By Date
-            </a>
-            <a href="?view=active"
-               class="btn-tp-xs px-3 py-1 text-decoration-none <?= $view_mode === 'active' ? 'btn-tp-primary' : 'btn-tp-ghost' ?>"
-               style="border-radius:0;border-left:1px solid var(--bd);">
-                <i class="fa-solid fa-dumpster me-1"></i>All Active
-            </a>
-        </div>
-
-        <?php if ($view_mode === 'day'): ?>
-        <!-- Date picker -->
-        <input type="date" id="date-picker" class="form-control form-control-sm"
-               style="width:150px;" value="<?= htmlspecialchars($view_date) ?>"
-               title="View a different date">
-        <?php endif; ?>
-
-        <!-- Legend -->
-        <span class="tp-badge d-none d-sm-inline" style="background:rgba(249,115,22,.15);color:#f97316;border:1px solid rgba(249,115,22,.3);">
-            <i class="fa-solid fa-truck me-1"></i>Delivery
-        </span>
-        <span class="tp-badge d-none d-sm-inline" style="background:rgba(59,130,246,.15);color:#3b82f6;border:1px solid rgba(59,130,246,.3);">
-            <i class="fa-solid fa-box-open me-1"></i>Pickup
-        </span>
-
-        <?php if (count($all_jobs) >= 2): ?>
-        <button id="btn-optimize" class="btn-tp-primary btn-tp-sm"
-                <?= $missing_count > 0 ? 'disabled title="Waiting for addresses to load…"' : '' ?>>
-            <i class="fa-solid fa-route"></i> Optimize Route
+    <!-- Tab switcher -->
+    <div class="d-flex" style="border:1px solid var(--bd);border-radius:6px;overflow:hidden;">
+        <button id="tab-btn-dispatch" onclick="switchMapTab('dispatch')"
+                class="btn-tp-xs px-3 py-2 btn-tp-primary" style="border-radius:0;border:none;">
+            <i class="fa-solid fa-calendar-day me-1"></i>Dispatch
         </button>
-        <button id="btn-clear-route" class="btn-tp-ghost btn-tp-sm" style="display:none;">
-            <i class="fa-solid fa-xmark"></i> Clear
+        <button id="tab-btn-builder" onclick="switchMapTab('builder')"
+                class="btn-tp-xs px-3 py-2 btn-tp-ghost" style="border-radius:0;border:none;border-left:1px solid var(--bd);">
+            <i class="fa-solid fa-route me-1"></i>Route Builder
         </button>
-        <?php endif; ?>
-
-        <a href="index.php" class="btn-tp-ghost btn-tp-sm">
-            <i class="fa-solid fa-list"></i> List
-        </a>
     </div>
 </div>
+
+<!-- ── Dispatch tab controls ────────────────────────────────────────────────── -->
+<div id="tab-dispatch-bar" class="d-flex gap-2 flex-wrap align-items-center mb-3">
+    <div class="d-flex" style="border:1px solid var(--bd);border-radius:6px;overflow:hidden;">
+        <a href="?view=day&date=<?= urlencode($view_date) ?>"
+           class="btn-tp-xs px-3 py-1 text-decoration-none <?= $view_mode === 'day' ? 'btn-tp-primary' : 'btn-tp-ghost' ?>"
+           style="border-radius:0;">
+            <i class="fa-solid fa-calendar-day me-1"></i>By Date
+        </a>
+        <a href="?view=active"
+           class="btn-tp-xs px-3 py-1 text-decoration-none <?= $view_mode === 'active' ? 'btn-tp-primary' : 'btn-tp-ghost' ?>"
+           style="border-radius:0;border-left:1px solid var(--bd);">
+            <i class="fa-solid fa-dumpster me-1"></i>All Active
+        </a>
+    </div>
+
+    <?php if ($view_mode === 'day'): ?>
+    <input type="date" id="date-picker" class="form-control form-control-sm"
+           style="width:150px;" value="<?= htmlspecialchars($view_date) ?>"
+           title="View a different date">
+    <?php endif; ?>
+
+    <span class="tp-badge d-none d-sm-inline" style="background:rgba(249,115,22,.15);color:#f97316;border:1px solid rgba(249,115,22,.3);">
+        <i class="fa-solid fa-truck me-1"></i>Delivery
+    </span>
+    <span class="tp-badge d-none d-sm-inline" style="background:rgba(59,130,246,.15);color:#3b82f6;border:1px solid rgba(59,130,246,.3);">
+        <i class="fa-solid fa-box-open me-1"></i>Pickup
+    </span>
+
+    <?php if (count($all_jobs) >= 2): ?>
+    <button id="btn-optimize" class="btn-tp-primary btn-tp-sm"
+            <?= $missing_count > 0 ? 'disabled title="Waiting for addresses to load…"' : '' ?>>
+        <i class="fa-solid fa-route"></i> Optimize Route
+    </button>
+    <button id="btn-clear-route" class="btn-tp-ghost btn-tp-sm" style="display:none;">
+        <i class="fa-solid fa-xmark"></i> Clear
+    </button>
+    <?php endif; ?>
+
+    <a href="index.php" class="btn-tp-ghost btn-tp-sm">
+        <i class="fa-solid fa-list"></i> List
+    </a>
+</div>
+
+<!-- ── Dispatch tab content ─────────────────────────────────────────────────── -->
+<div id="tab-dispatch-content">
 
 <!-- ── Map ─────────────────────────────────────────────────────────────────── -->
 <div class="tp-card p-0 mb-3" style="overflow:hidden;position:relative;">
@@ -384,6 +397,101 @@ layout_start('Dispatch Map', 'work_orders');
     <?php endif; ?>
 </div>
 <?php endif; ?>
+</div><!-- /tab-dispatch-content -->
+
+<!-- ── Route Builder tab ───────────────────────────────────────────────────── -->
+<div id="tab-builder-content" style="display:none;">
+
+    <!-- Controls bar -->
+    <div class="tp-card mb-3" style="padding:.75rem 1rem;">
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+            <div class="d-flex gap-1" style="flex:1;min-width:180px;max-width:440px;">
+                <input id="rb-addr-input" type="text" class="form-control form-control-sm"
+                       placeholder="Enter an address to add as a stop…">
+                <button id="rb-addr-btn" class="btn-tp-primary btn-tp-sm" style="white-space:nowrap;">
+                    <i class="fa-solid fa-plus me-1"></i>Add Stop
+                </button>
+            </div>
+            <button id="rb-click-toggle" class="btn-tp-ghost btn-tp-sm">
+                <i class="fa-solid fa-map-pin me-1"></i>Click Map to Pin
+            </button>
+            <label class="d-flex align-items-center gap-2 mb-0" style="font-size:.84rem;cursor:pointer;user-select:none;">
+                <input type="checkbox" id="rb-use-depot"> Start from depot
+            </label>
+            <div class="ms-auto d-flex gap-2 flex-wrap">
+                <button id="rb-optimize-btn" class="btn-tp-primary btn-tp-sm" disabled>
+                    <i class="fa-solid fa-route me-1"></i>Optimize
+                </button>
+                <button id="rb-clear-route-btn" class="btn-tp-ghost btn-tp-sm" style="display:none;">
+                    <i class="fa-solid fa-xmark me-1"></i>Clear Route
+                </button>
+                <button id="rb-clear-all-btn" class="btn-tp-ghost btn-tp-sm" style="display:none;">
+                    <i class="fa-solid fa-trash me-1"></i>Clear All
+                </button>
+            </div>
+        </div>
+        <div id="rb-addr-error" style="display:none;color:#ef4444;font-size:.8rem;margin-top:.35rem;"></div>
+    </div>
+
+    <!-- Map + stop list -->
+    <div class="row g-3 mb-3">
+        <div class="col-lg-8">
+            <div class="tp-card p-0" style="overflow:hidden;position:relative;">
+                <div id="builder-map" style="height:490px;width:100%;"></div>
+                <div id="rb-spinner" style="display:none;position:absolute;top:10px;right:10px;
+                     background:rgba(15,15,15,.85);color:#fff;padding:.35rem .8rem;border-radius:8px;
+                     font-size:.8rem;z-index:1000;backdrop-filter:blur(4px);">
+                    <i class="fa-solid fa-circle-notch fa-spin me-1"></i>
+                    <span id="rb-spinner-msg">Loading…</span>
+                </div>
+                <div id="rb-click-hint" style="display:none;position:absolute;top:10px;left:50%;
+                     transform:translateX(-50%);background:rgba(249,115,22,.92);color:#fff;
+                     padding:.3rem 1rem;border-radius:20px;font-size:.8rem;font-weight:600;
+                     z-index:1000;pointer-events:none;white-space:nowrap;">
+                    <i class="fa-solid fa-map-pin me-1"></i>Click anywhere to drop a stop — press Esc to exit
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="tp-card" style="height:490px;overflow-y:auto;padding:.85rem;">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0" style="font-size:.88rem;">
+                        <i class="fa-solid fa-list-ol me-1" style="color:#f97316;"></i>
+                        Stops
+                        <span id="rb-stop-count" class="tp-badge ms-1"
+                              style="background:rgba(249,115,22,.15);color:#f97316;font-size:.7rem;">0</span>
+                    </h6>
+                    <small style="color:var(--gy);font-size:.74rem;">Drag to reorder</small>
+                </div>
+                <ul id="rb-stop-list" class="list-unstyled mb-0"
+                    ondragover="event.preventDefault()" ondrop="rbHandleDrop(event)">
+                    <li id="rb-no-stops" style="color:var(--gy);font-size:.84rem;text-align:center;padding:2rem 0;line-height:1.7;">
+                        No stops yet.<br>
+                        <small>Search an address above<br>or click the map to drop a pin.</small>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Route result panel -->
+    <div id="rb-route-panel" class="tp-card mb-3" style="display:none;">
+        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+            <h6 class="mb-0">
+                <i class="fa-solid fa-route me-2" style="color:#f97316;"></i>Optimized Route
+            </h6>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span id="rb-route-meta" style="color:var(--gy);font-size:.82rem;"></span>
+                <a id="rb-btn-gmaps" href="#" target="_blank" rel="noopener"
+                   class="btn-tp-ghost btn-tp-sm" style="display:none;">
+                    <i class="fa-solid fa-map-location-dot"></i> Google Maps
+                </a>
+            </div>
+        </div>
+        <ol id="rb-route-list" class="mb-0 ps-4"></ol>
+    </div>
+
+</div><!-- /tab-builder-content -->
 
 <!-- ── Assets ──────────────────────────────────────────────────────────────── -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous">
@@ -415,6 +523,33 @@ layout_start('Dispatch Map', 'work_orders');
            font-weight:700;color:#fff;flex-shrink:0;margin-top:.05rem; }
 /* View toggle active */
 .btn-tp-xs { font-size:.78rem;line-height:1; }
+#tab-btn-dispatch, #tab-btn-builder { cursor:pointer; transition:background .15s,color .15s; }
+/* ── Route Builder ──────────────────────────────────────────────────────────── */
+.rb-stop-item {
+    display:flex;align-items:center;gap:.5rem;padding:.4rem .2rem;
+    border-bottom:1px solid var(--bd);cursor:default;border-radius:4px;transition:background .1s;
+}
+.rb-stop-item:last-child { border-bottom:none; }
+.rb-stop-item:hover { background:rgba(249,115,22,.05); }
+.rb-stop-item.rb-drag-over-top    { border-top:2px solid #f97316!important; }
+.rb-stop-item.rb-drag-over-bottom { border-bottom:2px solid #f97316!important; }
+.rb-drag-handle { color:var(--gy);font-size:.88rem;cursor:grab;flex-shrink:0;padding:0 .15rem;line-height:1; }
+.rb-drag-handle:active { cursor:grabbing; }
+.rb-stop-num {
+    display:inline-flex;align-items:center;justify-content:center;
+    min-width:1.5rem;height:1.5rem;border-radius:50%;
+    background:#f97316;color:#fff;font-size:.7rem;font-weight:700;flex-shrink:0;
+}
+.rb-stop-label { flex:1;font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0; }
+.rb-stop-actions { display:flex;gap:.2rem;flex-shrink:0; }
+.rb-btn-rm {
+    display:inline-flex;align-items:center;justify-content:center;
+    width:1.4rem;height:1.4rem;border:none;border-radius:4px;
+    background:rgba(239,68,68,.12);color:#ef4444;font-size:.72rem;cursor:pointer;padding:0;
+}
+.rb-btn-rm:hover { background:rgba(239,68,68,.28); }
+#builder-map.rb-crosshair,
+#builder-map.rb-crosshair .leaflet-container { cursor:crosshair!important; }
 </style>
 
 <script>
@@ -900,6 +1035,378 @@ if (jobs.length === 0) {
         afterDepot();
     }
 }
+
+
+// ── Tab switcher ─────────────────────────────────────────────────────────────
+window.switchMapTab = function (tab) {
+    var isDispatch = tab === 'dispatch';
+    document.getElementById('tab-dispatch-content').style.display = isDispatch ? '' : 'none';
+    document.getElementById('tab-dispatch-bar').style.display     = isDispatch ? '' : 'none';
+    document.getElementById('tab-builder-content').style.display  = isDispatch ? 'none' : '';
+    document.getElementById('tab-btn-dispatch').className =
+        'btn-tp-xs px-3 py-2 ' + (isDispatch ? 'btn-tp-primary' : 'btn-tp-ghost');
+    document.getElementById('tab-btn-builder').className =
+        'btn-tp-xs px-3 py-2 ' + (isDispatch ? 'btn-tp-ghost' : 'btn-tp-primary');
+    document.getElementById('tab-btn-dispatch').style.cssText = 'border-radius:0;border:none;';
+    document.getElementById('tab-btn-builder').style.cssText  = 'border-radius:0;border:none;border-left:1px solid var(--bd);';
+    if (!isDispatch) {
+        rbInitMap();
+        setTimeout(function () { if (rbMap) rbMap.invalidateSize(); }, 150);
+    }
+};
+
+// ── Route Builder state ───────────────────────────────────────────────────────
+var rbMap        = null;
+var rbMapInited  = false;
+var rbStops      = [];   // [{id, label, lat, lng, marker}]
+var rbCounter    = 0;
+var rbClickMode  = false;
+var rbRouteLine  = null;
+var rbDepotMark  = null;
+var rbDragId     = null; // stop id being dragged
+
+function rbInitMap() {
+    if (rbMapInited) return;
+    rbMapInited = true;
+    rbMap = L.map('builder-map', { zoomControl: true });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 18
+    }).addTo(rbMap);
+    if (depotLatLng) { rbMap.setView(depotLatLng, 12); }
+    else             { rbMap.setView([39.5, -98.35], 4); }
+
+    rbMap.on('click', function (e) {
+        if (!rbClickMode) return;
+        var lat = e.latlng.lat, lng = e.latlng.lng;
+        rbSetSpinner('Getting address…');
+        rbReverseGeocode(lat, lng)
+            .then(function (label) { rbAddStop(label, lat, lng); })
+            .finally(function () { rbSetSpinner(null); });
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && rbClickMode) rbToggleClickMode(false);
+    });
+
+    // Wire depot checkbox visibility
+    var depotCb = document.getElementById('rb-use-depot');
+    if (depotCb && !depotLatLng) {
+        depotCb.disabled = true;
+        depotCb.parentElement.title = 'Set company address in Settings to use this feature';
+    }
+}
+
+function rbReverseGeocode(lat, lng) {
+    return fetchWithTimeout(
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng,
+        { headers: { 'Accept-Language': 'en' } },
+        8000
+    ).then(function (r) { return r.json(); })
+     .then(function (d) {
+         if (!d || d.error) return 'Stop ' + (rbStops.length + 1);
+         var parts = (d.display_name || '').split(', ').filter(Boolean);
+         // Keep road + city + state — skip country
+         return parts.slice(0, 3).join(', ') || ('Stop ' + (rbStops.length + 1));
+     })
+     .catch(function () { return 'Stop ' + (rbStops.length + 1); });
+}
+
+function rbAddStop(label, lat, lng) {
+    var id = ++rbCounter;
+    var num = rbStops.length + 1;
+    var marker = L.marker([lat, lng], { icon: rbMakeIcon(num) })
+        .addTo(rbMap)
+        .bindPopup('<strong>' + esc(label) + '</strong><br><small style="color:#6b7280;">'
+            + lat.toFixed(5) + ', ' + lng.toFixed(5) + '</small>'
+            + '<br><a href="#" onclick="rbRemoveStop(' + id + ');return false;" '
+            + 'style="color:#ef4444;font-size:.8rem;">Remove stop</a>');
+    rbStops.push({ id: id, label: label, lat: lat, lng: lng, marker: marker });
+    rbRenderList();
+    rbFitBounds();
+}
+
+function rbRemoveStop(id) {
+    var idx = rbStops.findIndex(function (s) { return s.id === id; });
+    if (idx === -1) return;
+    rbMap.removeLayer(rbStops[idx].marker);
+    rbStops.splice(idx, 1);
+    rbRenumber();
+    rbRenderList();
+    rbClearRoute();
+    rbFitBounds();
+}
+window.rbRemoveStop = rbRemoveStop;
+
+function rbRenumber() {
+    rbStops.forEach(function (s, i) { s.marker.setIcon(rbMakeIcon(i + 1)); });
+    var btn = document.getElementById('rb-optimize-btn');
+    if (btn) btn.disabled = rbStops.length < 2;
+    var clr = document.getElementById('rb-clear-all-btn');
+    if (clr) clr.style.display = rbStops.length > 0 ? '' : 'none';
+}
+
+function rbRenderList() {
+    var ul    = document.getElementById('rb-stop-list');
+    var count = document.getElementById('rb-stop-count');
+    if (count) count.textContent = rbStops.length;
+    if (rbStops.length === 0) {
+        ul.innerHTML = '<li id="rb-no-stops" style="color:var(--gy);font-size:.84rem;text-align:center;padding:2rem 0;line-height:1.7;">'
+            + 'No stops yet.<br><small>Search an address above<br>or click the map to drop a pin.</small></li>';
+        return;
+    }
+    ul.innerHTML = '';
+    rbStops.forEach(function (s, i) {
+        var li = document.createElement('li');
+        li.className = 'rb-stop-item';
+        li.dataset.rbId = s.id;
+        li.draggable = true;
+        li.innerHTML =
+            '<span class="rb-drag-handle" title="Drag to reorder">&#8942;&#8942;</span>'
+            + '<span class="rb-stop-num">' + (i + 1) + '</span>'
+            + '<span class="rb-stop-label" title="' + esc(s.label) + '">' + esc(s.label) + '</span>'
+            + '<div class="rb-stop-actions">'
+            + '<button class="rb-btn-rm" title="Remove stop" onclick="rbRemoveStop(' + s.id + ')">&#10005;</button>'
+            + '</div>';
+        li.addEventListener('click', function (e) {
+            if (e.target.closest('button')) return;
+            rbMap.setView([s.lat, s.lng], 14);
+            s.marker.openPopup();
+        });
+        li.addEventListener('dragstart', function (e) {
+            rbDragId = s.id;
+            e.dataTransfer.effectAllowed = 'move';
+            setTimeout(function () { li.style.opacity = '.4'; }, 0);
+        });
+        li.addEventListener('dragend', function () {
+            li.style.opacity = '';
+            document.querySelectorAll('.rb-stop-item').forEach(function (el) {
+                el.classList.remove('rb-drag-over-top', 'rb-drag-over-bottom');
+            });
+        });
+        li.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            var rect    = li.getBoundingClientRect();
+            var midY    = rect.top + rect.height / 2;
+            var isAbove = e.clientY < midY;
+            document.querySelectorAll('.rb-stop-item').forEach(function (el) {
+                el.classList.remove('rb-drag-over-top', 'rb-drag-over-bottom');
+            });
+            li.classList.add(isAbove ? 'rb-drag-over-top' : 'rb-drag-over-bottom');
+        });
+        li.addEventListener('drop', function (e) {
+            e.preventDefault();
+            document.querySelectorAll('.rb-stop-item').forEach(function (el) {
+                el.classList.remove('rb-drag-over-top', 'rb-drag-over-bottom');
+            });
+            if (rbDragId === null || rbDragId === s.id) return;
+            var fromIdx = rbStops.findIndex(function (x) { return x.id === rbDragId; });
+            var toIdx   = i;
+            if (fromIdx === -1) return;
+            var rect  = li.getBoundingClientRect();
+            var after = e.clientY >= rect.top + rect.height / 2;
+            var item  = rbStops.splice(fromIdx, 1)[0];
+            var dest  = after ? toIdx : toIdx;
+            // Adjust dest after splice
+            var insertAt = (fromIdx < toIdx)
+                ? (after ? toIdx : toIdx - 1)
+                : (after ? toIdx + 1 : toIdx);
+            rbStops.splice(Math.max(0, Math.min(rbStops.length, insertAt)), 0, item);
+            rbRenumber();
+            rbRenderList();
+            rbClearRoute();
+        });
+        ul.appendChild(li);
+    });
+}
+window.rbHandleDrop = function (e) { e.preventDefault(); };
+
+function rbFitBounds() {
+    if (rbStops.length === 0) return;
+    if (rbStops.length === 1) { rbMap.setView([rbStops[0].lat, rbStops[0].lng], 14); return; }
+    rbMap.fitBounds(rbStops.map(function (s) { return [s.lat, s.lng]; }), { padding: [40, 40] });
+}
+
+function rbMakeIcon(num) {
+    return L.divIcon({
+        html: pinSvg('#f97316', num), className: '',
+        iconSize: [28, 38], iconAnchor: [14, 38], popupAnchor: [0, -36]
+    });
+}
+
+function rbSetSpinner(msg) {
+    var el = document.getElementById('rb-spinner');
+    if (!el) return;
+    document.getElementById('rb-spinner-msg').textContent = msg || '';
+    el.style.display = msg ? '' : 'none';
+}
+
+function rbToggleClickMode(force) {
+    rbClickMode = (force !== undefined) ? force : !rbClickMode;
+    var btn  = document.getElementById('rb-click-toggle');
+    var hint = document.getElementById('rb-click-hint');
+    var mapEl = document.getElementById('builder-map');
+    if (rbClickMode) {
+        if (btn)   { btn.innerHTML = '<i class="fa-solid fa-xmark me-1"></i>Exit Pin Mode'; btn.classList.add('btn-tp-primary'); btn.classList.remove('btn-tp-ghost'); }
+        if (hint)  hint.style.display = '';
+        if (mapEl) mapEl.classList.add('rb-crosshair');
+    } else {
+        if (btn)   { btn.innerHTML = '<i class="fa-solid fa-map-pin me-1"></i>Click Map to Pin'; btn.classList.remove('btn-tp-primary'); btn.classList.add('btn-tp-ghost'); }
+        if (hint)  hint.style.display = 'none';
+        if (mapEl) mapEl.classList.remove('rb-crosshair');
+    }
+}
+
+function rbClearRoute() {
+    if (rbRouteLine)  { rbMap.removeLayer(rbRouteLine);  rbRouteLine  = null; }
+    if (rbDepotMark)  { rbMap.removeLayer(rbDepotMark);  rbDepotMark  = null; }
+    // Restore default icons
+    rbStops.forEach(function (s, i) { s.marker.setIcon(rbMakeIcon(i + 1)); });
+    document.getElementById('rb-route-panel').style.display = 'none';
+    var crBtn = document.getElementById('rb-clear-route-btn');
+    if (crBtn) crBtn.style.display = 'none';
+    var optBtn = document.getElementById('rb-optimize-btn');
+    if (optBtn) optBtn.innerHTML = '<i class="fa-solid fa-route me-1"></i>Optimize';
+}
+
+function rbClearAll() {
+    rbClearRoute();
+    rbStops.forEach(function (s) { rbMap.removeLayer(s.marker); });
+    rbStops = [];
+    rbRenderList();
+    rbRenumber();
+}
+
+function rbRunOptimize() {
+    if (rbStops.length < 2) return;
+    rbClearRoute();
+    var useDepot = document.getElementById('rb-use-depot').checked;
+    var dLL = (useDepot && depotLatLng) ? depotLatLng : null;
+    var sLat = dLL ? dLL[0] : rbStops[0].lat;
+    var sLng = dLL ? dLL[1] : rbStops[0].lng;
+    rbSetSpinner('Calculating route…');
+
+    optimizeWithOSRM(rbStops, dLL)
+        .then(function (res) {
+            rbSetSpinner(null);
+            rbDrawRoute(res.ordered, res.distance, res.duration, res.geometry, dLL);
+        })
+        .catch(function () {
+            rbSetSpinner(null);
+            var ord  = nearestNeighbor(rbStops, sLat, sLng);
+            var dist = 0, la = sLat, ln = sLng;
+            ord.forEach(function (s) { dist += haversine({lat:la,lng:ln}, s) * 1000; la = s.lat; ln = s.lng; });
+            rbDrawRoute(ord, dist, null, null, dLL);
+        });
+}
+
+function rbDrawRoute(ordered, distance, duration, geometry, dLL) {
+    if (geometry) {
+        rbRouteLine = L.geoJSON(geometry, { style: { color: '#f97316', weight: 4, opacity: 0.78 } }).addTo(rbMap);
+    } else {
+        var lls = dLL ? [dLL] : [];
+        ordered.forEach(function (s) { lls.push([s.lat, s.lng]); });
+        rbRouteLine = L.polyline(lls, { color: '#f97316', weight: 3, opacity: 0.7, dashArray: '7 6' }).addTo(rbMap);
+    }
+    if (dLL) {
+        rbDepotMark = L.marker(dLL, { icon: depotIcon() })
+            .bindPopup('<strong>Depot</strong><br><small>' + esc(companyAddress) + '</small>')
+            .addTo(rbMap);
+    }
+    // Renumber markers in optimized order
+    ordered.forEach(function (s, i) { s.marker.setIcon(rbMakeIcon(i + 1)); });
+
+    // Route panel
+    var meta = '';
+    if (duration) meta += '<i class="fa-solid fa-clock me-1"></i>' + fmtDuration(duration);
+    if (distance) meta += (meta ? '&nbsp;&nbsp;·&nbsp;&nbsp;' : '') + '<i class="fa-solid fa-road me-1"></i>' + fmtDist(distance);
+    document.getElementById('rb-route-meta').innerHTML = meta;
+
+    var list = document.getElementById('rb-route-list');
+    list.innerHTML = '';
+    ordered.forEach(function (s, i) {
+        var li = document.createElement('li');
+        li.className = 'rp-step';
+        li.innerHTML = '<span class="rp-num" style="background:#f97316;">' + (i + 1) + '</span>'
+            + '<span><strong>' + esc(s.label) + '</strong>'
+            + '<br><span style="color:var(--gy);font-size:.79rem;">'
+            + s.lat.toFixed(5) + ', ' + s.lng.toFixed(5) + '</span></span>';
+        list.appendChild(li);
+    });
+
+    // Google Maps multi-stop URL
+    var mapsUrl = 'https://www.google.com/maps/dir/';
+    if (dLL) mapsUrl += dLL[0] + ',' + dLL[1] + '/';
+    ordered.forEach(function (s) { mapsUrl += s.lat + ',' + s.lng + '/'; });
+    var gBtn = document.getElementById('rb-btn-gmaps');
+    if (gBtn) { gBtn.href = mapsUrl; gBtn.style.display = ''; }
+
+    document.getElementById('rb-route-panel').style.display = 'block';
+    var crBtn = document.getElementById('rb-clear-route-btn');
+    if (crBtn) crBtn.style.display = '';
+    var optBtn = document.getElementById('rb-optimize-btn');
+    if (optBtn) optBtn.innerHTML = '<i class="fa-solid fa-route me-1"></i>Re-Optimize';
+
+    if (rbRouteLine) rbMap.fitBounds(rbRouteLine.getBounds(), { padding: [40, 40] });
+}
+
+// ── Address geocode helper ────────────────────────────────────────────────────
+function rbGeocode(addr) {
+    return fetchWithTimeout(
+        'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(addr),
+        { headers: { 'Accept-Language': 'en' } },
+        8000
+    ).then(function (r) { return r.json(); });
+}
+
+// ── Wire Route Builder buttons ────────────────────────────────────────────────
+(function () {
+    var addrInput  = document.getElementById('rb-addr-input');
+    var addrBtn    = document.getElementById('rb-addr-btn');
+    var clickToggle= document.getElementById('rb-click-toggle');
+    var optimizeBtn= document.getElementById('rb-optimize-btn');
+    var clearRouteBtn= document.getElementById('rb-clear-route-btn');
+    var clearAllBtn= document.getElementById('rb-clear-all-btn');
+    var errEl      = document.getElementById('rb-addr-error');
+
+    function showErr(msg) {
+        if (!errEl) return;
+        errEl.textContent = msg;
+        errEl.style.display = msg ? '' : 'none';
+    }
+
+    function doAddAddress() {
+        var addr = (addrInput ? addrInput.value : '').trim();
+        if (!addr) return;
+        showErr(null);
+        rbSetSpinner('Geocoding…');
+        if (addrBtn) addrBtn.disabled = true;
+        rbGeocode(addr)
+            .then(function (results) {
+                if (!results || results.length === 0) {
+                    showErr('Address not found. Try a more specific address.');
+                    return;
+                }
+                var lat   = parseFloat(results[0].lat);
+                var lng   = parseFloat(results[0].lon);
+                var label = results[0].display_name.split(', ').slice(0, 3).join(', ');
+                rbAddStop(label, lat, lng);
+                if (addrInput) addrInput.value = '';
+            })
+            .catch(function () { showErr('Network error. Try again.'); })
+            .finally(function () {
+                rbSetSpinner(null);
+                if (addrBtn) addrBtn.disabled = false;
+            });
+    }
+
+    if (addrBtn)    addrBtn.addEventListener('click', doAddAddress);
+    if (addrInput)  addrInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); doAddAddress(); } });
+    if (clickToggle)  clickToggle.addEventListener('click', function () { rbInitMap(); rbToggleClickMode(); });
+    if (optimizeBtn)  optimizeBtn.addEventListener('click', rbRunOptimize);
+    if (clearRouteBtn)clearRouteBtn.addEventListener('click', function () { rbClearRoute(); rbRenumber(); });
+    if (clearAllBtn)  clearAllBtn.addEventListener('click', rbClearAll);
+}());
 
 }());
 </script>

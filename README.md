@@ -160,6 +160,10 @@ The dispatch map is the day-to-day operational hub. It shows every delivery and 
 
 ![Dispatch map all-active fleet view](docs/screenshots/dispatch-map-active.png)
 
+**Route Builder tab** — a separate planning tab for building custom routes from scratch. Type any address (or click the map to drop a pin), build a stop list, drag stops to reorder them, then hit *Optimize* to run the same OSRM TSP solver. The numbered markers update to show the optimized order and the stop panel shows the full route with a Google Maps multi-stop link. The "Start from depot" checkbox adds the company address as the origin point.
+
+![Route Builder with custom stops and optimized route](docs/screenshots/dispatch-map-builder.png)
+
 ---
 
 ## Project Structure

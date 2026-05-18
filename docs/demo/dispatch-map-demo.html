@@ -20,14 +20,15 @@ body{background:var(--bg);color:var(--wh);font-family:var(--font);font-size:.94r
 /* ── Bootstrap grid/flex subset ────────────────────────────────────────── */
 .container-fluid{width:100%;padding:0;}
 .row{display:flex;flex-wrap:wrap;margin:0 -8px;}
-.col-md-5,.col-md-6,.col-md-7{padding:0 8px;width:100%;}
-@media(min-width:768px){.col-md-5{flex:0 0 41.6667%;max-width:41.6667%;}.col-md-6{flex:0 0 50%;max-width:50%;}.col-md-7{flex:0 0 58.3333%;max-width:58.3333%;}}
+.col-md-4,.col-md-5,.col-md-6,.col-md-7,.col-lg-4,.col-lg-8{padding:0 8px;width:100%;}
+@media(min-width:768px){.col-md-4{flex:0 0 33.3333%;max-width:33.3333%;}.col-md-5{flex:0 0 41.6667%;max-width:41.6667%;}.col-md-6{flex:0 0 50%;max-width:50%;}.col-md-7{flex:0 0 58.3333%;max-width:58.3333%;}}
+@media(min-width:992px){.col-lg-4{flex:0 0 33.3333%;max-width:33.3333%;}.col-lg-8{flex:0 0 66.6667%;max-width:66.6667%;}}
 .d-flex{display:flex!important;}.align-items-center{align-items:center!important;}
 .justify-content-between{justify-content:space-between!important;}
 .flex-wrap{flex-wrap:wrap!important;}.gap-2{gap:.5rem!important;}
 .mb-0{margin-bottom:0!important;}.mb-2{margin-bottom:.5rem!important;}.mb-3{margin-bottom:1rem!important;}
 .me-1{margin-right:.25rem!important;}.me-2{margin-right:.5rem!important;}.ms-2{margin-left:.5rem!important;}
-.ps-4{padding-left:1.5rem!important;}
+.ps-4{padding-left:1.5rem!important;}.ms-auto{margin-left:auto!important;}
 .g-3{gap:.75rem!important;}.g-3.row{margin:0!important;}
 .g-3.row>[class*=col-]{padding:0!important;}
 .d-none{display:none!important;}
@@ -100,41 +101,50 @@ a{text-decoration:none;}
     <h5 id="page-title">Dispatch Map</h5>
     <small id="page-sub">Sunday, May 18, 2026 &mdash; 3 deliveries, 2 pickups</small>
   </div>
-  <div class="d-flex gap-2 flex-wrap align-items-center">
-    <!-- View toggle -->
-    <div class="d-flex" style="border:1px solid var(--st);border-radius:6px;overflow:hidden;">
-      <a href="#" id="btn-by-date"
-         class="btn-tp-xs px-3 py-1 btn-tp-primary"
-         style="border-radius:0;"
-         onclick="switchToDayView();return false;">
-        &#128197; By Date
-      </a>
-      <a href="#" id="btn-all-active"
-         class="btn-tp-xs px-3 py-1 btn-tp-ghost"
-         style="border-radius:0;border-left:1px solid var(--st);"
-         onclick="switchToActiveView();return false;">
-        &#128465; All Active
-      </a>
-    </div>
-    <!-- Date picker -->
-    <input id="date-picker" type="date" value="2026-05-18"
-           style="height:34px;padding:.25rem .55rem;font-size:.84rem;border:1px solid var(--st2);border-radius:8px;background:var(--dk1);color:var(--wh);width:150px;">
-    <!-- Legend -->
-    <span class="tp-badge d-none d-sm-inline" style="background:rgba(249,115,22,.15);color:#f97316;border:1px solid rgba(249,115,22,.3);">
-      &#128666; Delivery
-    </span>
-    <span class="tp-badge d-none d-sm-inline" style="background:rgba(59,130,246,.15);color:#3b82f6;border:1px solid rgba(59,130,246,.3);">
-      &#128230; Pickup
-    </span>
-    <button id="btn-optimize" class="btn-tp-primary btn-tp-sm" onclick="runDemoRoute()">
-      &#128739; Optimize Route
+  <!-- Tab switcher -->
+  <div class="d-flex" style="border:1px solid var(--st);border-radius:6px;overflow:hidden;">
+    <button id="demo-tab-btn-dispatch" onclick="switchDemoTab('dispatch')"
+            class="btn-tp-xs px-3 py-2 btn-tp-primary" style="border-radius:0;border:none;">
+      &#128197; Dispatch
     </button>
-    <button id="btn-clear-route" class="btn-tp-ghost btn-tp-sm" style="display:none;" onclick="clearDemoRoute()">
-      &#x2715; Clear
+    <button id="demo-tab-btn-builder" onclick="switchDemoTab('builder')"
+            class="btn-tp-xs px-3 py-2 btn-tp-ghost" style="border-radius:0;border:none;border-left:1px solid var(--st);">
+      &#128739; Route Builder
     </button>
-    <a href="#" class="btn-tp-ghost btn-tp-sm">&#9776; List</a>
   </div>
 </div>
+
+<!-- ── Dispatch tab controls ──────────────────────────────────────────────── -->
+<div id="demo-dispatch-bar" class="d-flex gap-2 flex-wrap align-items-center mb-3">
+  <div class="d-flex" style="border:1px solid var(--st);border-radius:6px;overflow:hidden;">
+    <a href="#" id="btn-by-date" class="btn-tp-xs px-3 py-1 btn-tp-primary"
+       style="border-radius:0;" onclick="switchToDayView();return false;">
+      &#128197; By Date
+    </a>
+    <a href="#" id="btn-all-active" class="btn-tp-xs px-3 py-1 btn-tp-ghost"
+       style="border-radius:0;border-left:1px solid var(--st);" onclick="switchToActiveView();return false;">
+      &#128465; All Active
+    </a>
+  </div>
+  <input id="date-picker" type="date" value="2026-05-18"
+         style="height:34px;padding:.25rem .55rem;font-size:.84rem;border:1px solid var(--st2);border-radius:8px;background:var(--dk1);color:var(--wh);width:150px;">
+  <span class="tp-badge d-none d-sm-inline" style="background:rgba(249,115,22,.15);color:#f97316;border:1px solid rgba(249,115,22,.3);">
+    &#128666; Delivery
+  </span>
+  <span class="tp-badge d-none d-sm-inline" style="background:rgba(59,130,246,.15);color:#3b82f6;border:1px solid rgba(59,130,246,.3);">
+    &#128230; Pickup
+  </span>
+  <button id="btn-optimize" class="btn-tp-primary btn-tp-sm" onclick="runDemoRoute()">
+    &#128739; Optimize Route
+  </button>
+  <button id="btn-clear-route" class="btn-tp-ghost btn-tp-sm" style="display:none;" onclick="clearDemoRoute()">
+    &#x2715; Clear
+  </button>
+  <a href="#" class="btn-tp-ghost btn-tp-sm">&#9776; List</a>
+</div>
+
+<!-- ── Dispatch tab content ──────────────────────────────────────────────── -->
+<div id="demo-tab-dispatch">
 
 <!-- ── Map ─────────────────────────────────────────────────────────────── -->
 <div class="tp-card p-0 mb-3" style="overflow:hidden;position:relative;">
@@ -261,6 +271,86 @@ a{text-decoration:none;}
     </div>
   </div>
 </div>
+</div><!-- /demo-tab-dispatch -->
+
+<!-- ── Route Builder tab ──────────────────────────────────────────────────── -->
+<div id="demo-tab-builder" style="display:none;">
+
+  <!-- Controls bar -->
+  <div class="tp-card mb-3" style="padding:.75rem 1rem;">
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+      <div class="d-flex gap-1" style="flex:1;min-width:180px;max-width:440px;">
+        <input id="rb-addr-input" type="text" class="form-control form-control-sm"
+               placeholder="Enter an address to add as a stop…">
+        <button class="btn-tp-primary btn-tp-sm" style="white-space:nowrap;" disabled>
+          &#43; Add Stop
+        </button>
+      </div>
+      <button id="rb-click-toggle" class="btn-tp-ghost btn-tp-sm">
+        &#128204; Click Map to Pin
+      </button>
+      <label class="d-flex align-items-center gap-2 mb-0" style="font-size:.84rem;cursor:pointer;">
+        <input type="checkbox" id="rb-use-depot" checked> Start from depot
+      </label>
+      <div class="ms-auto d-flex gap-2">
+        <button id="rb-optimize-btn" class="btn-tp-primary btn-tp-sm"
+                onclick="runBuilderRoute()">
+          &#128739; Optimize
+        </button>
+        <button id="rb-clear-route-btn" class="btn-tp-ghost btn-tp-sm" style="display:none;">
+          &#x2715; Clear Route
+        </button>
+        <button class="btn-tp-ghost btn-tp-sm">
+          &#128465; Clear All
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map + stop list -->
+  <div class="row g-3 mb-3">
+    <div class="col-lg-8">
+      <div class="tp-card p-0" style="overflow:hidden;position:relative;">
+        <div id="builder-map" style="height:490px;width:100%;"></div>
+        <div id="rb-click-hint" style="display:none;position:absolute;top:10px;left:50%;
+             transform:translateX(-50%);background:rgba(249,115,22,.92);color:#fff;
+             padding:.3rem 1rem;border-radius:20px;font-size:.8rem;font-weight:600;
+             z-index:1000;pointer-events:none;white-space:nowrap;">
+          &#128204; Click anywhere to drop a stop
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="tp-card" style="height:490px;overflow-y:auto;padding:.85rem;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 style="font-size:.88rem;margin:0;">
+            &#9723; Stops
+            <span id="rb-stop-count" class="tp-badge ms-1"
+                  style="background:rgba(249,115,22,.15);color:#f97316;font-size:.7rem;">5</span>
+          </h6>
+          <small style="color:var(--gy);font-size:.74rem;">Drag to reorder</small>
+        </div>
+        <ul id="rb-stop-list" class="list-unstyled mb-0"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Route result panel -->
+  <div id="rb-route-panel" class="tp-card mb-3" style="display:none;">
+    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+      <h6 style="margin:0;">&#128739; Optimized Route</h6>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span id="rb-route-meta" style="color:var(--gy);font-size:.82rem;"></span>
+        <a id="rb-btn-gmaps" href="#" target="_blank"
+           class="btn-tp-ghost btn-tp-sm" style="display:none;">
+          &#128204; Google Maps
+        </a>
+      </div>
+    </div>
+    <ol id="rb-route-list" class="mb-0 ps-4"></ol>
+  </div>
+
+</div><!-- /demo-tab-builder -->
 
 <script src="../../node_modules/leaflet/dist/leaflet.js"></script>
 <script>
@@ -614,6 +704,146 @@ window.switchToDayView = function(){
   activeMarkers = [];
   JOBS.forEach(function(j){ if(j.marker) j.marker.addTo(map); });
   map.fitBounds(dayBounds,{ padding:[55,55] });
+};
+
+// ── Tab switcher ──────────────────────────────────────────────────────────────
+window.switchDemoTab = function(tab) {
+  var isDispatch = tab === 'dispatch';
+  document.getElementById('demo-tab-dispatch').style.display = isDispatch ? '' : 'none';
+  document.getElementById('demo-dispatch-bar').style.display = isDispatch ? '' : 'none';
+  document.getElementById('demo-tab-builder').style.display  = isDispatch ? 'none' : '';
+  document.getElementById('demo-tab-btn-dispatch').className =
+    'btn-tp-xs px-3 py-2 ' + (isDispatch ? 'btn-tp-primary' : 'btn-tp-ghost');
+  document.getElementById('demo-tab-btn-builder').className =
+    'btn-tp-xs px-3 py-2 ' + (isDispatch ? 'btn-tp-ghost' : 'btn-tp-primary');
+  if (!isDispatch) {
+    initBuilderMap();
+    setTimeout(function(){ if(rbMap) rbMap.invalidateSize(); }, 200);
+  }
+};
+
+// ── Route Builder demo ────────────────────────────────────────────────────────
+var rbMap = null;
+var rbMapInited = false;
+
+var RB_STOPS = [
+  { label: 'Bay Minette — 301 Hand Ave',            lat: 30.883, lng: -87.773 },
+  { label: 'Spanish Fort — 7171 US-90 Service Rd',  lat: 30.675, lng: -87.906 },
+  { label: 'Fairhope — 161 N Section St',            lat: 30.523, lng: -87.903 },
+  { label: 'Foley — 407 E Laurel Ave',               lat: 30.406, lng: -87.681 },
+  { label: 'Gulf Shores — 3044 Gulf Shores Pkwy',    lat: 30.248, lng: -87.700 },
+];
+var DEPOT_LL  = [30.453, -87.748];
+// Optimized order: Depot → Bay Minette → Spanish Fort → Fairhope → Foley → Gulf Shores
+var RB_ROUTE_IDX = [0, 1, 2, 3, 4];
+
+function rbPinSvg(num) {
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="38" viewBox="0 0 28 38">'
+    + '<path d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 24 14 24S28 24.5 28 14C28 6.27 21.73 0 14 0z"'
+    + ' fill="#f97316" stroke="#fff" stroke-width="1.5"/>'
+    + '<text x="14" y="17" text-anchor="middle" dominant-baseline="middle" fill="#fff"'
+    + ' font-size="11" font-weight="700" font-family="sans-serif">' + num + '</text></svg>';
+}
+
+function rbMakeIcon(num) {
+  return L.divIcon({ html: rbPinSvg(num), className:'', iconSize:[28,38], iconAnchor:[14,38], popupAnchor:[0,-36] });
+}
+
+function rbDepotIcon() {
+  var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 30 30">'
+    + '<circle cx="15" cy="15" r="14" fill="#6b7280" stroke="#fff" stroke-width="2"/>'
+    + '<text x="15" y="15" text-anchor="middle" dominant-baseline="middle" fill="#fff"'
+    + ' font-size="11" font-weight="700" font-family="sans-serif">D</text></svg>';
+  return L.divIcon({ html: svg, className:'', iconSize:[30,30], iconAnchor:[15,30], popupAnchor:[0,-32] });
+}
+
+function initBuilderMap() {
+  if (rbMapInited) return;
+  rbMapInited = true;
+
+  rbMap = L.map('builder-map', { zoomControl: true });
+
+  // Same Baldwin County vector basemap
+  var W = { color:'#6ea8c8', weight:.5, fillColor:'#aacfe0', fillOpacity:1 };
+  var HWY = { color:'#ffffff', weight:3.5, opacity:.95 };
+  var SEC = { color:'#f8f4ec', weight:2,   opacity:.8  };
+  L.polygon([[30.27,-88.3],[30.27,-87.15],[30.0,-87.15],[30.0,-88.3]], W).addTo(rbMap);
+  L.polygon([[30.275,-87.78],[30.275,-87.58],[30.258,-87.58],[30.258,-87.78]], W).addTo(rbMap);
+  L.polygon([[30.73,-87.935],[30.77,-87.945],[30.80,-87.96],[30.82,-88.02],[30.80,-88.12],
+             [30.73,-88.13],[30.58,-88.12],[30.48,-88.10],[30.41,-88.04],[30.37,-88.00],
+             [30.35,-87.975],[30.38,-87.95],[30.44,-87.935],[30.50,-87.915],[30.58,-87.905],[30.67,-87.915]], W).addTo(rbMap);
+  L.polyline([[30.470,-88.06],[30.474,-87.975],[30.478,-87.90],[30.497,-87.815],[30.535,-87.720],[30.565,-87.620]], HWY).addTo(rbMap);
+  L.polyline([[30.715,-87.671],[30.650,-87.672],[30.560,-87.673],[30.480,-87.674],[30.404,-87.681],[30.335,-87.685],[30.273,-87.695],[30.248,-87.702]], HWY).addTo(rbMap);
+  L.polyline([[30.540,-87.915],[30.540,-87.950],[30.540,-88.00],[30.540,-88.05]], SEC).addTo(rbMap);
+  L.polyline([[30.545,-87.965],[30.542,-87.90],[30.538,-87.845],[30.535,-87.785],[30.545,-87.725]], HWY).addTo(rbMap);
+  L.polyline([[30.620,-87.590],[30.555,-87.600],[30.480,-87.618],[30.415,-87.638],[30.345,-87.660]], HWY).addTo(rbMap);
+  L.polyline([[30.720,-87.775],[30.650,-87.782],[30.570,-87.790],[30.490,-87.803],[30.415,-87.820]], SEC).addTo(rbMap);
+  var lbl = function(t){ return L.divIcon({ className:'', iconAnchor:[0,0],
+    html:'<div style="font-size:10px;font-weight:700;color:#5a4a2a;white-space:nowrap;text-shadow:0 0 3px #e8e2cc,0 0 3px #e8e2cc;opacity:.75;">'+t+'</div>' }); };
+  [
+    [30.406,-87.681,'Foley'],[30.250,-87.700,'Gulf Shores'],[30.602,-87.903,'Daphne'],
+    [30.523,-87.903,'Fairhope'],[30.722,-87.780,'Bay Minette'],[30.675,-87.906,'Spanish Fort']
+  ].forEach(function(c){ L.marker([c[0],c[1]],{icon:lbl(c[2]),interactive:false}).addTo(rbMap); });
+  rbMap.setView([30.57, -87.77], 10);
+
+  // Add pre-made stops and show demo route
+  renderBuilderStops();
+  window.runBuilderRoute();
+}
+
+function renderBuilderStops() {
+  RB_STOPS.forEach(function(s, i) {
+    s.marker = L.marker([s.lat, s.lng], { icon: rbMakeIcon(i + 1) })
+      .addTo(rbMap)
+      .bindPopup('<strong>' + s.label + '</strong>');
+  });
+  // Update stop list UI
+  var ul    = document.getElementById('rb-stop-list');
+  var count = document.getElementById('rb-stop-count');
+  if (count) count.textContent = RB_STOPS.length;
+  ul.innerHTML = '';
+  RB_STOPS.forEach(function(s, i) {
+    var li = document.createElement('li');
+    li.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.4rem .2rem;border-bottom:1px solid var(--st);';
+    li.innerHTML =
+      '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:1.5rem;height:1.5rem;border-radius:50%;background:#f97316;color:#fff;font-size:.7rem;font-weight:700;">' + (i+1) + '</span>'
+      + '<span style="flex:1;font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + s.label + '</span>'
+      + '<span style="display:inline-flex;align-items:center;justify-content:center;width:1.4rem;height:1.4rem;border-radius:4px;background:rgba(239,68,68,.12);color:#ef4444;font-size:.72rem;">&#10005;</span>';
+    ul.appendChild(li);
+  });
+}
+
+window.runBuilderRoute = function() {
+  // Depot marker
+  L.marker(DEPOT_LL, { icon: rbDepotIcon() })
+    .bindPopup('<strong>Depot</strong><br><small>Trash Panda Roll-Offs, Foley AL</small>')
+    .addTo(rbMap);
+  // Route polyline (pre-computed order)
+  var lls = [DEPOT_LL];
+  RB_ROUTE_IDX.forEach(function(i){ lls.push([RB_STOPS[i].lat, RB_STOPS[i].lng]); });
+  L.polyline(lls, { color:'#f97316', weight:4, opacity:.8 }).addTo(rbMap);
+  // Renumber markers in route order
+  RB_ROUTE_IDX.forEach(function(si, step){ RB_STOPS[si].marker.setIcon(rbMakeIcon(step+1)); });
+  // Route panel
+  document.getElementById('rb-route-meta').innerHTML =
+    '&#9200; 1h 42 min &nbsp;&middot;&nbsp; &#128739; 94.3 mi';
+  document.getElementById('rb-btn-gmaps').style.display = '';
+  var list = document.getElementById('rb-route-list');
+  list.innerHTML = '';
+  RB_ROUTE_IDX.forEach(function(si, step){
+    var s = RB_STOPS[si];
+    var li = document.createElement('li');
+    li.className = 'rp-step';
+    li.innerHTML = '<span class="rp-num" style="background:#f97316;">' + (step+1) + '</span>'
+      + '<span><strong>' + s.label + '</strong></span>';
+    list.appendChild(li);
+  });
+  document.getElementById('rb-route-panel').style.display = 'block';
+  document.getElementById('rb-clear-route-btn').style.display = '';
+  rbMap.fitBounds(lls, { padding:[40,40] });
+  // Update optimize button
+  var ob = document.getElementById('rb-optimize-btn');
+  if (ob) ob.innerHTML = '&#128739; Re-Optimize';
 };
 </script>
 </body>
