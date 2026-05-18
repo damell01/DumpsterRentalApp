@@ -294,7 +294,7 @@ layout_start('Dispatch Map', 'dispatch_map');
 
 <!-- ── Map ─────────────────────────────────────────────────────────────────── -->
 <div class="tp-card p-0 mb-3" style="overflow:hidden;position:relative;">
-    <div id="dispatch-map" style="height:540px;width:100%;"></div>
+    <div id="dispatch-map" class="dp-map-canvas"></div>
     <div id="map-spinner" style="display:none;position:absolute;top:10px;right:10px;
          background:rgba(15,15,15,.85);color:#fff;padding:.4rem .8rem;border-radius:8px;
          font-size:.8rem;z-index:1000;backdrop-filter:blur(4px);">
@@ -480,7 +480,7 @@ layout_start('Dispatch Map', 'dispatch_map');
     <div class="row g-3 mb-3">
         <div class="col-lg-8">
             <div class="tp-card p-0" style="overflow:hidden;position:relative;">
-                <div id="builder-map" style="height:490px;width:100%;"></div>
+                <div id="builder-map" class="dp-builder-canvas"></div>
                 <div id="rb-spinner" style="display:none;position:absolute;top:10px;right:10px;
                      background:rgba(15,15,15,.85);color:#fff;padding:.35rem .8rem;border-radius:8px;
                      font-size:.8rem;z-index:1000;backdrop-filter:blur(4px);">
@@ -496,7 +496,7 @@ layout_start('Dispatch Map', 'dispatch_map');
             </div>
         </div>
         <div class="col-lg-4">
-            <div class="tp-card" style="height:490px;overflow-y:auto;padding:.85rem;">
+            <div class="tp-card dp-builder-list-card" style="overflow-y:auto;padding:.85rem;">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h6 class="mb-0" style="font-size:.88rem;">
                         <i class="fa-solid fa-list-ol me-1" style="color:#f97316;"></i>
@@ -541,6 +541,35 @@ layout_start('Dispatch Map', 'dispatch_map');
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
 
 <style>
+.dp-map-canvas {
+    width: 100%;
+    height: 360px;
+}
+.dp-builder-canvas {
+    width: 100%;
+    height: 380px;
+}
+.dp-builder-list-card {
+    height: 380px;
+}
+@media (max-width: 991.98px) {
+    .dp-map-canvas {
+        height: 320px;
+    }
+    .dp-builder-canvas,
+    .dp-builder-list-card {
+        height: 340px;
+    }
+}
+@media (max-width: 575.98px) {
+    .dp-map-canvas {
+        height: 280px;
+    }
+    .dp-builder-canvas,
+    .dp-builder-list-card {
+        height: 300px;
+    }
+}
 /* Popup */
 .leaflet-popup-content-wrapper {
     border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.22);
