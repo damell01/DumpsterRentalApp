@@ -224,6 +224,9 @@ function create_work_order_from_booking(array $booking): array
     $unitCodes    = implode(', ', array_filter(array_column($woGroup, 'unit_code')));
     $unitSizes    = implode(', ', array_unique(array_filter(array_column($woGroup, 'unit_size'))));
     $pickupDate   = !empty($booking['rental_end']) ? (string)$booking['rental_end'] : null;
+    $customerRow  = !empty($booking['customer_id'])
+        ? db_fetch('SELECT address, city, state, zip, billing_address, billing_city, billing_state, billing_zip FROM customers WHERE id = ? LIMIT 1', [(int)$booking['customer_id']])
+        : null;
 
     $woNumber = next_number('WO', 'work_orders', 'wo_number');
 
@@ -233,10 +236,10 @@ function create_work_order_from_booking(array $booking): array
         'cust_name' => $booking['customer_name'] ?: null,
         'cust_phone' => $booking['customer_phone'] ?: null,
         'cust_email' => $booking['customer_email'] ?: null,
-        'service_address' => $booking['customer_address'] ?: null,
-        'service_city' => $booking['customer_city'] ?: null,
-        'service_state' => null,
-        'service_zip' => null,
+        'service_address' => $booking['customer_address'] ?: ($customerRow['address'] ?? $customerRow['billing_address'] ?? null),
+        'service_city' => $booking['customer_city'] ?: ($customerRow['city'] ?? $customerRow['billing_city'] ?? null),
+        'service_state' => $customerRow['state'] ?? $customerRow['billing_state'] ?? null,
+        'service_zip' => $customerRow['zip'] ?? $customerRow['billing_zip'] ?? null,
         'size' => $unitSizes ?: ($booking['unit_size'] ?: null),
         'project_type' => 'Dumpster Rental',
         'dumpster_id' => !empty($booking['dumpster_id']) ? (int)$booking['dumpster_id'] : null,

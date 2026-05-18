@@ -82,6 +82,8 @@ $customer_phone   = trim($data['customer_phone']     ?? '');
 $customer_email   = trim($data['customer_email']     ?? '');
 $customer_address = trim($data['customer_address']   ?? '');
 $customer_city    = trim($data['customer_city']      ?? '');
+$customer_state   = strtoupper(trim($data['customer_state'] ?? ''));
+$customer_zip     = trim($data['customer_zip'] ?? '');
 $payment_method   = trim($data['payment_method']     ?? 'stripe');
 $notes            = trim($data['notes']              ?? '');
 $terms_accepted   = !empty($data['terms_accepted']);
@@ -255,6 +257,8 @@ $customer_id = billing_customer_service()->findOrCreateByBooking([
     'customer_email' => $customer_email,
     'customer_address' => $customer_address,
     'customer_city' => $customer_city,
+    'customer_state' => $customer_state,
+    'customer_zip' => $customer_zip,
 ]);
 
 // Generate ONE booking number shared across all units in this order.

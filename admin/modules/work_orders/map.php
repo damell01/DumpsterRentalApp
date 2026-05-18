@@ -110,6 +110,14 @@ if (!empty($all_jobs)) {
             $wo['service_state'],
             $wo['service_zip'],
         ])));
+        $has_street = trim((string)($wo['service_address'] ?? '')) !== '';
+        $has_locality = trim((string)($wo['service_city'] ?? '')) !== ''
+            || trim((string)($wo['service_state'] ?? '')) !== ''
+            || trim((string)($wo['service_zip'] ?? '')) !== '';
+        $wo['address_complete'] = $has_street && $has_locality;
+        $wo['address_issue'] = !$has_street
+            ? 'Missing street address'
+            : (!$has_locality ? 'Add city, state, or ZIP for accurate pin placement' : '');
         $wo['lat'] = isset($cache_map[$hash]) ? (float)$cache_map[$hash]['lat'] : null;
         $wo['lng'] = isset($cache_map[$hash]) ? (float)$cache_map[$hash]['lng'] : null;
     }
@@ -121,7 +129,8 @@ if (!empty($all_jobs)) {
 }
 
 $cached_count    = count(array_filter($all_jobs, fn($wo) => $wo['lat'] !== null));
-$missing_count   = count($all_jobs) - $cached_count;
+$incomplete_jobs = array_values(array_filter($all_jobs, fn($wo) => empty($wo['address_complete'])));
+$missing_count   = count(array_filter($all_jobs, fn($wo) => !empty($wo['address_complete']) && $wo['lat'] === null));
 $company_address = get_setting('company_address', '');
 $company_name    = get_setting('company_name', 'Dispatch');
 
@@ -327,6 +336,42 @@ layout_start('Dispatch Map', 'dispatch_map');
     </div>
 </div>
 <?php else: ?>
+<?php if (!empty($incomplete_jobs)): ?>
+<div class="alert alert-warning mb-3" style="border:1px solid rgba(245,158,11,.25);background:rgba(245,158,11,.08);">
+    <div class="fw-semibold mb-1">
+        <i class="fa-solid fa-triangle-exclamation me-1"></i>
+        <?= count($incomplete_jobs) ?> stop<?= count($incomplete_jobs) === 1 ? '' : 's' ?> need<?= count($incomplete_jobs) === 1 ? 's' : '' ?> a fuller address before they can pin correctly.
+    </div>
+    <div style="font-size:.9rem;color:#7c2d12;">
+        Add at least a street address plus city, state, or ZIP on the booking, customer, or work order record.
+    </div>
+    <div class="mt-2 d-flex flex-wrap gap-2">
+        <?php foreach ($incomplete_jobs as $wo): ?>
+            <a href="view.php?id=<?= (int)$wo['id'] ?>" class="btn-tp-ghost btn-tp-xs" style="border-color:rgba(245,158,11,.35);">
+                <?= e($wo['wo_number']) ?>: <?= e($wo['cust_name']) ?>
+            </a>
+        <?php endforeach; ?>
+    </div>
+</div>
+<?php endif; ?>
+<?php if (!empty($incomplete_jobs)): ?>
+<div class="alert alert-warning mb-3" style="border:1px solid rgba(245,158,11,.25);background:rgba(245,158,11,.08);">
+    <div class="fw-semibold mb-1">
+        <i class="fa-solid fa-triangle-exclamation me-1"></i>
+        <?= count($incomplete_jobs) ?> stop<?= count($incomplete_jobs) === 1 ? '' : 's' ?> need<?= count($incomplete_jobs) === 1 ? 's' : '' ?> a fuller address before they can pin correctly.
+    </div>
+    <div style="font-size:.9rem;color:#7c2d12;">
+        Add at least a street address plus city, state, or ZIP on the booking, customer, or work order record.
+    </div>
+    <div class="mt-2 d-flex flex-wrap gap-2">
+        <?php foreach ($incomplete_jobs as $wo): ?>
+            <a href="view.php?id=<?= (int)$wo['id'] ?>" class="btn-tp-ghost btn-tp-xs" style="border-color:rgba(245,158,11,.35);">
+                <?= e($wo['wo_number']) ?>: <?= e($wo['cust_name']) ?>
+            </a>
+        <?php endforeach; ?>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- ── Job cards ───────────────────────────────────────────────────────────── -->
 <div class="row g-3">
@@ -677,6 +722,11 @@ var geocodePending = 0;
 var geocodeTotal   = 0;
 
 document.querySelectorAll('.dispatch-row').forEach(function (r) { rowMap[r.dataset.jobId] = r; });
+jobs.forEach(function (job) {
+    if (!hasMappableAddress(job)) {
+        markRowAddressIssue(job.id, job.address_issue);
+    }
+});
 
 function hasValidCoords(job) {
     return job
@@ -685,6 +735,68 @@ function hasValidCoords(job) {
         && Math.abs(Number(job.lat)) <= 90
         && Math.abs(Number(job.lng)) <= 180
         && !(Number(job.lat) === 0 && Number(job.lng) === 0);
+}
+
+function hasMappableAddress(job) {
+    return !!(job && job.address_complete && (job.full_address || job.service_address));
+}
+
+function markRowAddressIssue(jobId, issue) {
+    var row = rowMap[jobId];
+    if (!row) return;
+    row.style.background = 'rgba(245,158,11,.06)';
+    row.title = issue || 'This stop needs a fuller address before it can be pinned.';
+}
+
+function milesBetween(a, b) {
+    return haversine(a, b) * 0.621371;
+}
+
+function isLikelyLocalCoord(lat, lng) {
+    if (!companyAddress || !depotLatLng) return true;
+    return milesBetween(
+        { lat: Number(lat), lng: Number(lng) },
+        { lat: Number(depotLatLng[0]), lng: Number(depotLatLng[1]) }
+    ) <= 250;
+}
+
+function chooseBestGeocodeResult(results, addr) {
+    if (!results || !results.length) return null;
+
+    var normalized = String(addr || '').toLowerCase();
+    var hasSpecificLocality = /,\s*[a-z]/i.test(normalized) || /\b[a-z]{2}\b/.test(normalized) || /\b\d{5}\b/.test(normalized);
+    var usable = results
+        .map(function (r) {
+            return {
+                raw: r,
+                lat: parseFloat(r.lat),
+                lng: parseFloat(r.lon),
+                display: String(r.display_name || '').toLowerCase(),
+                country: String((r.address && r.address.country_code) || '').toLowerCase()
+            };
+        })
+        .filter(function (r) {
+            return Number.isFinite(r.lat) && Number.isFinite(r.lng);
+        });
+
+    if (!usable.length) return null;
+
+    var usOnly = usable.filter(function (r) { return r.country === '' || r.country === 'us'; });
+    if (usOnly.length) usable = usOnly;
+
+    if (depotLatLng) {
+        usable.sort(function (a, b) {
+            var aMiles = milesBetween({ lat: a.lat, lng: a.lng }, { lat: depotLatLng[0], lng: depotLatLng[1] });
+            var bMiles = milesBetween({ lat: b.lat, lng: b.lng }, { lat: depotLatLng[0], lng: depotLatLng[1] });
+            return aMiles - bMiles;
+        });
+
+        if (!hasSpecificLocality) {
+            return usable[0].raw;
+        }
+    }
+
+    return usable[0].raw;
 }
 
 // ── Popup builder ────────────────────────────────────────────────────────────
@@ -801,15 +913,37 @@ function saveToCache(address, lat, lng) {
 }
 
 function geocodeAddress(addr) {
+    var params = [
+        'format=json',
+        'limit=6',
+        'addressdetails=1',
+        'countrycodes=us',
+        'q=' + encodeURIComponent(addr)
+    ];
+
+    if (depotLatLng) {
+        var west = (Number(depotLatLng[1]) - 3).toFixed(4);
+        var north = (Number(depotLatLng[0]) + 3).toFixed(4);
+        var east = (Number(depotLatLng[1]) + 3).toFixed(4);
+        var south = (Number(depotLatLng[0]) - 3).toFixed(4);
+        params.push('viewbox=' + west + ',' + north + ',' + east + ',' + south);
+        params.push('bounded=0');
+    }
+
     return fetchWithTimeout(
-        'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(addr),
+        'https://nominatim.openstreetmap.org/search?' + params.join('&'),
         { headers: { 'Accept-Language': 'en' } },
         8000
-    ).then(function (r) { return r.json(); });
+    )
+        .then(function (r) { return r.json(); })
+        .then(function (results) {
+            var best = chooseBestGeocodeResult(results, addr);
+            return best ? [best] : [];
+        });
 }
 
 // ── Sequential geocoder (only for cache misses) ──────────────────────────────
-var geocodeQueue = jobs.filter(function (j) { return !hasValidCoords(j); });
+var geocodeQueue = jobs.filter(function (j) { return hasMappableAddress(j) && !hasValidCoords(j); });
 geocodeTotal   = geocodeQueue.length;
 geocodePending = geocodeTotal;
 var geocodeIndex = 0;
@@ -824,6 +958,9 @@ function updateGeocodeProgress() {
         if (geocodedPts.length >= 2) {
             var btn = document.getElementById('btn-optimize');
             if (btn) { btn.disabled = false; btn.title = ''; }
+        } else if (geocodedPts.length === 0) {
+            if (depotLatLng) map.setView(depotLatLng, 11);
+            else map.setView([39.5,-98.35], 4);
         }
     }
 }
@@ -832,7 +969,13 @@ function geocodeNext() {
     if (geocodeIndex >= geocodeQueue.length) return;
     var job = geocodeQueue[geocodeIndex++];
     var addr = job.full_address || job.service_address;
-    if (!addr) { geocodePending--; updateGeocodeProgress(); setTimeout(geocodeNext, 100); return; }
+    if (!hasMappableAddress(job) || !addr) {
+        markRowAddressIssue(job.id, job.address_issue);
+        geocodePending--;
+        updateGeocodeProgress();
+        setTimeout(geocodeNext, 100);
+        return;
+    }
 
     geocodeAddress(addr)
         .then(function (results) {
@@ -855,7 +998,7 @@ function queueAllUnmappedJobsForRetry() {
     geocodeQueue = jobs.filter(function (job) {
         var addr = job.full_address || job.service_address;
         var alreadyLoaded = geocodedPts.some(function (pt) { return String(pt.job.id) === String(job.id); });
-        return !alreadyLoaded && !hasValidCoords(job) && !!addr;
+        return !alreadyLoaded && hasMappableAddress(job) && !hasValidCoords(job) && !!addr;
     });
     geocodeTotal = geocodeQueue.length;
     geocodePending = geocodeQueue.length;
@@ -866,6 +1009,30 @@ function queueAllUnmappedJobsForRetry() {
 // Cached jobs load immediately
 jobs.filter(function (j) { return hasValidCoords(j); })
     .forEach(function (j) { addMarker(j, Number(j.lat), Number(j.lng)); });
+
+function resetBadCachedMarkers() {
+    if (!depotLatLng) return;
+
+    var keep = [];
+    geocodedPts.forEach(function (pt) {
+        if (isLikelyLocalCoord(pt.lat, pt.lng)) {
+            keep.push(pt);
+            return;
+        }
+
+        if (pt.marker) {
+            map.removeLayer(pt.marker);
+        }
+
+        pt.job.lat = null;
+        pt.job.lng = null;
+        bounds = bounds.filter(function (b) {
+            return !(Number(b[0]) === Number(pt.lat) && Number(b[1]) === Number(pt.lng));
+        });
+    });
+
+    geocodedPts = keep;
+}
 
 // ── Route optimization ───────────────────────────────────────────────────────
 function haversine(a, b) {
@@ -1280,7 +1447,12 @@ if (jobs.length === 0) {
 
     if (companyAddress) {
         geocodeAddress(companyAddress)
-            .then(function (d) { if (d && d.length) depotLatLng = [parseFloat(d[0].lat), parseFloat(d[0].lon)]; })
+            .then(function (d) {
+                if (d && d.length) {
+                    depotLatLng = [parseFloat(d[0].lat), parseFloat(d[0].lon)];
+                    resetBadCachedMarkers();
+                }
+            })
             .catch(function () {})
             .finally(afterDepot);
     } else {
