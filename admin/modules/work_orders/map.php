@@ -898,6 +898,13 @@ function fmtDist(metres) {
     return metres >= 1000 ? (metres / 1609.34).toFixed(1) + ' mi' : Math.round(metres) + ' m';
 }
 
+function estimateDriveDuration(distanceMetres) {
+    // Rough fallback when live routing duration is unavailable.
+    var estimatedRoadMetres = distanceMetres * 1.25;
+    var averageMetresPerSecond = 30 * 1609.34 / 3600;
+    return Math.max(60, Math.round(estimatedRoadMetres / averageMetresPerSecond));
+}
+
 function clearRoute() {
     if (routeLine)   { map.removeLayer(routeLine); routeLine = null; }
     if (depotMarker) { map.removeLayer(depotMarker); depotMarker = null; }
@@ -1013,7 +1020,7 @@ function runOptimize() {
             setSpinner(null);
             var dist = 0, lat = sLat, lng = sLng;
             ordered.forEach(function (p) { dist += haversine({lat:lat,lng:lng}, p) * 1000; lat = p.lat; lng = p.lng; });
-            drawRoute(ordered, dist, null, null, depotLL);
+            drawRoute(ordered, dist, estimateDriveDuration(dist), null, depotLL);
         });
 }
 
@@ -1346,11 +1353,15 @@ function rbRunOptimize() {
             rbSetSpinner(null);
             var dist = 0, la = sLat, ln = sLng;
             ord.forEach(function (s) { dist += haversine({lat:la,lng:ln}, s) * 1000; la = s.lat; ln = s.lng; });
-            rbDrawRoute(ord, dist, null, null, dLL);
+            rbDrawRoute(ord, dist, estimateDriveDuration(dist), null, dLL);
         });
 }
 
 function rbDrawRoute(ordered, distance, duration, geometry, dLL) {
+    rbStops = ordered.slice();
+    rbRenumber();
+    rbRenderList();
+
     if (geometry) {
         rbRouteLine = L.geoJSON(geometry, { style: { color: '#f97316', weight: 4, opacity: 0.78 } }).addTo(rbMap);
     } else {
