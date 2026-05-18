@@ -187,7 +187,7 @@ tr:nth-child(even) td{background:#fafafa;}
     exit;
 }
 
-layout_start('Dispatch Map', 'work_orders');
+layout_start('Dispatch Map', 'dispatch_map');
 ?>
 
 <!-- ── Header ──────────────────────────────────────────────────────────────── -->
@@ -405,11 +405,14 @@ layout_start('Dispatch Map', 'work_orders');
     <!-- Controls bar -->
     <div class="tp-card mb-3" style="padding:.75rem 1rem;">
         <div class="d-flex gap-2 flex-wrap align-items-center">
-            <div class="d-flex gap-1" style="flex:1;min-width:180px;max-width:440px;">
-                <input id="rb-addr-input" type="text" class="form-control form-control-sm"
-                       placeholder="Enter an address to add as a stop…">
+            <div class="d-flex gap-1" style="flex:1;min-width:200px;max-width:480px;">
+                <div id="rb-ac-wrap" style="position:relative;flex:1;min-width:0;">
+                    <input id="rb-addr-input" type="text" class="form-control form-control-sm"
+                           placeholder="Search address to add as a stop…" autocomplete="off">
+                    <ul id="rb-ac-list" style="display:none;"></ul>
+                </div>
                 <button id="rb-addr-btn" class="btn-tp-primary btn-tp-sm" style="white-space:nowrap;">
-                    <i class="fa-solid fa-plus me-1"></i>Add Stop
+                    <i class="fa-solid fa-plus me-1"></i>Add
                 </button>
             </div>
             <button id="rb-click-toggle" class="btn-tp-ghost btn-tp-sm">
@@ -550,6 +553,23 @@ layout_start('Dispatch Map', 'work_orders');
 .rb-btn-rm:hover { background:rgba(239,68,68,.28); }
 #builder-map.rb-crosshair,
 #builder-map.rb-crosshair .leaflet-container { cursor:crosshair!important; }
+/* ── Route Builder autocomplete ─────────────────────────────────────────────── */
+#rb-ac-list {
+    position:absolute;top:calc(100% + 1px);left:0;right:0;z-index:3000;
+    background:var(--dk1,#fff);border:1px solid var(--bd,#d1d5db);
+    border-radius:0 0 8px 8px;box-shadow:0 6px 18px rgba(0,0,0,.14);
+    list-style:none;margin:0;padding:0;max-height:290px;overflow-y:auto;
+}
+.rb-ac-item {
+    padding:.5rem .8rem;cursor:pointer;border-bottom:1px solid var(--bd,#e5e7eb);
+    font-size:.82rem;line-height:1.35;transition:background .1s;
+}
+.rb-ac-item:last-child { border-bottom:none; }
+.rb-ac-item.ac-active,.rb-ac-item:hover { background:rgba(249,115,22,.09); }
+.rb-ac-name { font-weight:600;color:var(--wh,#111827); }
+.rb-ac-det  { font-size:.75rem;color:var(--gy,#6b7280);margin-top:.1rem; }
+.rb-ac-type { display:inline-block;font-size:.68rem;font-weight:600;padding:.05rem .35rem;
+              border-radius:4px;background:rgba(249,115,22,.12);color:#c2410c;margin-right:.35rem;vertical-align:.05em; }
 </style>
 
 <script>
@@ -1400,12 +1420,155 @@ function rbGeocode(addr) {
             });
     }
 
-    if (addrBtn)    addrBtn.addEventListener('click', doAddAddress);
-    if (addrInput)  addrInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); doAddAddress(); } });
+    if (addrBtn) addrBtn.addEventListener('click', doAddAddress);
+    // Store for autocomplete fallback; Enter key handled by autocomplete IIFE
+    window._rbDoAddAddress = doAddAddress;
     if (clickToggle)  clickToggle.addEventListener('click', function () { rbInitMap(); rbToggleClickMode(); });
     if (optimizeBtn)  optimizeBtn.addEventListener('click', rbRunOptimize);
     if (clearRouteBtn)clearRouteBtn.addEventListener('click', function () { rbClearRoute(); rbRenumber(); });
     if (clearAllBtn)  clearAllBtn.addEventListener('click', rbClearAll);
+}());
+
+
+// ── Route Builder address autocomplete ───────────────────────────────────────
+(function () {
+    var inp  = document.getElementById('rb-addr-input');
+    var list = document.getElementById('rb-ac-list');
+    if (!inp || !list) return;
+
+    var acData = [];
+    var acIdx  = -1;
+    var debounce = null;
+
+    // ── Format helpers ────────────────────────────────────────────────────────
+    function acName(r) {
+        var a = r.address || {};
+        if (a.house_number && a.road) return a.house_number + ' ' + a.road;
+        if (a.road)    return a.road;
+        if (r.name)    return r.name;
+        return (r.display_name || '').split(',')[0].trim();
+    }
+    function acDetail(r) {
+        var a = r.address || {};
+        return [a.city || a.town || a.village || a.county, a.state, a.postcode]
+            .filter(Boolean).join(', ');
+    }
+    function acTypeLabel(r) {
+        var t = r.type || r.class || '';
+        var map = { house:'Address', road:'Road', city:'City', town:'Town',
+                    village:'Village', county:'County', state:'State',
+                    postcode:'ZIP', neighbourhood:'Area', suburb:'Area',
+                    building:'Building', commercial:'Business', industrial:'Area' };
+        return map[t] || '';
+    }
+
+    // ── Render / hide ─────────────────────────────────────────────────────────
+    function hide() {
+        list.style.display = 'none';
+        list.innerHTML = '';
+        acData = [];
+        acIdx  = -1;
+    }
+
+    function render(results) {
+        acData = results;
+        acIdx  = -1;
+        if (!results.length) { hide(); return; }
+        list.innerHTML = '';
+        results.forEach(function (r, i) {
+            var li   = document.createElement('li');
+            var name = acName(r);
+            var det  = acDetail(r);
+            var lbl  = acTypeLabel(r);
+            li.className = 'rb-ac-item';
+            li.dataset.idx = i;
+            li.innerHTML =
+                '<div class="rb-ac-name">'
+                + (lbl ? '<span class="rb-ac-type">' + esc(lbl) + '</span>' : '')
+                + esc(name) + '</div>'
+                + (det ? '<div class="rb-ac-det">' + esc(det) + '</div>' : '');
+            li.addEventListener('mousedown', function (e) { e.preventDefault(); pick(i); });
+            li.addEventListener('mouseenter', function () { setActive(i); });
+            list.appendChild(li);
+        });
+        list.style.display = '';
+    }
+
+    function setActive(i) {
+        list.querySelectorAll('.rb-ac-item').forEach(function (el, j) {
+            el.classList.toggle('ac-active', j === i);
+        });
+        acIdx = i;
+    }
+
+    // ── Select a result ───────────────────────────────────────────────────────
+    function pick(i) {
+        var r = acData[i];
+        if (!r) return;
+        var label = acDetail(r) ? acName(r) + ', ' + acDetail(r) : acName(r);
+        inp.value = '';
+        hide();
+        rbInitMap();
+        rbAddStop(label, parseFloat(r.lat), parseFloat(r.lon));
+        var errEl = document.getElementById('rb-addr-error');
+        if (errEl) errEl.style.display = 'none';
+    }
+
+    // ── Keyboard navigation ───────────────────────────────────────────────────
+    inp.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setActive(Math.min(acData.length - 1, acIdx + 1));
+            return;
+        }
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setActive(Math.max(0, acIdx - 1));
+            return;
+        }
+        if (e.key === 'Escape') { hide(); return; }
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (acData.length && acIdx >= 0) {
+                pick(acIdx);
+            } else if (acData.length === 1) {
+                pick(0);
+            } else {
+                // No suggestion highlighted — fall back to full geocode
+                hide();
+                if (window._rbDoAddAddress) window._rbDoAddAddress();
+            }
+        }
+    });
+
+    // ── Fetch on input ────────────────────────────────────────────────────────
+    inp.addEventListener('input', function () {
+        var q = inp.value.trim();
+        clearTimeout(debounce);
+        if (q.length < 3) { hide(); return; }
+        debounce = setTimeout(function () {
+            // Bias results toward the company service area
+            var viewbox = '';
+            if (companyAddress) {
+                // Use a broad US South / Gulf Coast box as default bias
+                viewbox = '&viewbox=-88.5,31.2,-86.5,30.0&bounded=0';
+            }
+            var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=7'
+                    + '&addressdetails=1&countrycodes=us' + viewbox
+                    + '&q=' + encodeURIComponent(q);
+            fetchWithTimeout(url, { headers: { 'Accept-Language': 'en' } }, 6000)
+                .then(function (r) { return r.json(); })
+                .then(render)
+                .catch(function () { hide(); });
+        }, 320);
+    });
+
+    // ── Close on blur / outside click ─────────────────────────────────────────
+    inp.addEventListener('blur', function () { setTimeout(hide, 200); });
+    document.addEventListener('click', function (e) {
+        var wrap = document.getElementById('rb-ac-wrap');
+        if (wrap && !wrap.contains(e.target)) hide();
+    });
 }());
 
 }());

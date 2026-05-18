@@ -64,6 +64,11 @@ class BillingNotificationService
             '<p>Your recurring service has renewed successfully for <strong>' . \e(\fmt_money($amount)) . '</strong>.</p>',
             'Subscription renewed - ' . $subjectContext
         );
+        \notify_admins(
+            'Subscription Payment Received — ' . $subjectContext,
+            '<p>Subscription <strong>' . \e($subjectContext) . '</strong> renewed successfully.'
+            . ' Amount collected: <strong>' . \e(\fmt_money($amount)) . '</strong>.</p>'
+        );
     }
 
     public function sendSubscriptionPaymentFailed(array $recipient, string $subjectContext, string $paymentUpdateUrl = ''): void
@@ -75,6 +80,11 @@ class BillingNotificationService
             'Subscription payment failed - ' . $subjectContext,
             $paymentUpdateUrl !== '' ? 'Update Payment Method' : '',
             $paymentUpdateUrl
+        );
+        \notify_admins(
+            'Subscription Payment Failed — ' . $subjectContext,
+            '<p>A subscription payment failed for <strong>' . \e($subjectContext) . '</strong>.'
+            . ' The subscription is now past due. Log in to review and retry the charge.</p>'
         );
     }
 
