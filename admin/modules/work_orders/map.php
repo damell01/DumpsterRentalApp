@@ -1158,6 +1158,8 @@ function rbAddStop(label, lat, lng) {
             + '<br><a href="#" onclick="rbRemoveStop(' + id + ');return false;" '
             + 'style="color:#ef4444;font-size:.8rem;">Remove stop</a>');
     rbStops.push({ id: id, label: label, lat: lat, lng: lng, marker: marker });
+    rbClearRoute();
+    rbRenumber();
     rbRenderList();
     rbFitBounds();
 }
