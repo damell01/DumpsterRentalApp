@@ -887,6 +887,90 @@ if (table_exists($pdo, 'work_orders')) {
 }
 
 // =============================================================================
+// UPGRADE 34 — geocode_cache table (dispatch map lat/lng cache)
+// =============================================================================
+echo "\n--- Upgrade 34: geocode_cache table ---\n";
+
+if (!table_exists($pdo, 'geocode_cache')) {
+    run_step($pdo, 'CREATE TABLE geocode_cache',
+        "CREATE TABLE IF NOT EXISTS `geocode_cache` (
+          `address_hash` CHAR(32)      NOT NULL COMMENT 'md5 of normalised full address',
+          `address`      VARCHAR(500)  NOT NULL,
+          `lat`          DECIMAL(10,7) NOT NULL,
+          `lng`          DECIMAL(10,7) NOT NULL,
+          `created_at`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (`address_hash`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+} else {
+    $log[] = '[SKIP] geocode_cache table (already exists)';
+}
+
+// =============================================================================
+// UPGRADE 35 — dumpster unit tracking columns + maintenance log table
+// =============================================================================
+echo "\n--- Upgrade 35: dumpster unit tracking + dumpster_maintenance_logs ---\n";
+
+if (table_exists($pdo, 'dumpsters')) {
+    if (!column_exists($pdo, 'dumpsters', 'last_maintenance_date')) {
+        run_step($pdo, 'dumpsters.last_maintenance_date',
+            "ALTER TABLE `dumpsters`
+             ADD COLUMN `last_maintenance_date` DATE DEFAULT NULL
+             COMMENT 'Date of last maintenance/service' AFTER `condition`");
+    } else {
+        $log[] = '[SKIP] dumpsters.last_maintenance_date (already exists)';
+    }
+    if (!column_exists($pdo, 'dumpsters', 'purchase_date')) {
+        run_step($pdo, 'dumpsters.purchase_date',
+            "ALTER TABLE `dumpsters`
+             ADD COLUMN `purchase_date` DATE DEFAULT NULL
+             COMMENT 'Date unit was acquired' AFTER `last_maintenance_date`");
+    } else {
+        $log[] = '[SKIP] dumpsters.purchase_date (already exists)';
+    }
+}
+
+if (!table_exists($pdo, 'dumpster_maintenance_logs')) {
+    run_step($pdo, 'CREATE TABLE dumpster_maintenance_logs',
+        "CREATE TABLE IF NOT EXISTS `dumpster_maintenance_logs` (
+          `id`               INT(11)       NOT NULL AUTO_INCREMENT,
+          `dumpster_id`      INT(11)       NOT NULL,
+          `maintenance_date` DATE          NOT NULL,
+          `description`      VARCHAR(255)  NOT NULL DEFAULT '',
+          `performed_by`     VARCHAR(100)  DEFAULT NULL,
+          `cost`             DECIMAL(10,2) DEFAULT NULL,
+          `created_by`       INT(11)       DEFAULT NULL,
+          `created_at`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (`id`),
+          KEY `idx_dml_dumpster_id` (`dumpster_id`),
+          CONSTRAINT `fk_dml_dumpster_id`
+              FOREIGN KEY (`dumpster_id`) REFERENCES `dumpsters` (`id`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+} else {
+    $log[] = '[SKIP] dumpster_maintenance_logs table (already exists)';
+}
+
+// =============================================================================
+// UPGRADE 36 — api_rate_limits table
+// =============================================================================
+echo "\n--- Upgrade 36: api_rate_limits table ---\n";
+
+if (!table_exists($pdo, 'api_rate_limits')) {
+    run_step($pdo, 'CREATE TABLE api_rate_limits',
+        "CREATE TABLE IF NOT EXISTS `api_rate_limits` (
+          `bucket`       VARCHAR(120) NOT NULL COMMENT 'action:ip composite key',
+          `attempts`     INT(11)      NOT NULL DEFAULT 1,
+          `window_start` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          `locked_until` DATETIME              DEFAULT NULL,
+          `updated_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          PRIMARY KEY (`bucket`),
+          KEY `idx_arl_window_start` (`window_start`),
+          KEY `idx_arl_locked_until` (`locked_until`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+} else {
+    $log[] = '[SKIP] api_rate_limits table (already exists)';
+}
+
+// =============================================================================
 // Summary
 // =============================================================================
 echo "\n" . str_repeat('=', 60) . "\n";

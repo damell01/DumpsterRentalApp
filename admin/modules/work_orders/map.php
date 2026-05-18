@@ -83,9 +83,13 @@ function build_full_address(array $wo): string
 }
 
 if (!empty($all_jobs)) {
-    $hashes    = array_map(fn($wo) => md5(build_full_address($wo)), $all_jobs);
-    $ph        = implode(',', array_fill(0, count($hashes), '?'));
-    $cached    = db_fetchall("SELECT address_hash, lat, lng FROM geocode_cache WHERE address_hash IN ($ph)", $hashes);
+    $hashes = array_map(fn($wo) => md5(build_full_address($wo)), $all_jobs);
+    $ph     = implode(',', array_fill(0, count($hashes), '?'));
+    try {
+        $cached = db_fetchall("SELECT address_hash, lat, lng FROM geocode_cache WHERE address_hash IN ($ph)", $hashes);
+    } catch (\Throwable $e) {
+        $cached = [];
+    }
     $cache_map = array_column($cached, null, 'address_hash');
 
     foreach ($all_jobs as &$wo) {

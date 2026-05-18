@@ -64,13 +64,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'disab
 }
 
 // ── Fetch all users with 2FA status ───────────────────────────────────────────
-$users = db_fetchall(
-    'SELECT u.*,
-            tfs.enabled AS tfa_enabled
-     FROM users u
-     LEFT JOIN two_factor_secrets tfs ON tfs.user_id = u.id
-     ORDER BY u.name ASC'
-);
+try {
+    $users = db_fetchall(
+        'SELECT u.*, tfs.enabled AS tfa_enabled
+         FROM users u
+         LEFT JOIN two_factor_secrets tfs ON tfs.user_id = u.id
+         ORDER BY u.name ASC'
+    );
+} catch (\Throwable $e) {
+    // two_factor_secrets table may not exist on older installs — fall back
+    $users = db_fetchall('SELECT u.*, NULL AS tfa_enabled FROM users u ORDER BY u.name ASC');
+}
 
 $role_labels = user_roles();
 

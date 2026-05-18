@@ -181,6 +181,17 @@ function db_transaction(callable $callback): mixed
 }
 
 /**
+ * Alias for db_fetch — fetch one row as an associative array, or false.
+ * Kept as a named alias so callers can express intent clearly.
+ *
+ * @return array|false
+ */
+function db_fetchone(string $sql, array $params = []): array|false
+{
+    return db_fetch($sql, $params);
+}
+
+/**
  * Fetch the first column from the first row, or null if no rows are returned.
  */
 function db_value(string $sql, array $params = []): mixed
