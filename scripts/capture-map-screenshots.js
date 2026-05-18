@@ -71,6 +71,15 @@ async function run() {
   await settle(page, 600);
   await shot(page, 'dispatch-map-active.png', { fullPage: true });
 
+  // ── 5. Route Builder tab — custom stops + optimized route ────────────────
+  console.log('  [Route Builder — custom stops, optimized route, stop list]');
+  await loadDemo(page);
+  await page.evaluate(() => window.switchDemoTab('builder'));
+  // Leaflet adds leaflet-container class to the map div itself (not a child)
+  await page.waitForSelector('#builder-map.leaflet-container', { timeout: 8000 });
+  await settle(page, 1000);
+  await shot(page, 'dispatch-map-builder.png', { fullPage: true });
+
   await browser.close();
   console.log('\n✅ All dispatch map screenshots saved to: docs/screenshots/\n');
 }
