@@ -285,6 +285,18 @@ class WebhookService
                     ((int)$invoice->amount_paid) / 100
                 );
             }
+
+            // Email the customer their invoice/receipt for this renewal
+            if ($localInvoiceId > 0) {
+                $localInvoice = \db_fetch('SELECT * FROM invoices WHERE id = ? LIMIT 1', [$localInvoiceId]);
+                if ($localInvoice && !empty($localInvoice['cust_email'])) {
+                    try {
+                        \send_invoice_email_to_customer($localInvoice);
+                    } catch (\Throwable $e) {
+                        \error_log('[Webhook] send_invoice_email_to_customer failed for subscription invoice ' . $localInvoiceId . ': ' . $e->getMessage());
+                    }
+                }
+            }
         }
 
         return ['entity_type' => 'invoice', 'entity_id' => $localInvoiceId];
