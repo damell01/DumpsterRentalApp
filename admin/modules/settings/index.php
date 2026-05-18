@@ -9,6 +9,12 @@ require_once TMPL_PATH . '/layout.php';
 require_login();
 require_role('admin', 'office');
 
+$settings_copy_visible = current_user_is_super_admin();
+$settings_tab_names = ['company', 'branding', 'email', 'stripe', 'database'];
+if ($settings_copy_visible) {
+    array_splice($settings_tab_names, 1, 0, ['copy']);
+}
+
 function normalize_retry_days_input(string $input): string
 {
     $input = trim($input);
@@ -71,6 +77,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
 
     $action = trim($_POST['action'] ?? 'save_company');
+
+    if ($action === 'save_copy' && !$settings_copy_visible) {
+        flash_error('You do not have permission to edit customer-facing copy settings.');
+        redirect('index.php#settings-company');
+    }
 
     // ── Test email ───────────────────────────────────────────────────────────
     if ($action === 'test_email') {
@@ -277,8 +288,40 @@ layout_start('Settings', 'settings');
     flex-wrap: wrap;
     margin-bottom: 1rem;
 }
-.settings-panel { display: none; }
+.settings-tabs .settings-tab {
+    min-height: 42px;
+    padding-inline: 1rem;
+    border-radius: 12px;
+}
+.settings-tabs .settings-tab.active {
+    box-shadow: 0 8px 18px rgba(249,115,22,.12);
+}
+.settings-panel {
+    display: none;
+    border-radius: 18px;
+    border: 1px solid var(--st,#e5e7eb);
+    box-shadow: 0 10px 28px rgba(15,23,42,.06);
+    overflow: hidden;
+}
 .settings-panel.active { display: block; }
+.settings-panel > form,
+.settings-panel > div,
+.settings-panel > .row {
+    padding: 1.15rem 1.2rem;
+}
+.settings-panel h6 {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: .9rem !important;
+}
+.settings-panel .row.g-3 {
+    --bs-gutter-x: 1rem;
+    --bs-gutter-y: .95rem;
+}
+.settings-panel .d-flex.gap-2 {
+    margin-top: .5rem;
+}
 .settings-copy-group {
     border: 1px solid var(--st,#e5e7eb);
     border-radius: 14px;
@@ -306,6 +349,17 @@ layout_start('Settings', 'settings');
     font-size: .8rem;
     color: var(--gy,#6b7280);
 }
+@media (max-width: 767px) {
+    .settings-panel > form,
+    .settings-panel > div,
+    .settings-panel > .row {
+        padding: 1rem;
+    }
+    .settings-tabs .settings-tab {
+        flex: 1 1 calc(50% - .5rem);
+        justify-content: center;
+    }
+}
 </style>
 
 <div class="settings-shell">
@@ -328,10 +382,12 @@ layout_start('Settings', 'settings');
                 <strong>4. Stripe in Test Mode</strong>
                 <span>Enter test keys first, confirm booking and invoice payments work, then switch to live later.</span>
             </a>
+            <?php if ($settings_copy_visible): ?>
             <a href="#settings-copy" class="settings-checkitem">
                 <strong>5. Customer Copy</strong>
                 <span>Adjust booking, billing, portal, and payment wording without touching code.</span>
             </a>
+            <?php endif; ?>
             <a href="#settings-stripe" class="settings-checkitem">
                 <strong>6. Portal & Booking Rules</strong>
                 <span>Review booking flow mode, portal link TTL, ACH, subscriptions, and customer-facing booking terms.</span>
@@ -345,7 +401,9 @@ layout_start('Settings', 'settings');
 
     <div class="settings-tabs" role="tablist" aria-label="Settings Sections">
         <a href="#settings-company" class="filter-tab settings-tab active" data-settings-tab="company" role="tab" aria-selected="true"><i class="fa-solid fa-building"></i> Company</a>
+        <?php if ($settings_copy_visible): ?>
         <a href="#settings-copy" class="filter-tab settings-tab" data-settings-tab="copy" role="tab" aria-selected="false"><i class="fa-solid fa-language"></i> Copy</a>
+        <?php endif; ?>
         <a href="#settings-branding" class="filter-tab settings-tab" data-settings-tab="branding" role="tab" aria-selected="false"><i class="fa-solid fa-image"></i> Branding</a>
         <a href="#settings-email" class="filter-tab settings-tab" data-settings-tab="email" role="tab" aria-selected="false"><i class="fa-solid fa-envelope"></i> Email</a>
         <a href="#settings-stripe" class="filter-tab settings-tab" data-settings-tab="stripe" role="tab" aria-selected="false"><i class="fa-brands fa-stripe"></i> Stripe</a>
@@ -566,6 +624,7 @@ layout_start('Settings', 'settings');
 </div>
 
 <!-- ── Branding / Logo ──────────────────────────────────────────────────── -->
+<?php if ($settings_copy_visible): ?>
 <div id="settings-copy" class="tp-card mt-4 settings-panel" style="max-width:980px;">
     <form method="POST" action="index.php">
         <?= csrf_field() ?>
@@ -703,6 +762,7 @@ layout_start('Settings', 'settings');
         </div>
     </form>
 </div>
+<?php endif; ?>
 
 <div id="settings-branding" class="tp-card mt-4 settings-panel" style="max-width:780px;">
     <h6 class="mb-3" style="font-weight:600;border-bottom:1px solid var(--st);padding-bottom:.5rem;">
@@ -1231,7 +1291,7 @@ function activateSettingsTab(tabName) {
 function currentSettingsTabFromHash() {
     var hash = window.location.hash || '#settings-company';
     var normalized = hash.replace('#settings-', '');
-    return ['company', 'copy', 'branding', 'email', 'stripe', 'database'].indexOf(normalized) >= 0
+    return <?= json_encode(array_values($settings_tab_names)) ?>.indexOf(normalized) >= 0
         ? normalized
         : 'company';
 }

@@ -476,6 +476,7 @@ if (table_exists($pdo, 'settings')) {
         'portal_link_email_button' => 'Open Billing Portal',
         'invoice_paid_email_subject' => 'Invoice Paid — {invoice_number}',
         'invoice_paid_email_body' => 'Hi {customer_name}, Your payment of {amount} for invoice {invoice_number} has been received. Thank you!',
+        'super_admin_user_ids' => '[]',
         'vapid_public_key'  => '',
         'vapid_private_key' => '',
         'vapid_subject'     => '',

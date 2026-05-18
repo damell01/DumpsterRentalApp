@@ -9,6 +9,45 @@ require_once TMPL_PATH . '/layout.php';
 require_login();
 require_role('admin');
 
+$super_admin_ids = super_admin_user_ids();
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggle-super-admin') {
+    csrf_check();
+
+    $target_id = (int)($_POST['user_id'] ?? 0);
+    if ($target_id <= 0) {
+        flash_error('Invalid user ID.');
+        redirect('users.php');
+    }
+
+    $target = db_try_fetch('SELECT id, name, role FROM users WHERE id = ? LIMIT 1', [$target_id]);
+    if (!$target) {
+        flash_error('User not found.');
+        redirect('users.php');
+    }
+
+    if (($target['role'] ?? '') !== 'admin') {
+        flash_error('Only admin accounts can be marked as super admins.');
+        redirect('users.php');
+    }
+
+    $updated_ids = $super_admin_ids;
+    if (in_array($target_id, $updated_ids, true)) {
+        $updated_ids = array_values(array_filter($updated_ids, static fn($id) => (int)$id !== $target_id));
+        $label = 'removed from';
+    } else {
+        $updated_ids[] = $target_id;
+        $updated_ids = array_values(array_unique(array_map('intval', $updated_ids)));
+        sort($updated_ids);
+        $label = 'added to';
+    }
+
+    set_setting('super_admin_user_ids', json_encode($updated_ids, JSON_UNESCAPED_SLASHES));
+    log_activity('update', 'User ' . ($target['name'] ?? ('ID ' . $target_id)) . ' ' . $label . ' super admin access', 'user', $target_id);
+    flash_success(($target['name'] ?? 'User') . ' was ' . $label . ' super admin access.');
+    redirect('users.php');
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggle-active') {
     csrf_check();
 
@@ -80,6 +119,7 @@ if (empty($users)) {
 }
 
 $role_labels = user_roles();
+$super_admin_ids = super_admin_user_ids();
 
 layout_start('Users', 'users');
 ?>
@@ -102,7 +142,7 @@ layout_start('Users', 'users');
                     <th>Name</th>
                     <th>Email</th>
                     <th>Role</th>
-                    <th>Active</th>
+                    <th>Access</th>
                     <th>2FA</th>
                     <th>Last Login</th>
                     <th class="text-end">Actions</th>
@@ -131,6 +171,9 @@ layout_start('Users', 'users');
                             <span class="tp-badge badge-available">Active</span>
                         <?php else: ?>
                             <span class="tp-badge badge-canceled">Inactive</span>
+                        <?php endif; ?>
+                        <?php if (($u['role'] ?? '') === 'admin' && in_array((int)$u['id'], $super_admin_ids, true)): ?>
+                            <span class="tp-badge ms-1" style="background:rgba(249,115,22,.12);color:#ea580c;border:1px solid rgba(249,115,22,.25);">Super Admin</span>
                         <?php endif; ?>
                     </td>
                     <td>
@@ -162,6 +205,17 @@ layout_start('Users', 'users');
                         <a href="edit_user.php?id=<?= (int)$u['id'] ?>" class="btn-tp-ghost btn-tp-sm">
                             <i class="fa-solid fa-pencil"></i> Edit
                         </a>
+                        <?php if (($u['role'] ?? '') === 'admin'): ?>
+                        <form method="POST" action="users.php" class="d-inline">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="toggle-super-admin">
+                            <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
+                            <button type="submit" class="btn-tp-ghost btn-tp-sm" title="Toggle super admin access">
+                                <i class="fa-solid fa-user-shield"></i>
+                                <?= in_array((int)$u['id'], $super_admin_ids, true) ? 'Super Admin On' : 'Make Super Admin' ?>
+                            </button>
+                        </form>
+                        <?php endif; ?>
                         <?php if (!$is_self): ?>
                         <form method="POST" action="users.php" class="d-inline">
                             <?= csrf_field() ?>

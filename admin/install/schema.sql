@@ -543,6 +543,7 @@ INSERT IGNORE INTO `settings` (`key`, `value`) VALUES
   ('portal_link_email_button', 'Open Billing Portal'),
   ('invoice_paid_email_subject', 'Invoice Paid — {invoice_number}'),
   ('invoice_paid_email_body', 'Hi {customer_name}, Your payment of {amount} for invoice {invoice_number} has been received. Thank you!'),
+  ('super_admin_user_ids',   '[]'),
   ('currency',               'usd'),
   ('invoice_terms',          'Payment is due within 30 days of invoice date. Thank you for your business!'),
   ('vapid_public_key',       ''),

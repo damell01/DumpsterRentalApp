@@ -353,23 +353,36 @@ class SubscriptionService
         }
 
         $customer = \db_fetch('SELECT * FROM customers WHERE id = ? LIMIT 1', [$customerId]);
-        if ($customer) {
-            $this->notificationService->sendSubscriptionRenewed(
-                ['email' => $customer['email'] ?? ''],
-                (string)($subscription['service_name'] ?? ('Subscription ' . $subscriptionId)),
-                $amount
-            );
-        }
-
         if ($localInvoiceId > 0) {
+            $alreadyEmailed = (bool)\db_value(
+                "SELECT COUNT(*) FROM activity_log WHERE action = 'invoice_paid_emailed' AND entity_id = ?",
+                [$localInvoiceId]
+            );
             $localInvoice = \db_fetch('SELECT * FROM invoices WHERE id = ? LIMIT 1', [$localInvoiceId]);
-            if ($localInvoice && !empty($localInvoice['cust_email'])) {
+            if (!$alreadyEmailed && $localInvoice) {
                 try {
-                    \send_invoice_email_to_customer($localInvoice);
+                    $this->notificationService->sendInvoicePaidReceipt(
+                        ['email' => $customer['email'] ?? ($localInvoice['cust_email'] ?? '')],
+                        $localInvoice['invoice_number'] ?? ('INV-' . $localInvoiceId),
+                        (float)($localInvoice['total'] ?? $amount),
+                        $customer['name'] ?? ($localInvoice['cust_name'] ?? '')
+                    );
+                    $this->notificationService->notifySubscriptionPaymentReceived(
+                        (string)($subscription['service_name'] ?? ('Subscription ' . $subscriptionId)),
+                        (float)($localInvoice['total'] ?? $amount),
+                        $customer['name'] ?? ($localInvoice['cust_name'] ?? '')
+                    );
+                    \log_activity('invoice_paid_emailed', 'Sent subscription receipt for ' . ($localInvoice['invoice_number'] ?? $localInvoiceId), 'invoice', $localInvoiceId);
                 } catch (\Throwable $e) {
-                    \error_log('[SubscriptionService] send_invoice_email_to_customer failed for subscription invoice '
+                    \error_log('[SubscriptionService] subscription receipt send failed for invoice '
                         . $localInvoiceId . ': ' . $e->getMessage());
                 }
+            } elseif (!$alreadyEmailed) {
+                $this->notificationService->notifySubscriptionPaymentReceived(
+                    (string)($subscription['service_name'] ?? ('Subscription ' . $subscriptionId)),
+                    $amount,
+                    $customer['name'] ?? ''
+                );
             }
         }
     }

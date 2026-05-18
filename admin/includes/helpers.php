@@ -413,6 +413,59 @@ function setting_text(string $key, string $default = '', array $tokens = []): st
 }
 
 /**
+ * Return the configured super-admin user IDs.
+ *
+ * If no IDs are configured yet, the first admin who opens the feature can still
+ * access it so the list can be set up without locking everyone out.
+ *
+ * @return int[]
+ */
+function super_admin_user_ids(): array
+{
+    $raw = trim((string)get_setting('super_admin_user_ids', '[]'));
+    $ids = [];
+
+    $decoded = json_decode($raw, true);
+    if (is_array($decoded)) {
+        foreach ($decoded as $value) {
+            $id = (int)$value;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+    } else {
+        foreach (preg_split('/[^0-9]+/', $raw) ?: [] as $value) {
+            $id = (int)$value;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+    }
+
+    $ids = array_values(array_unique($ids));
+    sort($ids);
+    return $ids;
+}
+
+/**
+ * Return true when the signed-in user is allowed to see super-admin-only areas.
+ */
+function current_user_is_super_admin(): bool
+{
+    $user = current_user();
+    if (!$user || (string)($user['role'] ?? '') !== 'admin') {
+        return false;
+    }
+
+    $ids = super_admin_user_ids();
+    if (!$ids) {
+        return true;
+    }
+
+    return in_array((int)($user['id'] ?? 0), $ids, true);
+}
+
+/**
  * Persist a setting value using INSERT … ON DUPLICATE KEY UPDATE.
  *
  * @param string $key
