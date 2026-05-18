@@ -35,37 +35,39 @@ $payload = [
 // ── Core KPIs ────────────────────────────────────────────────────────────────
 $payload['kpis'] = [
     'wo_active' => api_int(
-        db_fetch("SELECT COUNT(*) AS cnt FROM work_orders WHERE status IN ('scheduled','delivered','active','pickup_requested')"),
+        db_try_fetch("SELECT COUNT(*) AS cnt FROM work_orders WHERE status IN ('scheduled','delivered','active','pickup_requested')", [], ['cnt' => 0]),
         'cnt'
     ),
     'wo_today_deliveries' => api_int(
-        db_fetch("SELECT COUNT(*) AS cnt FROM work_orders WHERE delivery_date = CURDATE() AND status NOT IN ('canceled','completed')"),
+        db_try_fetch("SELECT COUNT(*) AS cnt FROM work_orders WHERE delivery_date = CURDATE() AND status NOT IN ('canceled','completed')", [], ['cnt' => 0]),
         'cnt'
     ),
     'wo_today_pickups' => api_int(
-        db_fetch("SELECT COUNT(*) AS cnt FROM work_orders WHERE pickup_date = CURDATE() AND status NOT IN ('canceled','completed')"),
+        db_try_fetch("SELECT COUNT(*) AS cnt FROM work_orders WHERE pickup_date = CURDATE() AND status NOT IN ('canceled','completed')", [], ['cnt' => 0]),
         'cnt'
     ),
-    'revenue_month' => (float)(db_fetch(
+    'revenue_month' => (float)((db_try_fetch(
         "SELECT COALESCE(SUM(amount), 0) AS total FROM work_orders
          WHERE status = 'completed'
            AND MONTH(updated_at) = MONTH(NOW())
-           AND YEAR(updated_at)  = YEAR(NOW())"
-    )['total'] ?? 0),
+           AND YEAR(updated_at)  = YEAR(NOW())",
+        [],
+        ['total' => 0]
+    )['total'] ?? 0)),
     'dumpsters_available' => api_int(
-        db_fetch("SELECT COUNT(*) AS cnt FROM dumpsters WHERE status = 'available'"),
+        db_try_fetch("SELECT COUNT(*) AS cnt FROM dumpsters WHERE status = 'available'", [], ['cnt' => 0]),
         'cnt'
     ),
     'overdue_pickups' => api_int(
-        db_fetch("SELECT COUNT(*) AS cnt FROM work_orders WHERE pickup_date < CURDATE() AND status NOT IN ('picked_up','completed','canceled')"),
+        db_try_fetch("SELECT COUNT(*) AS cnt FROM work_orders WHERE pickup_date < CURDATE() AND status NOT IN ('picked_up','completed','canceled')", [], ['cnt' => 0]),
         'cnt'
     ),
     'upcoming_deliveries_7d' => api_int(
-        db_fetch("SELECT COUNT(*) AS cnt FROM work_orders WHERE delivery_date BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 7 DAY) AND status NOT IN ('canceled','completed')"),
+        db_try_fetch("SELECT COUNT(*) AS cnt FROM work_orders WHERE delivery_date BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 7 DAY) AND status NOT IN ('canceled','completed')", [], ['cnt' => 0]),
         'cnt'
     ),
     'upcoming_pickups_7d' => api_int(
-        db_fetch("SELECT COUNT(*) AS cnt FROM work_orders WHERE pickup_date BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 7 DAY) AND status NOT IN ('canceled','completed')"),
+        db_try_fetch("SELECT COUNT(*) AS cnt FROM work_orders WHERE pickup_date BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 7 DAY) AND status NOT IN ('canceled','completed')", [], ['cnt' => 0]),
         'cnt'
     ),
 ];
@@ -204,7 +206,7 @@ try {
 }
 
 // Recent work order updates
-$recent_wo = db_fetchall(
+$recent_wo = db_try_fetchall(
     "SELECT id, wo_number, cust_name, status, updated_at
      FROM work_orders
      ORDER BY updated_at DESC

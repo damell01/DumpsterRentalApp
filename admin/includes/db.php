@@ -75,6 +75,38 @@ function db_fetchall(string $sql, array $params = []): array
 }
 
 /**
+ * Best-effort fetch helpers for pages that should degrade gracefully when a
+ * table, column, or join target is missing on an older deployment.
+ */
+function db_try_fetch(string $sql, array $params = [], array|false $default = false): array|false
+{
+    try {
+        return db_fetch($sql, $params);
+    } catch (Throwable $e) {
+        return $default;
+    }
+}
+
+function db_try_fetchall(string $sql, array $params = [], array $default = []): array
+{
+    try {
+        return db_fetchall($sql, $params);
+    } catch (Throwable $e) {
+        return $default;
+    }
+}
+
+function db_try_value(string $sql, array $params = [], mixed $default = null): mixed
+{
+    try {
+        $value = db_value($sql, $params);
+        return $value === null ? $default : $value;
+    } catch (Throwable $e) {
+        return $default;
+    }
+}
+
+/**
  * Build and execute an INSERT from an associative array.
  * Returns the last inserted ID.
  *

@@ -20,7 +20,7 @@ $addr_cols = 'wo.service_address, wo.service_city, wo.service_state, wo.service_
 
 if ($view_mode === 'active') {
     // All dumpsters currently on-site, regardless of date
-    $all_jobs = db_fetchall(
+    $all_jobs = db_try_fetchall(
         "SELECT wo.id, wo.wo_number, wo.cust_name, wo.status,
                 wo.delivery_date, wo.pickup_date, wo.priority,
                 $addr_cols, d.size AS dumpster_size, d.unit_code AS dumpster_code
@@ -43,7 +43,7 @@ if ($view_mode === 'active') {
         'job_type' => in_array($wo['status'], ['scheduled', 'delivered', 'active'], true) ? 'delivery' : 'pickup',
     ]), $all_jobs);
 } else {
-    $deliveries = db_fetchall(
+    $deliveries = db_try_fetchall(
         "SELECT wo.id, wo.wo_number, wo.cust_name, wo.status,
                 wo.delivery_date, wo.pickup_date, wo.priority,
                 $addr_cols, d.size AS dumpster_size, d.unit_code AS dumpster_code
@@ -53,7 +53,7 @@ if ($view_mode === 'active') {
          ORDER BY wo.wo_number ASC",
         [$view_date]
     );
-    $pickups = db_fetchall(
+    $pickups = db_try_fetchall(
         "SELECT wo.id, wo.wo_number, wo.cust_name, wo.status,
                 wo.delivery_date, wo.pickup_date, wo.priority,
                 $addr_cols, d.size AS dumpster_size, d.unit_code AS dumpster_code

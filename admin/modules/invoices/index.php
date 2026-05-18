@@ -8,8 +8,6 @@ require_once dirname(__DIR__, 2) . '/includes/bootstrap.php';
 require_once TMPL_PATH . '/layout.php';
 require_login();
 
-$pdo = get_db();
-
 // ── Filter ────────────────────────────────────────────────────────────────────
 $filter = trim($_GET['filter'] ?? '');
 $valid_filters = ['draft', 'sent', 'paid', 'void'];
@@ -38,23 +36,37 @@ $per_page   = 25;
 $page       = max(1, (int)($_GET['page'] ?? 1));
 $offset     = ($page - 1) * $per_page;
 
-$total_count = (int)db_fetch("SELECT COUNT(*) AS cnt FROM invoices i $where_sql", $params)['cnt'];
+$total_count = (int)(db_try_fetch("SELECT COUNT(*) AS cnt FROM invoices i $where_sql", $params, ['cnt' => 0])['cnt'] ?? 0);
 $pages       = max(1, (int)ceil($total_count / $per_page));
 
-$invoices = db_fetchall(
-    "SELECT i.*,
-            c.name AS customer_name_linked
-     FROM invoices i
-     LEFT JOIN customers c ON c.id = i.customer_id
-     $where_sql
-     ORDER BY i.created_at DESC
-     LIMIT $per_page OFFSET $offset",
-    $params
-);
+$invoices = [];
+if (db_table_exists('customers')) {
+    $invoices = db_try_fetchall(
+        "SELECT i.*,
+                c.name AS customer_name_linked
+         FROM invoices i
+         LEFT JOIN customers c ON c.id = i.customer_id
+         $where_sql
+         ORDER BY i.created_at DESC
+         LIMIT $per_page OFFSET $offset",
+        $params
+    );
+}
+
+if (empty($invoices) && $total_count > 0) {
+    $invoices = db_try_fetchall(
+        "SELECT i.*, NULL AS customer_name_linked
+         FROM invoices i
+         $where_sql
+         ORDER BY i.created_at DESC
+         LIMIT $per_page OFFSET $offset",
+        $params
+    );
+}
 
 // ── Tab counts ────────────────────────────────────────────────────────────────
 $counts = [];
-foreach (db_fetchall("SELECT status, COUNT(*) AS cnt FROM invoices GROUP BY status") as $r) {
+foreach (db_try_fetchall("SELECT status, COUNT(*) AS cnt FROM invoices GROUP BY status") as $r) {
     $counts[$r['status']] = (int)$r['cnt'];
 }
 $counts[''] = array_sum($counts);

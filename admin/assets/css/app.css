@@ -2163,9 +2163,9 @@ hr { border-color: var(--st); opacity: 1; }
 
 /* ── Sticky table headers ───────────────────────────────────────────────────── */
 .tp-table thead th {
-    position: sticky;
-    top: 60px;
-    z-index: 5;
+    position: static;
+    top: auto;
+    z-index: auto;
     background: var(--dk2, #f3f4f6);
     box-shadow: 0 1px 0 var(--st2, #e5e7eb);
 }
