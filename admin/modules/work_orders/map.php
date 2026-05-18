@@ -16,7 +16,13 @@ $today     = date('Y-m-d');
 $is_today  = ($view_date === $today);
 
 // ── Queries ───────────────────────────────────────────────────────────────────
-$addr_cols = 'wo.service_address, wo.service_city, wo.service_state, wo.service_zip, wo.cust_phone';
+$addr_cols = "
+    COALESCE(NULLIF(TRIM(wo.service_address), ''), NULLIF(TRIM(c.address), ''), NULLIF(TRIM(c.billing_address), '')) AS service_address,
+    COALESCE(NULLIF(TRIM(wo.service_city), ''), NULLIF(TRIM(c.city), ''), NULLIF(TRIM(c.billing_city), '')) AS service_city,
+    COALESCE(NULLIF(TRIM(wo.service_state), ''), NULLIF(TRIM(c.state), ''), NULLIF(TRIM(c.billing_state), '')) AS service_state,
+    COALESCE(NULLIF(TRIM(wo.service_zip), ''), NULLIF(TRIM(c.zip), ''), NULLIF(TRIM(c.billing_zip), '')) AS service_zip,
+    COALESCE(NULLIF(TRIM(wo.cust_phone), ''), NULLIF(TRIM(c.phone), '')) AS cust_phone
+";
 
 if ($view_mode === 'active') {
     // All dumpsters currently on-site, regardless of date
@@ -25,6 +31,7 @@ if ($view_mode === 'active') {
                 wo.delivery_date, wo.pickup_date, wo.priority,
                 $addr_cols, d.size AS dumpster_size, d.unit_code AS dumpster_code
          FROM work_orders wo
+         LEFT JOIN customers c ON wo.customer_id = c.id
          LEFT JOIN dumpsters d ON wo.dumpster_id = d.id
          WHERE wo.status IN ('scheduled','delivered','active','pickup_requested','picked_up')
          ORDER BY wo.status ASC, wo.wo_number ASC"
@@ -48,6 +55,7 @@ if ($view_mode === 'active') {
                 wo.delivery_date, wo.pickup_date, wo.priority,
                 $addr_cols, d.size AS dumpster_size, d.unit_code AS dumpster_code
          FROM work_orders wo
+         LEFT JOIN customers c ON wo.customer_id = c.id
          LEFT JOIN dumpsters d ON wo.dumpster_id = d.id
          WHERE wo.delivery_date = ? AND wo.status NOT IN ('completed','canceled','picked_up')
          ORDER BY wo.wo_number ASC",
@@ -58,6 +66,7 @@ if ($view_mode === 'active') {
                 wo.delivery_date, wo.pickup_date, wo.priority,
                 $addr_cols, d.size AS dumpster_size, d.unit_code AS dumpster_code
          FROM work_orders wo
+         LEFT JOIN customers c ON wo.customer_id = c.id
          LEFT JOIN dumpsters d ON wo.dumpster_id = d.id
          WHERE (
              (wo.pickup_date = ? AND wo.status NOT IN ('completed','canceled','picked_up'))
@@ -669,6 +678,15 @@ var geocodeTotal   = 0;
 
 document.querySelectorAll('.dispatch-row').forEach(function (r) { rowMap[r.dataset.jobId] = r; });
 
+function hasValidCoords(job) {
+    return job
+        && Number.isFinite(Number(job.lat))
+        && Number.isFinite(Number(job.lng))
+        && Math.abs(Number(job.lat)) <= 90
+        && Math.abs(Number(job.lng)) <= 180
+        && !(Number(job.lat) === 0 && Number(job.lng) === 0);
+}
+
 // ── Popup builder ────────────────────────────────────────────────────────────
 function buildPopup(job) {
     var type  = job.job_type === 'delivery' ? 'Delivery' : 'Pickup';
@@ -791,7 +809,7 @@ function geocodeAddress(addr) {
 }
 
 // ── Sequential geocoder (only for cache misses) ──────────────────────────────
-var geocodeQueue = jobs.filter(function (j) { return j.lat === null; });
+var geocodeQueue = jobs.filter(function (j) { return !hasValidCoords(j); });
 geocodeTotal   = geocodeQueue.length;
 geocodePending = geocodeTotal;
 var geocodeIndex = 0;
@@ -833,9 +851,21 @@ function geocodeNext() {
         });
 }
 
+function queueAllUnmappedJobsForRetry() {
+    geocodeQueue = jobs.filter(function (job) {
+        var addr = job.full_address || job.service_address;
+        var alreadyLoaded = geocodedPts.some(function (pt) { return String(pt.job.id) === String(job.id); });
+        return !alreadyLoaded && !hasValidCoords(job) && !!addr;
+    });
+    geocodeTotal = geocodeQueue.length;
+    geocodePending = geocodeQueue.length;
+    geocodeIndex = 0;
+    updateGeocodeProgress();
+}
+
 // Cached jobs load immediately
-jobs.filter(function (j) { return j.lat !== null; })
-    .forEach(function (j) { addMarker(j, j.lat, j.lng); });
+jobs.filter(function (j) { return hasValidCoords(j); })
+    .forEach(function (j) { addMarker(j, Number(j.lat), Number(j.lng)); });
 
 // ── Route optimization ───────────────────────────────────────────────────────
 function haversine(a, b) {
@@ -1232,6 +1262,10 @@ if (jobs.length === 0) {
 } else {
     // Geocode company address for depot (doesn't count against rate limit display)
     var afterDepot = function () {
+        if (geocodedPts.length === 0 && geocodeQueue.length === 0) {
+            queueAllUnmappedJobsForRetry();
+        }
+
         // Disable optimize button until enough points are geocoded
         if (geocodedPts.length < 2 && geocodePending > 0) {
             var btn = document.getElementById('btn-optimize');
@@ -1252,6 +1286,15 @@ if (jobs.length === 0) {
     } else {
         afterDepot();
     }
+
+    setTimeout(function () {
+        if (geocodedPts.length === 0) {
+            queueAllUnmappedJobsForRetry();
+            if (geocodeQueue.length > 0) {
+                setTimeout(geocodeNext, 0);
+            }
+        }
+    }, 1800);
 }
 
 
