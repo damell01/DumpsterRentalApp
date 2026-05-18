@@ -163,6 +163,14 @@ function layout_start(string $page_title, string $active_nav = ''): void
             'badge' => 'work_orders',
         ],
         [
+            'key'   => 'dispatch_map',
+            'label' => 'Dispatch Map',
+            'icon'  => 'fa-map-location-dot',
+            'href'  => APP_URL . '/modules/work_orders/map.php',
+            'roles' => null,
+            'badge' => null,
+        ],
+        [
             'key'   => 'calendar',
             'label' => 'Calendar',
             'icon'  => 'fa-calendar-days',
