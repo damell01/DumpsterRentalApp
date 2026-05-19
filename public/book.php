@@ -8,12 +8,20 @@ require_once $_admin_root . '/config/config.php';
 require_once INC_PATH . '/db.php';
 require_once INC_PATH . '/helpers.php';
 
+$public_sizes = public_dumpster_sizes();
+
 $units = db_fetchall(
     "SELECT id, unit_code, type, size, daily_rate, base_price, rental_days, extra_day_price, image, status
      FROM dumpsters
      WHERE active = 1 AND status != 'maintenance'
      ORDER BY COALESCE(base_price, daily_rate) ASC, size ASC, unit_code ASC"
 );
+
+if (db_table_exists('dumpster_size_options') || !empty($public_sizes)) {
+    $units = array_values(array_filter($units, static function (array $unit) use ($public_sizes): bool {
+        return in_array((string)($unit['size'] ?? ''), $public_sizes, true);
+    }));
+}
 
 // Pre-select a unit from URL param (?unit_id=5 or ?size=20)
 $preselect_unit_id = (int)($_GET['unit_id'] ?? 0);

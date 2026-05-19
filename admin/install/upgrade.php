@@ -136,6 +136,77 @@ if (!column_exists($pdo, 'dumpsters', 'image')) {
     $log[] = "[SKIP] dumpsters.image (already exists)";
 }
 
+echo "\n--- Upgrade 1b: dumpster size catalog ---\n";
+
+if (!table_exists($pdo, 'dumpster_size_options')) {
+    run_step($pdo, "CREATE TABLE dumpster_size_options", "
+        CREATE TABLE `dumpster_size_options` (
+          `id`             INT(11)      NOT NULL AUTO_INCREMENT,
+          `label`          VARCHAR(80)  NOT NULL,
+          `description`    VARCHAR(255)          DEFAULT NULL,
+          `sort_order`     INT(11)      NOT NULL DEFAULT 0,
+          `public_enabled` TINYINT(1)   NOT NULL DEFAULT 1,
+          `active`         TINYINT(1)   NOT NULL DEFAULT 1,
+          `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          `updated_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          PRIMARY KEY (`id`),
+          UNIQUE KEY `uq_dumpster_size_options_label` (`label`),
+          KEY `idx_dumpster_size_options_public` (`public_enabled`),
+          KEY `idx_dumpster_size_options_active` (`active`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+} else {
+    $log[] = "[SKIP] dumpster_size_options table (already exists)";
+}
+
+if (table_exists($pdo, 'dumpster_size_options')) {
+    $defaultSizes = [
+        ['10 Yard', 'Best for small cleanouts, garage purge jobs, and light remodeling.', 10],
+        ['15 Yard', 'Great for medium room remodels, flooring jobs, and compact property cleanups.', 15],
+        ['20 Yard', 'Ideal for remodels, roofing, and all-around residential renovation work.', 20],
+        ['30 Yard', 'Built for larger renovations, contractor jobs, and major property cleanouts.', 30],
+        ['40 Yard', 'Best for demolition, commercial work, and the biggest debris loads.', 40],
+    ];
+    foreach ($defaultSizes as [$label, $description, $sortOrder]) {
+        try {
+            $pdo->prepare(
+                "INSERT IGNORE INTO `dumpster_size_options`
+                 (`label`, `description`, `sort_order`, `public_enabled`, `active`)
+                 VALUES (?, ?, ?, 1, 1)"
+            )->execute([$label, $description, $sortOrder]);
+            $log[] = "[OK]  dumpster_size_options.$label (inserted if missing)";
+        } catch (PDOException $e) {
+            $errors[] = "[FAIL] dumpster_size_options.$label - " . $e->getMessage();
+        }
+    }
+
+    if (table_exists($pdo, 'dumpsters') && column_exists($pdo, 'dumpsters', 'size')) {
+        try {
+            $sizes = $pdo->query(
+                "SELECT DISTINCT TRIM(`size`) AS label
+                 FROM `dumpsters`
+                 WHERE `size` IS NOT NULL AND TRIM(`size`) <> ''"
+            )->fetchAll(PDO::FETCH_ASSOC);
+            $insert = $pdo->prepare(
+                "INSERT IGNORE INTO `dumpster_size_options` (`label`, `sort_order`, `public_enabled`, `active`)
+                 VALUES (?, ?, 1, 1)"
+            );
+            foreach ($sizes as $row) {
+                $label = trim((string)($row['label'] ?? ''));
+                if ($label === '') {
+                    continue;
+                }
+                preg_match('/\d+/', $label, $match);
+                $sortOrder = isset($match[0]) ? (int)$match[0] : 999;
+                $insert->execute([$label, $sortOrder]);
+            }
+            $log[] = "[OK]  dumpster_size_options synced from dumpsters";
+        } catch (PDOException $e) {
+            $errors[] = "[FAIL] dumpster_size_options sync - " . $e->getMessage();
+        }
+    }
+}
+
 // =============================================================================
 // UPGRADE 2 — bookings table
 // =============================================================================

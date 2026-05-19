@@ -165,6 +165,24 @@ CREATE TABLE IF NOT EXISTS `dumpsters` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
+-- dumpster_size_options
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `dumpster_size_options` (
+  `id`              int(11)      NOT NULL AUTO_INCREMENT,
+  `label`           varchar(80)  NOT NULL,
+  `description`     varchar(255)          DEFAULT NULL,
+  `sort_order`      int(11)      NOT NULL DEFAULT 0,
+  `public_enabled`  tinyint(1)   NOT NULL DEFAULT 1,
+  `active`          tinyint(1)   NOT NULL DEFAULT 1,
+  `created_at`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_dumpster_size_options_label` (`label`),
+  KEY `idx_dumpster_size_options_public` (`public_enabled`),
+  KEY `idx_dumpster_size_options_active` (`active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
 -- workers  (simple driver/worker roster for job assignment)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `workers` (
@@ -509,6 +527,13 @@ CREATE TABLE IF NOT EXISTS `password_resets` (
   UNIQUE KEY `uq_pw_reset_token` (`token`),
   KEY `idx_pw_reset_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO `dumpster_size_options` (`label`, `description`, `sort_order`, `public_enabled`, `active`) VALUES
+  ('10 Yard', 'Best for small cleanouts, garage purge jobs, and light remodeling.', 10, 1, 1),
+  ('15 Yard', 'Great for medium room remodels, flooring jobs, and compact property cleanups.', 15, 1, 1),
+  ('20 Yard', 'Ideal for remodels, roofing, and all-around residential renovation work.', 20, 1, 1),
+  ('30 Yard', 'Built for larger renovations, contractor jobs, and major property cleanouts.', 30, 1, 1),
+  ('40 Yard', 'Best for demolition, commercial work, and the biggest debris loads.', 40, 1, 1);
 
 SET FOREIGN_KEY_CHECKS = 1;
 

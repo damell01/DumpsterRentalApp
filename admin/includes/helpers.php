@@ -522,19 +522,68 @@ function validate_required(array $fields, array $data): array
 }
 
 /**
- * Return the list of available dumpster sizes.
+ * Return the dumpster size catalog.
  *
- * @return string[]
+ * @param bool $onlyActive
+ * @param bool|null $onlyPublic
+ * @return array<int,array{id?:int,label:string,description:string,sort_order:int,public_enabled:int,active:int}>
  */
-function dumpster_sizes(): array
+function dumpster_size_catalog(bool $onlyActive = true, ?bool $onlyPublic = null): array
 {
-    static $sizes = null;
+    static $cache = [];
+    $cacheKey = ($onlyActive ? '1' : '0') . ':' . ($onlyPublic === null ? 'all' : ($onlyPublic ? '1' : '0'));
 
-    if ($sizes !== null) {
-        return $sizes;
+    if (isset($cache[$cacheKey])) {
+        return $cache[$cacheKey];
     }
 
-    $fallback = ['10 Yard', '15 Yard', '20 Yard', '30 Yard', '40 Yard'];
+    $fallback = [
+        ['label' => '10 Yard', 'description' => '', 'sort_order' => 10, 'public_enabled' => 1, 'active' => 1],
+        ['label' => '15 Yard', 'description' => '', 'sort_order' => 15, 'public_enabled' => 1, 'active' => 1],
+        ['label' => '20 Yard', 'description' => '', 'sort_order' => 20, 'public_enabled' => 1, 'active' => 1],
+        ['label' => '30 Yard', 'description' => '', 'sort_order' => 30, 'public_enabled' => 1, 'active' => 1],
+        ['label' => '40 Yard', 'description' => '', 'sort_order' => 40, 'public_enabled' => 1, 'active' => 1],
+    ];
+
+    if (db_table_exists('dumpster_size_options')) {
+        try {
+            $where = ['1=1'];
+            if ($onlyActive) {
+                $where[] = 'active = 1';
+            }
+            if ($onlyPublic !== null) {
+                $where[] = 'public_enabled = ' . ($onlyPublic ? '1' : '0');
+            }
+
+            $rows = db_fetchall(
+                'SELECT id, label, description, sort_order, public_enabled, active
+                 FROM dumpster_size_options
+                 WHERE ' . implode(' AND ', $where) . '
+                 ORDER BY sort_order ASC, label ASC'
+            );
+
+            $catalog = [];
+            foreach ($rows as $row) {
+                $label = trim((string)($row['label'] ?? ''));
+                if ($label === '') {
+                    continue;
+                }
+                $catalog[] = [
+                    'id' => (int)($row['id'] ?? 0),
+                    'label' => $label,
+                    'description' => trim((string)($row['description'] ?? '')),
+                    'sort_order' => (int)($row['sort_order'] ?? 0),
+                    'public_enabled' => !empty($row['public_enabled']) ? 1 : 0,
+                    'active' => !empty($row['active']) ? 1 : 0,
+                ];
+            }
+
+            $cache[$cacheKey] = $catalog;
+            return $cache[$cacheKey];
+        } catch (Throwable $e) {
+            // Fall back below.
+        }
+    }
 
     try {
         $rows = db_fetchall(
@@ -545,40 +594,70 @@ function dumpster_sizes(): array
                AND size IS NOT NULL
                AND TRIM(size) <> ''"
         );
+        $found = [];
+        foreach ($rows as $row) {
+            $size = trim((string)($row['size'] ?? ''));
+            if ($size !== '') {
+                $found[$size] = [
+                    'label' => $size,
+                    'description' => '',
+                    'sort_order' => (int)preg_replace('/\D+/', '', $size),
+                    'public_enabled' => 1,
+                    'active' => 1,
+                ];
+            }
+        }
+        if ($found) {
+            $fallback = array_values($found);
+        }
     } catch (Throwable $e) {
-        $sizes = $fallback;
-        return $sizes;
+        // Keep default fallback.
     }
 
-    $found = [];
-    foreach ($rows as $row) {
-        $size = trim((string)($row['size'] ?? ''));
-        if ($size !== '') {
-            $found[] = $size;
-        }
-    }
-
-    $found = array_values(array_unique($found));
-    if (!$found) {
-        $sizes = $fallback;
-        return $sizes;
-    }
-
-    usort($found, static function (string $a, string $b): int {
-        preg_match('/\d+/', $a, $aMatch);
-        preg_match('/\d+/', $b, $bMatch);
-        $aNum = isset($aMatch[0]) ? (int)$aMatch[0] : PHP_INT_MAX;
-        $bNum = isset($bMatch[0]) ? (int)$bMatch[0] : PHP_INT_MAX;
-
+    usort($fallback, static function (array $a, array $b): int {
+        $aNum = (int)preg_replace('/\D+/', '', (string)$a['label']);
+        $bNum = (int)preg_replace('/\D+/', '', (string)$b['label']);
         if ($aNum === $bNum) {
-            return strcasecmp($a, $b);
+            return strcasecmp((string)$a['label'], (string)$b['label']);
         }
-
         return $aNum <=> $bNum;
     });
 
-    $sizes = $found;
-    return $sizes;
+    $cache[$cacheKey] = $fallback;
+    return $cache[$cacheKey];
+}
+
+/**
+ * Return dumpster size labels.
+ *
+ * @return string[]
+ */
+function dumpster_size_labels(bool $onlyActive = true, ?bool $onlyPublic = null): array
+{
+    return array_values(array_map(
+        static fn(array $row): string => (string)$row['label'],
+        dumpster_size_catalog($onlyActive, $onlyPublic)
+    ));
+}
+
+/**
+ * Return the list of available dumpster sizes for internal admin flows.
+ *
+ * @return string[]
+ */
+function dumpster_sizes(): array
+{
+    return dumpster_size_labels(true, null);
+}
+
+/**
+ * Return the list of publicly visible dumpster sizes.
+ *
+ * @return string[]
+ */
+function public_dumpster_sizes(): array
+{
+    return dumpster_size_labels(true, true);
 }
 
 /**
