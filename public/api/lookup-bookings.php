@@ -12,6 +12,7 @@ $_admin_root = dirname(__DIR__, 2) . '/admin';
 require_once $_admin_root . '/config/config.php';
 require_once INC_PATH . '/db.php';
 require_once INC_PATH . '/helpers.php';
+require_once INC_PATH . '/api_rate_limit.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
@@ -23,6 +24,9 @@ $raw  = file_get_contents('php://input');
 $data = json_decode($raw ?: '', true);
 if (!is_array($data)) { $data = $_POST; }
 
+// IP rate limit first — before reading the body (cheapest check)
+api_rate_limit('booking_lookup', 10, 3600); // 10 lookups per IP per hour
+
 $identifier = trim($data['identifier'] ?? '');
 
 if (empty($identifier)) {
@@ -31,27 +35,8 @@ if (empty($identifier)) {
     exit;
 }
 
-// Simple rate-limit: max 10 lookups per IP per hour via activity_log
-$ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-try {
-    $recent = db_fetch(
-        "SELECT COUNT(*) AS cnt FROM activity_log
-          WHERE action = 'booking_lookup' AND ip_address = ? AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)",
-        [$ip]
-    );
-    if ((int)($recent['cnt'] ?? 0) >= 10) {
-        http_response_code(429);
-        echo json_encode(['success' => false, 'error' => 'Too many lookups. Please try again later.']);
-        exit;
-    }
-    db_execute(
-        "INSERT INTO activity_log (user_id, action, description, entity_type, ip_address, created_at)
-         VALUES (0, 'booking_lookup', ?, 'booking', ?, NOW())",
-        [substr($identifier, 0, 50), $ip]
-    );
-} catch (\Throwable $e) {
-    // Non-fatal; continue
-}
+// Per-identifier limit: 5 lookups per unique email/phone per hour (prevents enumeration)
+api_rate_limit('booking_lookup_id', 5, 3600, 0, md5(strtolower($identifier)));
 
 // Determine if identifier is email or phone
 $is_email = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false;

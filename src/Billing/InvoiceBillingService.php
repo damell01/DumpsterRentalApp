@@ -8,6 +8,12 @@ class InvoiceBillingService
     {
         $existing = \db_fetch('SELECT id FROM invoices WHERE stripe_invoice_id = ? LIMIT 1', [$stripeInvoice->id]);
         if ($existing) {
+            if ($subscriptionId !== null) {
+                \db_execute(
+                    'UPDATE invoices SET subscription_id = COALESCE(subscription_id, ?), updated_at = NOW() WHERE id = ?',
+                    [$subscriptionId, (int)$existing['id']]
+                );
+            }
             return (int)$existing['id'];
         }
 

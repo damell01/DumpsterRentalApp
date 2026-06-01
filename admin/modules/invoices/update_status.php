@@ -20,10 +20,15 @@ if ($id <= 0 || !in_array($status, ['draft', 'sent', 'paid', 'void', 'canceled']
 $inv = db_fetch('SELECT id, invoice_number FROM invoices WHERE id = ? LIMIT 1', [$id]);
 if (!$inv) { flash_error('Invoice not found.'); redirect('index.php'); }
 
-db_update('invoices', [
+$updates = [
     'status'     => $status,
     'updated_at' => date('Y-m-d H:i:s'),
-], 'id', $id);
+];
+if ($status === 'paid') {
+    $updates['paid_at'] = date('Y-m-d H:i:s');
+}
+
+db_update('invoices', $updates, 'id', $id);
 
 log_activity('update_invoice_status', 'Invoice ' . $inv['invoice_number'] . ' → ' . $status, 'invoice', $id);
 flash_success('Invoice ' . $inv['invoice_number'] . ' marked as ' . ucfirst($status) . '.');

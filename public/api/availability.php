@@ -11,6 +11,10 @@ $_admin_root = dirname(__DIR__, 2) . '/admin';
 require_once $_admin_root . '/config/config.php';
 require_once INC_PATH . '/db.php';
 require_once INC_PATH . '/helpers.php';
+require_once INC_PATH . '/api_rate_limit.php';
+
+// 120 checks per IP per hour — generous for the booking UI's date picker
+api_rate_limit('availability', 120, 3600);
 
 function json_response(bool $available, string $message, int $status = 200): void
 {

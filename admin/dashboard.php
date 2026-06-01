@@ -23,25 +23,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'show_
 
 // ── KPI Queries ──────────────────────────────────────────────────────────────
 
-$wo_active = (int)(db_fetch(
-    "SELECT COUNT(*) AS cnt FROM work_orders WHERE status IN ('scheduled','delivered','active','pickup_requested')"
+$wo_active = (int)(db_try_fetch(
+    "SELECT COUNT(*) AS cnt FROM work_orders WHERE status IN ('scheduled','delivered','active','pickup_requested')",
+    [],
+    ['cnt' => 0]
 )['cnt'] ?? 0);
 
-$wo_today_deliveries = (int)(db_fetch(
+$wo_today_deliveries = (int)(db_try_fetch(
     "SELECT COUNT(*) AS cnt FROM work_orders
-     WHERE delivery_date = CURDATE() AND status NOT IN ('canceled','completed')"
+     WHERE delivery_date = CURDATE() AND status NOT IN ('canceled','completed')",
+    [],
+    ['cnt' => 0]
 )['cnt'] ?? 0);
 
-$wo_today_pickups = (int)(db_fetch(
+$wo_today_pickups = (int)(db_try_fetch(
     "SELECT COUNT(*) AS cnt FROM work_orders
-     WHERE pickup_date = CURDATE() AND status NOT IN ('canceled','completed')"
+     WHERE pickup_date = CURDATE() AND status NOT IN ('canceled','completed')",
+    [],
+    ['cnt' => 0]
 )['cnt'] ?? 0);
 
-$revenue_row = db_fetch(
+$revenue_row = db_try_fetch(
     "SELECT COALESCE(SUM(amount), 0) AS total FROM work_orders
      WHERE status = 'completed'
        AND MONTH(updated_at) = MONTH(NOW())
-       AND YEAR(updated_at)  = YEAR(NOW())"
+       AND YEAR(updated_at)  = YEAR(NOW())",
+    [],
+    ['total' => 0]
 );
 $revenue_month = (float)($revenue_row['total'] ?? 0);
 
@@ -118,7 +126,7 @@ $launch_status = (string)$launch_readiness['status'];
 $launch_status_class = (string)$launch_readiness['status_class'];
 $launch_pending_checks = $launch_readiness['pending_checks'];
 
-$recent_wo = db_fetchall(
+$recent_wo = db_try_fetchall(
     "SELECT wo.id, wo.wo_number, wo.cust_name, wo.status, wo.delivery_date, wo.amount,
             c.name AS customer_name
      FROM work_orders wo
@@ -128,7 +136,7 @@ $recent_wo = db_fetchall(
 );
 
 // ── Upcoming Deliveries (next 7 days) ────────────────────────────────────────
-$upcoming_deliveries = db_fetchall(
+$upcoming_deliveries = db_try_fetchall(
     "SELECT wo.id, wo.wo_number, wo.cust_name, wo.service_address, wo.service_city,
             wo.delivery_date, wo.size, wo.status
      FROM work_orders wo
@@ -138,7 +146,7 @@ $upcoming_deliveries = db_fetchall(
 );
 
 // ── Upcoming Pickups (next 7 days) ───────────────────────────────────────────
-$upcoming_pickups = db_fetchall(
+$upcoming_pickups = db_try_fetchall(
     "SELECT wo.id, wo.wo_number, wo.cust_name, wo.service_address, wo.service_city,
             wo.pickup_date, wo.size, wo.status
      FROM work_orders wo
@@ -148,7 +156,7 @@ $upcoming_pickups = db_fetchall(
 );
 
 // ── Overdue Pickups ───────────────────────────────────────────────────────────
-$overdue_pickups = db_fetchall(
+$overdue_pickups = db_try_fetchall(
     "SELECT wo.id, wo.wo_number, wo.cust_name, wo.service_address, wo.service_city,
             wo.pickup_date, wo.size, wo.status
      FROM work_orders wo

@@ -145,6 +145,14 @@ $multi         = count($bookings) > 1;
 $page_title = $all_pending_review ? 'Booking Request Received' : 'Booking Confirmed';
 $terms_download_url = '/download-terms.php?ids=' . urlencode($ids_str) . '&token=' . urlencode($token);
 $has_terms_document = trim((string)get_setting('booking_terms', '')) !== '';
+$subject_phrase = $all_pending_review
+    ? ($multi ? 'Your booking requests have' : 'Your booking request has')
+    : ($multi ? count($bookings) . ' dumpster rentals have' : 'Your dumpster rental has');
+$copy_tokens = [
+    'company_name'   => $company_name,
+    'customer_name'  => $first_booking['customer_name'] ?? '',
+    'subject_phrase' => $subject_phrase,
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -308,14 +316,20 @@ $has_terms_document = trim((string)get_setting('booking_terms', '')) !== '';
     <?php if ($all_pending_review): ?>
     <div class="success-title">REQUEST <span>RECEIVED!</span></div>
     <p style="color:var(--gray-light);margin-bottom:1rem;">
-        Thank you, <?= htmlspecialchars($first_booking['customer_name'], ENT_QUOTES, 'UTF-8') ?>.
-        <?= $multi ? 'Your booking requests have' : 'Your booking request has' ?> been submitted for review. We will follow up with approval details and payment instructions if needed.
+        <?= nl2br(htmlspecialchars(setting_text(
+            'booking_success_pending_intro',
+            'Thank you, {customer_name}. {subject_phrase} been submitted for review. We will follow up with approval details and payment instructions if needed.',
+            $copy_tokens
+        ), ENT_QUOTES, 'UTF-8')) ?>
     </p>
     <?php else: ?>
     <div class="success-title">BOOKING<?= $multi ? 'S' : '' ?> <span>CONFIRMED!</span></div>
     <p style="color:var(--gray-light);margin-bottom:1rem;">
-        Thank you, <?= htmlspecialchars($first_booking['customer_name'], ENT_QUOTES, 'UTF-8') ?>!
-        <?= $multi ? count($bookings) . ' dumpster rentals have' : 'Your dumpster rental has' ?> been booked.
+        <?= nl2br(htmlspecialchars(setting_text(
+            'booking_success_confirmed_intro',
+            'Thank you, {customer_name}! {subject_phrase} been booked.',
+            $copy_tokens
+        ), ENT_QUOTES, 'UTF-8')) ?>
     </p>
     <?php endif; ?>
 
@@ -436,7 +450,11 @@ $has_terms_document = trim((string)get_setting('booking_terms', '')) !== '';
     <div class="booking-card" style="text-align:center;">
         <h3><i class="fas fa-file-contract" style="color:var(--orange);margin-right:.4rem;"></i> Terms & Agreement</h3>
         <p style="color:var(--gray-light);font-size:.92rem;margin-bottom:1rem;">
-            Keep a copy of the signed rental terms for your records.
+            <?= nl2br(htmlspecialchars(setting_text(
+                'booking_success_terms_text',
+                'Keep a copy of the signed rental terms for your records.',
+                $copy_tokens
+            ), ENT_QUOTES, 'UTF-8')) ?>
         </p>
         <a href="<?= htmlspecialchars($terms_download_url, ENT_QUOTES, 'UTF-8') ?>" class="btn-panda-outline">
             <i class="fas fa-file-pdf"></i> Download Terms PDF
@@ -445,8 +463,16 @@ $has_terms_document = trim((string)get_setting('booking_terms', '')) !== '';
     <?php endif; ?>
 
     <div class="success-help-card">
-        <strong>Keep this page handy.</strong><br>
-        Use these booking numbers when you call, email, or check your order in the customer portal.
+        <strong><?= htmlspecialchars(setting_text(
+            'booking_success_keep_title',
+            'Keep this page handy.',
+            $copy_tokens
+        ), ENT_QUOTES, 'UTF-8') ?></strong><br>
+        <?= nl2br(htmlspecialchars(setting_text(
+            'booking_success_keep_body',
+            'Use these booking numbers when you call, email, or check your order in the customer portal.',
+            $copy_tokens
+        ), ENT_QUOTES, 'UTF-8')) ?>
     </div>
 
     <?php if ($first_booking['payment_method'] !== 'stripe'): ?>
@@ -454,18 +480,26 @@ $has_terms_document = trim((string)get_setting('booking_terms', '')) !== '';
         <i class="fas fa-info-circle" style="color:var(--orange);"></i>
         <strong style="color:var(--white);">Payment Note:</strong>
         <?php if ($first_booking['payment_method'] === 'cash'): ?>
-            Please have cash payment ready at time of delivery.
+            <?php
+            $cash_note = setting_text('payment_note_cash', 'Please have cash payment ready at time of delivery.', $copy_tokens);
+            echo nl2br(htmlspecialchars($cash_note, ENT_QUOTES, 'UTF-8'));
+            ?>
         <?php else: ?>
-            Please have your check made out to
-            <strong style="color:var(--white);"><?= htmlspecialchars($company_name, ENT_QUOTES, 'UTF-8') ?></strong>
-            ready at time of delivery.
+            <?php
+            $check_note = setting_text('payment_note_check', 'Please have your check made out to {company_name} ready at time of delivery.', $copy_tokens);
+            echo nl2br(htmlspecialchars($check_note, ENT_QUOTES, 'UTF-8'));
+            ?>
         <?php endif; ?>
     </div>
     <?php endif; ?>
 
     <?php if ($company_phone): ?>
     <p style="color:var(--gray);font-size:.85rem;margin-top:1.5rem;">
-        Questions? Call us at
+        <?= htmlspecialchars(setting_text(
+            'booking_success_contact_prompt',
+            'Questions? Call us at',
+            $copy_tokens
+        ), ENT_QUOTES, 'UTF-8') ?>
         <a href="tel:<?= htmlspecialchars(preg_replace('/\D/', '', $company_phone), ENT_QUOTES, 'UTF-8') ?>"
            style="color:var(--orange);">
             <?= htmlspecialchars(fmt_phone($company_phone), ENT_QUOTES, 'UTF-8') ?>

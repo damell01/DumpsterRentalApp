@@ -267,10 +267,63 @@ try {
     $log[] = '  → ERROR: ' . $e->getMessage();
 }
 
-// ── Task 8: Log completion ────────────────────────────────────────────────────
+// ── Task 8: Post-job review requests ─────────────────────────────────────────
+$log[] = '';
+$log[] = '[Task 8] Post-job review requests';
+try {
+    $review_url = get_setting('review_url', '');
+    if ($review_url === '') {
+        $log[] = '  → Skipped (no review_url configured in Settings)';
+    } else {
+        $completed_wos = db_fetchall(
+            "SELECT wo.id, wo.wo_number, wo.cust_name, wo.cust_email, wo.service_address
+             FROM work_orders wo
+             WHERE wo.status IN ('completed', 'picked_up')
+               AND wo.updated_at >= DATE_SUB(NOW(), INTERVAL 48 HOUR)
+               AND wo.cust_email IS NOT NULL AND wo.cust_email != ''
+               AND NOT EXISTS (
+                   SELECT 1 FROM activity_log al
+                   WHERE al.action = 'review_request_sent'
+                     AND al.entity_type = 'work_order'
+                     AND al.entity_id = wo.id
+               )"
+        );
+        $review_count = 0;
+        $company_name = get_setting('company_name', 'Trash Panda Roll-Offs');
+        foreach ($completed_wos as $wo) {
+            $email = trim($wo['cust_email'] ?? '');
+            if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+            $name    = $wo['cust_name'] ? 'Hi ' . e($wo['cust_name']) . ',' : 'Hi there,';
+            $body    = '<p>' . $name . '</p>'
+                     . '<p>Thank you for choosing <strong>' . e($company_name) . '</strong>!'
+                     . ' We hope everything went smoothly with your dumpster rental.</p>'
+                     . '<p>If you have a moment, we\'d really appreciate a quick review. It helps us a lot and only takes 30 seconds.</p>';
+            $html    = email_template('Leave Us a Review', $body, 'Leave a Review', $review_url);
+            try {
+                send_email($email, 'How did we do? — ' . $company_name, $html);
+                log_activity(
+                    'review_request_sent',
+                    'Sent review request to ' . $email . ' for WO ' . $wo['wo_number'],
+                    'work_order',
+                    (int)$wo['id']
+                );
+                $review_count++;
+            } catch (\Throwable $e) {
+                $log[] = '  → Failed to send review request for WO ' . $wo['wo_number'] . ': ' . $e->getMessage();
+            }
+        }
+        $log[] = '  → Sent ' . $review_count . ' review request(s)';
+    }
+} catch (\Throwable $e) {
+    $log[] = '  → ERROR: ' . $e->getMessage();
+}
+
+// ── Task 9: Log completion ────────────────────────────────────────────────────
 $elapsed = round(microtime(true) - $start, 2);
 $log[]   = '';
-$log[]   = '[Task 8] Logging to activity_log';
+$log[]   = '[Task 9] Logging to activity_log';
 try {
     db_execute(
         "INSERT INTO activity_log (user_id, action, description, entity_type, entity_id, ip_address, created_at)

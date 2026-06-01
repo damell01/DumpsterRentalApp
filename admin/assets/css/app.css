@@ -1178,6 +1178,83 @@ tr.table-primary > *, tr.table-secondary > * {
 .tp-search:focus { border-color: var(--or); box-shadow: 0 0 0 3px rgba(249,115,22,.12); }
 .tp-search::placeholder { color: var(--gl); }
 
+.tp-filter-bar-compact {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .85rem;
+    flex-wrap: wrap;
+    padding: .75rem .9rem;
+}
+
+.tp-filter-bar-compact .filter-tabs,
+.tp-filter-bar-compact .tp-filter-tabs {
+    flex: 1 1 420px;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+    margin-bottom: 0;
+}
+
+.tp-filter-bar-compact .filter-tab,
+.tp-filter-bar-compact .tp-filter-tab {
+    flex: 0 0 auto;
+    min-height: 38px;
+}
+
+.tp-filter-search {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex: 0 1 420px;
+    margin-left: auto;
+}
+
+.tp-filter-search .form-control,
+.tp-filter-search .tp-search {
+    min-width: 0;
+}
+
+.tp-filter-form-compact {
+    width: 100%;
+}
+
+.tp-filter-form-compact .tp-date-qs {
+    margin-bottom: .7rem;
+    padding-bottom: .55rem;
+    border-bottom: 1px solid var(--st2);
+}
+
+.tp-filter-grid-compact {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: .65rem;
+    align-items: end;
+}
+
+.tp-filter-actions-compact {
+    display: flex;
+    gap: .45rem;
+}
+
+.tp-filter-actions-compact > * {
+    flex: 1 1 auto;
+}
+
+.tp-filter-strip {
+    background: var(--dk2);
+    border: 1px solid var(--st2);
+    border-radius: var(--radius);
+    padding: .7rem .85rem;
+}
+
+.tp-filter-strip .tp-filter-tab,
+.tp-filter-strip .filter-tab {
+    min-height: 38px;
+}
+
 /* --------------------------------------------------------------------------
    Buttons
    -------------------------------------------------------------------------- */
@@ -1496,9 +1573,9 @@ hr { border-color: var(--st); opacity: 1; }
 .bar-fill   { background: var(--or) !important; }
 
 /* Bar chart component */
-.bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 140px; padding: 0 4px; }
+.bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 150px; padding: 18px 4px 0; }
 .bar-col   { display: flex; flex-direction: column; align-items: center; flex: 1; }
-.bar-count { font-size: .7rem; font-weight: 700; margin-bottom: 2px; }
+.bar-count { font-size: .7rem; font-weight: 700; margin-bottom: 8px; line-height: 1; }
 .bar-seg   { width: 100%; }
 .bar-label { font-size: .65rem; margin-top: 4px; text-align: center; }
 
@@ -1745,6 +1822,22 @@ hr { border-color: var(--st); opacity: 1; }
     .tp-table td .btn-tp-outline { min-height: 38px; padding: .45rem .7rem; }
     .tp-date-qs { justify-content: flex-start; }
     .tp-filter-tabs, .filter-tabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+    .tp-filter-bar-compact {
+        align-items: stretch;
+        padding: .72rem .8rem;
+    }
+    .tp-filter-bar-compact .filter-tabs,
+    .tp-filter-bar-compact .tp-filter-tabs,
+    .tp-filter-search {
+        flex-basis: 100%;
+        margin-left: 0;
+    }
+    .tp-filter-grid-compact {
+        grid-template-columns: 1fr 1fr;
+    }
+    .tp-filter-actions-compact {
+        grid-column: 1 / -1;
+    }
     .tp-table td .d-flex.gap-1,
     .tp-table td .d-flex.gap-1.flex-wrap,
     .tp-table td .d-flex.gap-1.justify-content-end,
@@ -2160,3 +2253,327 @@ hr { border-color: var(--st); opacity: 1; }
     .tp-customer-hero { flex-direction: column; gap: 1rem; }
     .tp-customer-hero-stats { gap: .75rem; }
 }
+
+/* ── Sticky table headers ───────────────────────────────────────────────────── */
+.tp-table thead th {
+    position: static;
+    top: auto;
+    z-index: auto;
+    background: var(--dk2, #f3f4f6);
+    box-shadow: 0 1px 0 var(--st2, #e5e7eb);
+}
+
+/* ── Command Palette ────────────────────────────────────────────────────────── */
+.tp-palette-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 42, 68, .45);
+    z-index: 9999;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 10vh;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s;
+}
+.tp-palette-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+.tp-palette {
+    width: min(620px, 92vw);
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,.18), 0 4px 16px rgba(0,0,0,.08);
+    transform: translateY(-10px) scale(.98);
+    transition: transform .15s;
+}
+.tp-palette-overlay.open .tp-palette {
+    transform: none;
+}
+.tp-palette-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .9rem 1.1rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+.tp-palette-input-wrap .fa-magnifying-glass { color: var(--or, #f97316); font-size: 1rem; flex-shrink: 0; }
+.tp-palette-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: #111827;
+    font-size: 1rem;
+    font-family: var(--font-body, sans-serif);
+}
+.tp-palette-input::placeholder { color: #9ca3af; }
+.tp-palette-spinner { color: #9ca3af; font-size: .85rem; flex-shrink: 0; }
+.tp-palette-results { max-height: 380px; overflow-y: auto; }
+.tp-palette-empty {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: #9ca3af;
+    font-size: .9rem;
+}
+.tp-palette-result {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .65rem 1.1rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background .08s;
+    border-bottom: 1px solid #f9fafb;
+}
+.tp-palette-result:last-child { border-bottom: none; }
+.tp-palette-result:hover,
+.tp-palette-result.focused { background: rgba(249,115,22,.07); text-decoration: none; }
+.tp-palette-result-icon {
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    background: rgba(249,115,22,.1);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--or, #f97316);
+    font-size: .82rem;
+    flex-shrink: 0;
+}
+.tp-palette-result-label {
+    font-weight: 600;
+    color: #111827;
+    font-size: .88rem;
+    line-height: 1.25;
+}
+.tp-palette-result-sub {
+    color: #6b7280;
+    font-size: .76rem;
+    margin-top: .1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tp-palette-type-tag {
+    margin-left: auto;
+    font-size: .67rem;
+    padding: .15rem .45rem;
+    border-radius: 4px;
+    background: rgba(249,115,22,.1);
+    color: var(--or, #f97316);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    flex-shrink: 0;
+    font-family: var(--font-cond, sans-serif);
+    font-weight: 700;
+}
+.tp-palette-footer {
+    padding: .5rem 1.1rem;
+    border-top: 1px solid #f3f4f6;
+    display: flex;
+    gap: 1rem;
+    font-size: .72rem;
+    color: #9ca3af;
+    background: #fafafa;
+}
+.tp-palette-footer kbd {
+    background: #f3f4f6;
+    border-radius: 4px;
+    padding: .1rem .35rem;
+    font-size: .67rem;
+    color: #6b7280;
+    font-family: monospace;
+    border: 1px solid #e5e7eb;
+}
+
+/* Search trigger button in topbar */
+.tp-search-btn {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .35rem .8rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    color: #6b7280;
+    cursor: pointer;
+    font-size: .82rem;
+    transition: border-color .15s, background .15s, color .15s;
+    white-space: nowrap;
+    line-height: 1;
+}
+.tp-search-btn:hover { border-color: var(--or, #f97316); color: var(--or, #f97316); background: rgba(249,115,22,.04); }
+.tp-search-btn .tp-search-kbd {
+    font-size: .67rem;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: .1rem .35rem;
+    font-family: monospace;
+    color: #9ca3af;
+}
+
+/* ============================================================================
+   DARK MODE
+   Toggle via class on <html> element (html.dark).
+   Variables propagate through CSS custom properties automatically.
+   Hardcoded table/Bootstrap colors are overridden explicitly below.
+   ============================================================================ */
+
+/* ── Dark-mode CSS variables ───────────────────────────────────────────────── */
+html.dark {
+    --bg:  #0f1117;
+    --dk1: #161b27;
+    --dk2: #1c2235;
+    --dk3: #222840;
+    --st:  #2a3050;
+    --st2: #374151;
+    --wh:  #e2e8f0;
+    --gy:  #94a3b8;
+    --gl:  #64748b;
+    --shadow-card:        0 1px 4px rgba(0,0,0,.4),  0 1px 2px rgba(0,0,0,.3);
+    --shadow-card-hover:  0 8px 24px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.4);
+    color-scheme: dark;
+}
+
+/* ── Topbar ─────────────────────────────────────────────────────────────────── */
+html.dark .hamburger-btn {
+    background: var(--dk2);
+    border-color: var(--st2);
+    color: var(--gy);
+}
+html.dark .hamburger-btn:hover { background: var(--dk3); border-color: var(--or); }
+
+/* ── Tables — override all hardcoded !important colors ─────────────────────── */
+html.dark .tp-table,
+html.dark .table {
+    --bs-table-color:        var(--wh) !important;
+    --bs-table-bg:           var(--dk1) !important;
+    --bs-table-border-color: var(--st) !important;
+    --bs-table-striped-bg:   rgba(255,255,255,.02) !important;
+    --bs-table-hover-color:  var(--wh) !important;
+    --bs-table-hover-bg:     rgba(249,115,22,.08) !important;
+    color:            var(--wh) !important;
+    background-color: var(--dk1) !important;
+}
+
+html.dark .tp-table > :not(caption) > * > *,
+html.dark .table  > :not(caption) > * > * {
+    color:            var(--wh) !important;
+    background-color: var(--dk1) !important;
+    border-color:     var(--st)  !important;
+    box-shadow: none !important;
+}
+
+html.dark .tp-table > :not(caption) > * { border-color: var(--st) !important; }
+
+html.dark .tp-table th {
+    background: linear-gradient(180deg, var(--dk3) 0%, var(--dk2) 100%) !important;
+    color: var(--gy) !important;
+    border-bottom-color: var(--st2) !important;
+}
+html.dark .tp-table td {
+    color:            var(--wh) !important;
+    background-color: var(--dk1) !important;
+    border-bottom-color: var(--st) !important;
+}
+html.dark .tp-table td strong,
+html.dark .tp-table td a:not(.btn-tp-ghost):not(.btn-tp-primary) { color: var(--wh) !important; }
+html.dark .tp-table tbody tr:nth-child(even) > * { background-color: rgba(255,255,255,.02) !important; }
+html.dark .tp-table tbody tr:hover > * { background-color: rgba(249,115,22,.08) !important; }
+html.dark .tp-table .text-muted { color: var(--gy) !important; }
+html.dark .tp-table thead th { background: var(--dk3) !important; }
+
+html.dark .table.table-sm > :not(caption) > * > *,
+html.dark .table > :not(caption) > * > * { border-color: var(--st) !important; }
+html.dark .table td, html.dark .table th { color: var(--wh) !important; }
+html.dark thead.table-light th,
+html.dark .table .table-light > *,
+html.dark tr.table-light > * {
+    background-color: var(--dk2) !important;
+    color:            var(--gy)  !important;
+    border-color:     var(--st)  !important;
+}
+html.dark tr[data-href]:hover > td { background: rgba(249,115,22,.08) !important; }
+
+/* ── Forms ──────────────────────────────────────────────────────────────────── */
+html.dark .form-control::placeholder { color: var(--gl) !important; }
+html.dark .form-select option { background: var(--dk2); color: var(--wh); }
+
+/* ── Nav tabs ───────────────────────────────────────────────────────────────── */
+html.dark .nav-tabs .nav-link.active { background-color: var(--dk1); border-color: var(--st) var(--st) var(--dk1); }
+
+/* ── Bootstrap card ─────────────────────────────────────────────────────────── */
+html.dark .card { background-color: var(--dk1); border-color: var(--st); }
+html.dark .card-header { background-color: var(--dk2); border-color: var(--st); }
+
+/* ── Bootstrap modals ───────────────────────────────────────────────────────── */
+html.dark .modal-content { background-color: var(--dk1); border-color: var(--st); color: var(--wh); }
+html.dark .modal-header,
+html.dark .modal-footer  { border-color: var(--st); }
+html.dark .btn-close      { filter: invert(1); }
+
+/* ── Bootstrap badges ───────────────────────────────────────────────────────── */
+html.dark .badge.bg-light { background-color: var(--dk3) !important; color: var(--wh) !important; }
+html.dark .badge.bg-white { background-color: var(--dk2) !important; color: var(--wh) !important; }
+
+/* ── Page guide ─────────────────────────────────────────────────────────────── */
+html.dark .tp-page-guide {
+    background: var(--dk1);
+    border-color: var(--st);
+}
+
+/* ── KPI state cards ────────────────────────────────────────────────────────── */
+html.dark .tp-state-card { background: var(--dk1) !important; border-color: var(--st) !important; }
+
+/* ── Sticky table header in dark mode ───────────────────────────────────────── */
+html.dark .tp-table thead th { background: var(--dk3) !important; }
+
+/* ── Search button ──────────────────────────────────────────────────────────── */
+html.dark .tp-search-btn {
+    background: var(--dk2);
+    border-color: var(--st2);
+    color: var(--gy);
+}
+html.dark .tp-search-btn:hover { border-color: var(--or); color: var(--or); background: rgba(249,115,22,.08); }
+html.dark .tp-search-btn .tp-search-kbd {
+    background: var(--dk3);
+    border-color: var(--st2);
+    color: var(--gl);
+}
+
+/* ── Command palette ────────────────────────────────────────────────────────── */
+html.dark .tp-palette {
+    background: var(--dk1);
+    border-color: var(--st2);
+    box-shadow: 0 24px 80px rgba(0,0,0,.6), 0 4px 16px rgba(0,0,0,.4);
+}
+html.dark .tp-palette-input-wrap { border-bottom-color: var(--st); }
+html.dark .tp-palette-input      { color: var(--wh); }
+html.dark .tp-palette-result     { border-bottom-color: var(--st); }
+html.dark .tp-palette-result:hover,
+html.dark .tp-palette-result.focused { background: rgba(249,115,22,.1); }
+html.dark .tp-palette-result-label   { color: var(--wh); }
+html.dark .tp-palette-footer  { background: var(--dk2); border-top-color: var(--st); }
+html.dark .tp-palette-footer kbd { background: var(--dk3); border-color: var(--st2); color: var(--gy); }
+html.dark .tp-palette-empty   { color: var(--gy); }
+
+/* ── Theme toggle button ────────────────────────────────────────────────────── */
+.tp-theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--st2);
+    background: var(--dk2);
+    color: var(--gy);
+    cursor: pointer;
+    transition: var(--transition);
+    flex-shrink: 0;
+    font-size: .9rem;
+}
+.tp-theme-toggle:hover { border-color: var(--or); color: var(--or); background: rgba(249,115,22,.06); }

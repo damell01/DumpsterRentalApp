@@ -265,7 +265,6 @@ function renderSizesPage(sizes) {
       const featured = index === featuredIndex;
       const available = Number(size.available_count || 0);
       const total = Number(size.unit_count || 0);
-      const unitCodes = Array.isArray(size.unit_codes) ? size.unit_codes.filter(Boolean).join(', ') : '';
       const description = escapeHtml(summarizeSizeUse(size.size, size.description));
       const priceLine = escapeHtml(buildPricingLine(size) || 'Call for pricing');
       const buttonAttrs = featured
@@ -303,7 +302,6 @@ function renderSizesPage(sizes) {
                   <li><i class="fas fa-check-circle"></i>${escapeHtml(buildStockLine(size))}</li>
                   <li><i class="fas fa-check-circle"></i>${priceLine}</li>
                   <li><i class="fas fa-check-circle"></i>${escapeHtml(rentalLabel(size.rental_days))}</li>
-                  <li><i class="fas fa-check-circle"></i>${escapeHtml(unitCodes ? `Units: ${unitCodes}` : 'Units are assigned when booked.')}</li>
                 </ul>
               </div>
             </div>

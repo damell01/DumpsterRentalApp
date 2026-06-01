@@ -132,14 +132,13 @@ layout_start('Bookings', 'bookings');
 </div>
 
 <!-- Search + Date Quick Filters -->
-<div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
-    <form method="get" action="" class="d-flex gap-2 flex-wrap align-items-center">
+<div class="tp-filter-bar tp-filter-bar-compact mb-3">
+    <form method="get" action="" class="tp-filter-search">
         <input type="hidden" name="filter" value="<?= e($filter) ?>">
         <?php if ($date_qs): ?><input type="hidden" name="date_qs" value="<?= e($date_qs) ?>"><?php endif; ?>
         <input type="text" name="q" value="<?= e($q) ?>"
                placeholder="Search booking #, customer, email, unit…"
-               class="tp-search form-control form-control-sm"
-               style="min-width:220px;max-width:320px;">
+               class="tp-search form-control form-control-sm">
         <button type="submit" class="btn-tp-primary btn-tp-sm">
             <i class="fa-solid fa-magnifying-glass"></i> Search
         </button>
@@ -150,7 +149,7 @@ layout_start('Bookings', 'bookings');
         <?php endif; ?>
     </form>
 
-    <div class="tp-date-qs ms-auto">
+    <div class="tp-date-qs">
         <a href="<?= e(bk_url(['date_qs' => '', 'page' => 1])) ?>"
            class="<?= $date_qs === '' ? 'active' : '' ?>">All Time</a>
         <a href="<?= e(bk_url(['date_qs' => 'today', 'page' => 1])) ?>"
@@ -163,7 +162,7 @@ layout_start('Bookings', 'bookings');
 </div>
 
 <!-- Filter Tabs -->
-<div class="tp-filter-tabs mb-3">
+<div class="tp-filter-tabs tp-filter-strip mb-3">
     <?php
     $tabs = [
         'all'       => 'All',

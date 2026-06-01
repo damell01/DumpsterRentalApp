@@ -154,6 +154,32 @@ $TEMPLATE_DEFS = [
 <p>Thanks for reaching out! We received your request and someone from our team will be in touch shortly.</p>
 <p>We appreciate your interest in {{company_name}}!</p>',
     ],
+    'payment_received' => [
+        'name' => 'Payment Received',
+        'desc' => 'Sent to the customer when a Stripe payment is confirmed for their booking.',
+        'vars' => ['customer_name','booking_number','amount','payment_method','rental_start','rental_end'],
+        'default_subject'  => 'Payment Received — {{booking_number}}',
+        'default_body_html'=> '<p>Hello {{customer_name}},</p>
+<p>We have received your payment of <strong>{{amount}}</strong> for booking <strong>{{booking_number}}</strong>. Thank you!</p>
+<table width="100%" style="border-collapse:collapse;font-size:.95rem;margin:16px 0;">
+  <tr style="background:#f9fafb;"><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;width:40%;">Booking #</td><td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{booking_number}}</td></tr>
+  <tr><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Amount Paid</td><td style="padding:10px 14px;border:1px solid #e5e7eb;color:#f97316;font-weight:700;">{{amount}}</td></tr>
+  <tr style="background:#f9fafb;"><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Payment Method</td><td style="padding:10px 14px;border:1px solid #e5e7eb;">{{payment_method}}</td></tr>
+  <tr><td style="padding:10px 14px;border:1px solid #e5e7eb;font-weight:600;">Rental Period</td><td style="padding:10px 14px;border:1px solid #e5e7eb;">{{rental_start}} → {{rental_end}}</td></tr>
+</table>
+<p>If you have any questions about your booking, please don\'t hesitate to contact us.</p>
+<p>Thank you for choosing us!</p>',
+    ],
+    'payment_refunded' => [
+        'name' => 'Payment Refunded',
+        'desc' => 'Sent to the customer when a Stripe refund is issued on their booking or invoice.',
+        'vars' => ['customer_name','refunded_amount','booking_number'],
+        'default_subject'  => 'Refund Issued — {{booking_number}}',
+        'default_body_html'=> '<p>Hello {{customer_name}},</p>
+<p>A refund of <strong>{{refunded_amount}}</strong> has been issued for booking <strong>{{booking_number}}</strong>.</p>
+<p>Refunds typically appear on your statement within 5–10 business days depending on your bank.</p>
+<p>If you have any questions, please contact us and we\'ll be happy to help.</p>',
+    ],
 ];
 
 // ── POST handler ──────────────────────────────────────────────────────────────

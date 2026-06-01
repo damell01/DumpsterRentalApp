@@ -387,6 +387,85 @@ function get_setting(string $key, string $default = ''): string
 }
 
 /**
+ * Retrieve a configurable text setting and replace simple {token} placeholders.
+ *
+ * Example:
+ *   setting_text('payment_note_check', 'Pay {company_name}', ['company_name' => 'Trash Panda'])
+ *
+ * @param string $key
+ * @param string $default
+ * @param array<string, scalar|null> $tokens
+ * @return string
+ */
+function setting_text(string $key, string $default = '', array $tokens = []): string
+{
+    $text = get_setting($key, $default);
+    if ($text === '' || empty($tokens)) {
+        return $text;
+    }
+
+    $replace = [];
+    foreach ($tokens as $token => $value) {
+        $replace['{' . $token . '}'] = trim((string)$value);
+    }
+
+    return strtr($text, $replace);
+}
+
+/**
+ * Return the configured super-admin user IDs.
+ *
+ * If no IDs are configured yet, the first admin who opens the feature can still
+ * access it so the list can be set up without locking everyone out.
+ *
+ * @return int[]
+ */
+function super_admin_user_ids(): array
+{
+    $raw = trim((string)get_setting('super_admin_user_ids', '[]'));
+    $ids = [];
+
+    $decoded = json_decode($raw, true);
+    if (is_array($decoded)) {
+        foreach ($decoded as $value) {
+            $id = (int)$value;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+    } else {
+        foreach (preg_split('/[^0-9]+/', $raw) ?: [] as $value) {
+            $id = (int)$value;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+    }
+
+    $ids = array_values(array_unique($ids));
+    sort($ids);
+    return $ids;
+}
+
+/**
+ * Return true when the signed-in user is allowed to see super-admin-only areas.
+ */
+function current_user_is_super_admin(): bool
+{
+    $user = current_user();
+    if (!$user || (string)($user['role'] ?? '') !== 'admin') {
+        return false;
+    }
+
+    $ids = super_admin_user_ids();
+    if (!$ids) {
+        return true;
+    }
+
+    return in_array((int)($user['id'] ?? 0), $ids, true);
+}
+
+/**
  * Persist a setting value using INSERT … ON DUPLICATE KEY UPDATE.
  *
  * @param string $key
@@ -443,63 +522,138 @@ function validate_required(array $fields, array $data): array
 }
 
 /**
- * Return the list of available dumpster sizes.
+ * Return the dumpster size catalog.
+ *
+ * @param bool $onlyActive
+ * @param bool|null $onlyPublic
+ * @return array<int,array{id?:int,label:string,description:string,sort_order:int,public_enabled:int,active:int}>
+ */
+function dumpster_size_catalog(bool $onlyActive = true, ?bool $onlyPublic = null): array
+{
+    static $cache = [];
+    $cacheKey = ($onlyActive ? '1' : '0') . ':' . ($onlyPublic === null ? 'all' : ($onlyPublic ? '1' : '0'));
+
+    if (isset($cache[$cacheKey])) {
+        return $cache[$cacheKey];
+    }
+
+    $fallback = [
+        ['label' => '10 Yard', 'description' => '', 'sort_order' => 10, 'public_enabled' => 1, 'active' => 1],
+        ['label' => '15 Yard', 'description' => '', 'sort_order' => 15, 'public_enabled' => 1, 'active' => 1],
+        ['label' => '20 Yard', 'description' => '', 'sort_order' => 20, 'public_enabled' => 1, 'active' => 1],
+        ['label' => '30 Yard', 'description' => '', 'sort_order' => 30, 'public_enabled' => 1, 'active' => 1],
+        ['label' => '40 Yard', 'description' => '', 'sort_order' => 40, 'public_enabled' => 1, 'active' => 1],
+    ];
+
+    if (db_table_exists('dumpster_size_options')) {
+        try {
+            $where = ['1=1'];
+            if ($onlyActive) {
+                $where[] = 'active = 1';
+            }
+            if ($onlyPublic !== null) {
+                $where[] = 'public_enabled = ' . ($onlyPublic ? '1' : '0');
+            }
+
+            $rows = db_fetchall(
+                'SELECT id, label, description, sort_order, public_enabled, active
+                 FROM dumpster_size_options
+                 WHERE ' . implode(' AND ', $where) . '
+                 ORDER BY sort_order ASC, label ASC'
+            );
+
+            $catalog = [];
+            foreach ($rows as $row) {
+                $label = trim((string)($row['label'] ?? ''));
+                if ($label === '') {
+                    continue;
+                }
+                $catalog[] = [
+                    'id' => (int)($row['id'] ?? 0),
+                    'label' => $label,
+                    'description' => trim((string)($row['description'] ?? '')),
+                    'sort_order' => (int)($row['sort_order'] ?? 0),
+                    'public_enabled' => !empty($row['public_enabled']) ? 1 : 0,
+                    'active' => !empty($row['active']) ? 1 : 0,
+                ];
+            }
+
+            $cache[$cacheKey] = $catalog;
+            return $cache[$cacheKey];
+        } catch (Throwable $e) {
+            // Fall back below.
+        }
+    }
+
+    try {
+        $rows = db_fetchall(
+            "SELECT name FROM dumpster_categories
+             WHERE active = 1 ORDER BY sort_order ASC, name ASC"
+        );
+        $found = [];
+        foreach ($rows as $row) {
+            $size = trim((string)($row['size'] ?? ''));
+            if ($size !== '') {
+                $found[$size] = [
+                    'label' => $size,
+                    'description' => '',
+                    'sort_order' => (int)preg_replace('/\D+/', '', $size),
+                    'public_enabled' => 1,
+                    'active' => 1,
+                ];
+            }
+        }
+        if ($found) {
+            $fallback = array_values($found);
+        }
+    } catch (Throwable $e) {
+        // Keep default fallback.
+    }
+
+    usort($fallback, static function (array $a, array $b): int {
+        $aNum = (int)preg_replace('/\D+/', '', (string)$a['label']);
+        $bNum = (int)preg_replace('/\D+/', '', (string)$b['label']);
+        if ($aNum === $bNum) {
+            return strcasecmp((string)$a['label'], (string)$b['label']);
+        }
+        return $aNum <=> $bNum;
+    });
+
+    $cache[$cacheKey] = $fallback;
+    return $cache[$cacheKey];
+}
+
+/**
+ * Return dumpster size labels.
+ *
+ * @return string[]
+ */
+function dumpster_size_labels(bool $onlyActive = true, ?bool $onlyPublic = null): array
+{
+    return array_values(array_map(
+        static fn(array $row): string => (string)$row['label'],
+        dumpster_size_catalog($onlyActive, $onlyPublic)
+    ));
+}
+
+/**
+ * Return the list of available dumpster sizes for internal admin flows.
  *
  * @return string[]
  */
 function dumpster_sizes(): array
 {
-    static $sizes = null;
+    return dumpster_size_labels(true, null);
+}
 
-    if ($sizes !== null) {
-        return $sizes;
-    }
-
-    $fallback = ['10 Yard', '15 Yard', '20 Yard', '30 Yard', '40 Yard'];
-
-    try {
-        $rows = db_fetchall(
-            "SELECT DISTINCT size
-             FROM dumpsters
-             WHERE active = 1
-               AND type = 'dumpster'
-               AND size IS NOT NULL
-               AND TRIM(size) <> ''"
-        );
-    } catch (Throwable $e) {
-        $sizes = $fallback;
-        return $sizes;
-    }
-
-    $found = [];
-    foreach ($rows as $row) {
-        $size = trim((string)($row['size'] ?? ''));
-        if ($size !== '') {
-            $found[] = $size;
-        }
-    }
-
-    $found = array_values(array_unique($found));
-    if (!$found) {
-        $sizes = $fallback;
-        return $sizes;
-    }
-
-    usort($found, static function (string $a, string $b): int {
-        preg_match('/\d+/', $a, $aMatch);
-        preg_match('/\d+/', $b, $bMatch);
-        $aNum = isset($aMatch[0]) ? (int)$aMatch[0] : PHP_INT_MAX;
-        $bNum = isset($bMatch[0]) ? (int)$bMatch[0] : PHP_INT_MAX;
-
-        if ($aNum === $bNum) {
-            return strcasecmp($a, $b);
-        }
-
-        return $aNum <=> $bNum;
-    });
-
-    $sizes = $found;
-    return $sizes;
+/**
+ * Return the list of publicly visible dumpster sizes.
+ *
+ * @return string[]
+ */
+function public_dumpster_sizes(): array
+{
+    return dumpster_size_labels(true, true);
 }
 
 /**

@@ -12,6 +12,10 @@ $_admin_root = dirname(__DIR__, 2) . '/admin';
 require_once $_admin_root . '/config/config.php';
 require_once INC_PATH . '/db.php';
 require_once INC_PATH . '/helpers.php';
+require_once INC_PATH . '/api_rate_limit.php';
+
+// 60 batch checks per IP per hour
+api_rate_limit('batch_availability', 60, 3600);
 
 $start = trim($_GET['start'] ?? '');
 $end   = trim($_GET['end']   ?? '');

@@ -7,6 +7,9 @@ require_once INC_PATH . '/helpers.php';
 
 $company_name = get_setting('company_name', 'Trash Panda Roll-Offs');
 $prefill_email = trim((string)($_GET['email'] ?? ''));
+$copy_tokens = [
+    'company_name' => $company_name,
+];
 
 header('X-Frame-Options: SAMEORIGIN');
 header('X-Content-Type-Options: nosniff');
@@ -246,7 +249,11 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' https://c
             <div class="request-overline">Secure customer access</div>
             <h1 class="request-hero-title">YOUR <span>TRASH PANDA</span><br>BILLING HUB</h1>
             <p class="request-lead">
-                Get a secure one-time link to review invoices, payment history, saved billing methods, and subscription activity without needing a password.
+                <?= nl2br(e(setting_text(
+                    'portal_request_lead',
+                    'Get a secure one-time link to review invoices, payment history, saved billing methods, and subscription activity without needing a password.',
+                    $copy_tokens
+                ))) ?>
             </p>
             <div class="request-points">
                 <div class="request-point">
@@ -300,6 +307,35 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' https://c
 </div>
 
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    var requestSub = document.querySelector('.request-sub');
+    if (requestSub) {
+        requestSub.textContent = <?= json_encode(setting_text(
+            'portal_request_sub',
+            'Enter your billing email and we’ll send a secure one-time link to access your invoices, subscriptions, and saved payment methods.',
+            $copy_tokens
+        )) ?>;
+    }
+
+    var successBox = document.getElementById('msg-success');
+    if (successBox) {
+        successBox.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i>' + <?= json_encode(setting_text(
+            'portal_request_success',
+            'If that email address is on file, a secure portal link has been sent. Check your inbox.',
+            $copy_tokens
+        )) ?>;
+    }
+
+    var securityNote = document.querySelector('.security-note');
+    if (securityNote) {
+        securityNote.innerHTML = '<i class="fa-solid fa-lock"></i>' + <?= json_encode(setting_text(
+            'portal_request_security_note',
+            'Links are single-use and expire automatically. No password needed.',
+            $copy_tokens
+        )) ?>;
+    }
+});
+
 function requestPortalLink() {
     var email  = document.getElementById('portal-email').value.trim();
     var btn    = document.getElementById('btnSend');

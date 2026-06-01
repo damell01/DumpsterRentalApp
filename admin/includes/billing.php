@@ -68,6 +68,8 @@ function billing_subscription_service(): SubscriptionService
         billing_stripe_factory(),
         billing_customer_service(),
         billing_audit_log_service(),
+        billing_invoice_service(),
+        billing_notification_service(),
     );
 }
 

@@ -8,12 +8,20 @@ require_once $_admin_root . '/config/config.php';
 require_once INC_PATH . '/db.php';
 require_once INC_PATH . '/helpers.php';
 
+$public_sizes = public_dumpster_sizes();
+
 $units = db_fetchall(
     "SELECT id, unit_code, type, size, daily_rate, base_price, rental_days, extra_day_price, image, status
      FROM dumpsters
      WHERE active = 1 AND status != 'maintenance'
      ORDER BY COALESCE(base_price, daily_rate) ASC, size ASC, unit_code ASC"
 );
+
+if (db_table_exists('dumpster_size_options') || !empty($public_sizes)) {
+    $units = array_values(array_filter($units, static function (array $unit) use ($public_sizes): bool {
+        return in_array((string)($unit['size'] ?? ''), $public_sizes, true);
+    }));
+}
 
 // Pre-select a unit from URL param (?unit_id=5 or ?size=20)
 $preselect_unit_id = (int)($_GET['unit_id'] ?? 0);
@@ -513,11 +521,20 @@ $request_mode = $booking_flow_mode === 'request';
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="f_city">City</label>
-                    <input type="text" id="f_city" class="form-control" placeholder="Foley">
+                    <input type="text" id="f_city" class="form-control" placeholder="Foley" autocomplete="address-level2">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="f_state">State</label>
+                    <input type="text" id="f_state" class="form-control" placeholder="AL" maxlength="2" autocomplete="address-level1">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="f_zip">ZIP</label>
+                    <input type="text" id="f_zip" class="form-control" placeholder="36551" maxlength="10" autocomplete="postal-code">
                 </div>
                 <div class="col-12">
                     <label class="form-label" for="f_address">Drop-off Address</label>
-                    <input type="text" id="f_address" class="form-control" placeholder="123 Main St">
+                    <input type="text" id="f_address" class="form-control" placeholder="123 Main St" autocomplete="street-address">
+                    <div id="f_address_suggest" class="book-address-suggest" hidden></div>
                 </div>
                 <div class="col-12">
                     <label class="form-label" for="f_notes">Special Instructions</label>
@@ -598,6 +615,37 @@ $request_mode = $booking_flow_mode === 'request';
         <div class="ss-total"  id="ss-total"></div>
     </div>
 </div>
+
+<style>
+.book-address-suggest {
+    margin-top: .5rem;
+    background: rgba(15,23,42,.98);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 14px;
+    overflow: hidden;
+}
+.book-address-option {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: #fff;
+    text-align: left;
+    padding: .8rem .95rem;
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+}
+.book-address-option + .book-address-option {
+    border-top: 1px solid rgba(255,255,255,.08);
+}
+.book-address-option:hover {
+    background: rgba(249,115,22,.12);
+}
+.book-address-option span {
+    color: rgba(255,255,255,.62);
+    font-size: .82rem;
+}
+</style>
 
 <script>
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -1001,6 +1049,82 @@ function escHtml(s) {
 }
 
 // ─── Submit ───────────────────────────────────────────────────────────────────
+function setupAddressAutocomplete(opts) {
+    var address = document.getElementById(opts.addressId);
+    var city = document.getElementById(opts.cityId);
+    var state = document.getElementById(opts.stateId);
+    var zip = document.getElementById(opts.zipId);
+    var box = document.getElementById(opts.boxId);
+    if (!address || !city || !state || !zip || !box) return;
+
+    var timer = null;
+    var controller = null;
+
+    function hideBox() {
+        box.hidden = true;
+        box.innerHTML = '';
+    }
+
+    function partsFor(item) {
+        var a = item.address || {};
+        var street = [a.house_number || '', a.road || a.pedestrian || a.footway || a.cycleway || a.path || ''].join(' ').trim();
+        if (!street) street = String(item.display_name || '').split(',')[0].trim();
+        return {
+            street: street,
+            city: a.city || a.town || a.village || a.hamlet || a.county || '',
+            state: (a.state_code || a.state || '').toString().trim(),
+            zip: (a.postcode || '').toString().trim()
+        };
+    }
+
+    function choose(item) {
+        var parts = partsFor(item);
+        address.value = parts.street;
+        if (parts.city) city.value = parts.city;
+        if (parts.state) state.value = parts.state.length === 2 ? parts.state.toUpperCase() : parts.state;
+        if (parts.zip) zip.value = parts.zip;
+        hideBox();
+    }
+
+    address.addEventListener('input', function() {
+        var q = address.value.trim();
+        if (controller) controller.abort();
+        clearTimeout(timer);
+        if (q.length < 5) { hideBox(); return; }
+        timer = setTimeout(function() {
+            controller = new AbortController();
+            fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&countrycodes=us&limit=5&viewbox=-88.5,31.2,-86.5,30.0&bounded=0&q=' + encodeURIComponent(q), {
+                signal: controller.signal,
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(function(r) { return r.ok ? r.json() : []; })
+            .then(function(items) {
+                if (!Array.isArray(items) || items.length === 0) { hideBox(); return; }
+                box.innerHTML = items.map(function(item, idx) {
+                    var parts = partsFor(item);
+                    var subtitle = [parts.city, parts.state, parts.zip].filter(Boolean).join(', ');
+                    return '<button type="button" class="book-address-option" data-idx="' + idx + '"><strong>'
+                        + escHtml(parts.street || item.display_name || 'Address')
+                        + '</strong>'
+                        + (subtitle ? '<span>' + escHtml(subtitle) + '</span>' : '')
+                        + '</button>';
+                }).join('');
+                box.hidden = false;
+                box.querySelectorAll('.book-address-option').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        choose(items[parseInt(btn.dataset.idx, 10)]);
+                    });
+                });
+            })
+            .catch(function() { hideBox(); });
+        }, 250);
+    });
+
+    address.addEventListener('blur', function() {
+        setTimeout(hideBox, 150);
+    });
+}
+
 function submitBooking() {
     var errEl  = document.getElementById('step2-error');
     var btnEl  = document.getElementById('btnSubmit');
@@ -1020,6 +1144,8 @@ function submitBooking() {
     var email  = document.getElementById('f_email').value.trim();
     var addr   = document.getElementById('f_address').value.trim();
     var city   = document.getElementById('f_city').value.trim();
+    var state  = document.getElementById('f_state').value.trim();
+    var zip    = document.getElementById('f_zip').value.trim();
     var notes  = document.getElementById('f_notes').value.trim();
     var terms  = document.getElementById('f_terms').checked;
     var pm     = document.querySelector('input[name="payment_method"]:checked');
@@ -1036,6 +1162,8 @@ function submitBooking() {
         customer_email:   email,
         customer_address: addr,
         customer_city:    city,
+        customer_state:   state,
+        customer_zip:     zip,
         payment_method:   pm ? pm.value : 'stripe',
         notes:            notes,
         terms_accepted:   '1'
@@ -1225,6 +1353,13 @@ document.addEventListener('keydown', function(e) {
 });
 
 // ─── On load: start date already filled — compute total + check availability ─
+setupAddressAutocomplete({
+    addressId: 'f_address',
+    cityId: 'f_city',
+    stateId: 'f_state',
+    zipId: 'f_zip',
+    boxId: 'f_address_suggest'
+});
 computeTotal();
 triggerAvailCheck();
 </script>

@@ -7,7 +7,7 @@
  *
  * Body (JSON):
  *  {
- *    "action":       "subscribe" | "unsubscribe",
+ *    "action":       "getVapidKey" | "subscribe" | "unsubscribe",
  *    "subscription": { "endpoint": "...", "keys": { "p256dh": "...", "auth": "..." } }
  *  }
  *
@@ -60,6 +60,15 @@ if (!is_array($data)) {
 $action       = trim($data['action'] ?? '');
 $subscription = $data['subscription'] ?? null;
 
+// Return VAPID public key for the admin shell bootstrap flow.
+if ($action === 'getVapidKey') {
+    echo json_encode([
+        'success' => true,
+        'vapidPublicKey' => push_vapid_public_key(),
+    ]);
+    exit;
+}
+
 // ── Unsubscribe ────────────────────────────────────────────────────────────
 if ($action === 'unsubscribe') {
     $endpoint = trim($subscription['endpoint'] ?? '');
@@ -73,7 +82,7 @@ if ($action === 'unsubscribe') {
 
 // ── Subscribe ──────────────────────────────────────────────────────────────
 if ($action !== 'subscribe') {
-    admin_push_api_error('Invalid action. Use subscribe or unsubscribe.');
+    admin_push_api_error('Invalid action. Use getVapidKey, subscribe, or unsubscribe.');
 }
 
 if (!is_array($subscription) || empty($subscription['endpoint'])) {

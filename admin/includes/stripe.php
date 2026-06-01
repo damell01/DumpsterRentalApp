@@ -121,6 +121,11 @@ function stripe_cancel_subscription(int $subscription_id): void
     billing_subscription_service()->cancel($subscription_id);
 }
 
+function stripe_update_subscription(int $id, array $data): void
+{
+    billing_subscription_service()->update($id, $data);
+}
+
 function stripe_retry_subscription_invoice(int $subscription_id): void
 {
     billing_subscription_service()->retryLatestInvoice($subscription_id);

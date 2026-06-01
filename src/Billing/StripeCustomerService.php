@@ -59,11 +59,48 @@ class StripeCustomerService
         return strlen($digits) > 10 ? substr($digits, -10) : $digits;
     }
 
+    /**
+     * Pull the best available street/city/state/zip values from booking data.
+     * Supports either explicit structured fields or a full address string.
+     *
+     * @return array{address:?string,city:?string,state:?string,zip:?string}
+     */
+    private function extractAddressParts(array $booking): array
+    {
+        $address = trim((string)($booking['customer_address'] ?? ''));
+        $city = trim((string)($booking['customer_city'] ?? ''));
+        $state = strtoupper(trim((string)($booking['customer_state'] ?? '')));
+        $zip = trim((string)($booking['customer_zip'] ?? ''));
+
+        if (($city === '' || $state === '' || $zip === '') && $address !== '') {
+            if (preg_match('/^\s*(.+?),\s*([^,]+),\s*([A-Z]{2})\s*(\d{5}(?:-\d{4})?)?\s*$/i', $address, $m)) {
+                $address = trim((string)$m[1]);
+                if ($city === '') {
+                    $city = trim((string)$m[2]);
+                }
+                if ($state === '') {
+                    $state = strtoupper(trim((string)$m[3]));
+                }
+                if ($zip === '' && !empty($m[4])) {
+                    $zip = trim((string)$m[4]);
+                }
+            }
+        }
+
+        return [
+            'address' => $address !== '' ? $address : null,
+            'city' => $city !== '' ? $city : null,
+            'state' => $state !== '' ? $state : null,
+            'zip' => $zip !== '' ? $zip : null,
+        ];
+    }
+
     public function findOrCreateByBooking(array $booking): int
     {
         $email     = trim((string)($booking['customer_email']   ?? ''));
         $phone     = trim((string)($booking['customer_phone']   ?? ''));
         $phoneNorm = $this->normalizePhone($phone);
+        $addressParts = $this->extractAddressParts($booking);
 
         $customer = null;
 
@@ -92,8 +129,10 @@ class StripeCustomerService
                 'name'       => $booking['customer_name'],
                 'email'      => $email ?: null,
                 'phone'      => $phone ?: null,
-                'address'    => $booking['customer_address'] ?? null,
-                'city'       => $booking['customer_city'] ?? null,
+                'address'    => $addressParts['address'],
+                'city'       => $addressParts['city'],
+                'state'      => $addressParts['state'],
+                'zip'        => $addressParts['zip'],
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s'),
             ]);
@@ -109,11 +148,17 @@ class StripeCustomerService
             if (empty($customer['email']) && $email !== '') {
                 $updates['email'] = $email;
             }
-            if (empty($customer['address']) && !empty($booking['customer_address'])) {
-                $updates['address'] = $booking['customer_address'];
+            if (empty($customer['address']) && !empty($addressParts['address'])) {
+                $updates['address'] = $addressParts['address'];
             }
-            if (empty($customer['city']) && !empty($booking['customer_city'])) {
-                $updates['city'] = $booking['customer_city'];
+            if (empty($customer['city']) && !empty($addressParts['city'])) {
+                $updates['city'] = $addressParts['city'];
+            }
+            if (empty($customer['state']) && !empty($addressParts['state'])) {
+                $updates['state'] = $addressParts['state'];
+            }
+            if (empty($customer['zip']) && !empty($addressParts['zip'])) {
+                $updates['zip'] = $addressParts['zip'];
             }
             if (!empty($updates)) {
                 $updates['updated_at'] = date('Y-m-d H:i:s');

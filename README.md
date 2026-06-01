@@ -1,6 +1,170 @@
 # Trash Panda Roll-Offs — Dumpster Rental Website & Work Order System
 
-A complete dumpster rental business platform including a public-facing website and an internal admin work order management system. Payments are handled outside the system by the business.
+A complete dumpster rental business platform including a public-facing website and an internal admin work order management system. Built from scratch to replace a spreadsheet-and-phone-call operation with a modern, self-contained software system.
+
+---
+## Case Study — From Spreadsheets to Software
+
+### The Challenge
+
+A growing dumpster rental company serving Baldwin County and Mobile, Alabama was managing daily operations through phone calls, text messages, and a shared spreadsheet. As more customers came in, things started becoming harder to track — bookings could overlap, pickups were missed, payments were difficult to organize, and there was no simple way to see how the business was performing month to month.
+
+The company needed a better system that would simplify operations, reduce manual work, and make the business easier to manage day to day.
+
+---
+
+### The Solution
+
+A custom all-in-one business platform was created specifically for the company’s workflow.
+
+The new system included:
+
+- A modern customer-facing website where customers can:
+  - View dumpster sizes
+  - Check availability
+  - Book online
+  - Pay securely online
+  - Request quotes
+  - Manage their rental information
+
+- A private admin dashboard for the business owner and staff to:
+  - Manage bookings and schedules
+  - Assign deliveries and pickups
+  - Track payments and invoices
+  - Manage customer information
+  - Send automated emails and updates
+  - View reports and revenue data
+
+The platform was designed to work smoothly on desktop and mobile devices and could be managed without needing technical knowledge or ongoing developer support.
+
+---
+
+### What Improved
+
+Before the platform, many tasks were handled manually. After launch, the company had a centralized system that streamlined nearly every part of the business.
+
+| Before | After |
+|---|---|
+| Bookings tracked in spreadsheets | Centralized booking management |
+| Driver updates handled through texts and calls | Organized work orders and scheduling |
+| Manual invoices and payment tracking | Automated invoicing and online payments |
+| No customer communication system | Automated branded email notifications |
+| No reporting or business insights | Revenue and performance reporting |
+| No online booking process | Full online booking and payment flow |
+| Pickup requests handled manually | Customer self-service tools |
+
+---
+
+### The Result
+
+The business moved from a manual, spreadsheet-based workflow to a professional online system that supports the entire rental process — from booking and payment to delivery, pickup, and invoicing.
+
+With everything managed in one place, the owner now has better visibility into operations, fewer scheduling issues, faster payment collection, and a smoother customer experience overall.
+
+The platform helped modernize the business while keeping the system simple, reliable, and easy to manage internally.
+
+
+## Screenshots
+
+### Public Website
+
+| Home | Sizes |
+|------|-------|
+| ![Home page](docs/screenshots/public-home-desktop.png) | ![Dumpster Sizes](docs/screenshots/public-sizes-desktop.png) |
+
+| Services | FAQ |
+|----------|-----|
+| ![Services](docs/screenshots/public-services-desktop.png) | ![FAQ](docs/screenshots/public-faq-desktop.png) |
+
+| Contact / Quote | Service Areas |
+|-----------------|---------------|
+| ![Contact](docs/screenshots/public-contact-desktop.png) | ![Service Areas](docs/screenshots/public-service-areas-desktop.png) |
+
+<details>
+<summary>📱 Mobile views</summary>
+
+| Home | Sizes | Services |
+|------|-------|----------|
+| ![Home mobile](docs/screenshots/public-home-mobile.png) | ![Sizes mobile](docs/screenshots/public-sizes-mobile.png) | ![Services mobile](docs/screenshots/public-services-mobile.png) |
+
+| FAQ | Contact | Service Areas |
+|-----|---------|---------------|
+| ![FAQ mobile](docs/screenshots/public-faq-mobile.png) | ![Contact mobile](docs/screenshots/public-contact-mobile.png) | ![Service Areas mobile](docs/screenshots/public-service-areas-mobile.png) |
+
+</details>
+
+---
+
+### Admin Panel
+
+| Login |
+|-------|
+| ![Admin Login](docs/screenshots/admin-login-desktop.png) |
+
+<details>
+<summary>📱 Mobile view</summary>
+
+| Admin Login |
+|-------------|
+| ![Admin Login mobile](docs/screenshots/admin-login-mobile.png) |
+
+</details>
+
+**Work Orders** — the day-to-day operations list. Every rental is a work order with a status badge (Scheduled → Delivered → Active → Pickup Requested → Picked Up → Completed), priority tag, search/filter toolbar, and quick-action icons. High and Urgent jobs surface at the top.
+
+![Work Orders list](docs/screenshots/admin-work-orders.png)
+
+**Work Order Detail** — a two-column layout showing all job info (dumpster size, delivery/pickup dates, driver assignment, address), customer contact panel, and a full timestamped activity timeline. From here staff can update status, add notes, print the work order, or generate an invoice — all on one page.
+
+![Work Order detail with timeline](docs/screenshots/admin-wo-detail.png)
+
+**Bookings** — online and admin-created rental requests with filter tabs for status (All / Pending / Confirmed / Completed / Canceled) and payment method (Stripe / Cash / Check). Each row shows the booking reference, customer, unit, dates, and payment status at a glance.
+
+![Bookings list with filter tabs](docs/screenshots/admin-bookings.png)
+
+**Invoices** — create custom invoices with unlimited line items and flexible rate types (fixed, daily, weekly, monthly). Statuses flow from Draft → Sent → Paid. Paid-online invoices show the Stripe payment link button; cash and check payments can be quick-marked directly from the list.
+
+![Invoices list with Stripe links](docs/screenshots/admin-invoices.png)
+
+**Inventory** — the full dumpster fleet. Each row shows the unit code, size, current availability status (Available / Reserved / In Use / Maintenance), base price, and a "DUE" badge if the unit should have been returned. Editing a unit syncs it to Stripe for online booking.
+
+![Inventory fleet management](docs/screenshots/admin-inventory.png)
+
+**Calendar** — a full monthly grid showing every scheduled delivery (orange) and pickup (blue) as clickable event chips. Today's date is highlighted. Useful for spotting scheduling conflicts or gaps at a glance before dispatching drivers.
+
+![Calendar monthly view](docs/screenshots/admin-calendar.png)
+
+**Reports** — KPI summary cards (revenue, work orders, customers, average job value), a revenue-by-payment-method breakdown, a 6-month revenue trend chart, a work-order status breakdown, and all-time totals — all on a single page with date-range filter.
+
+![Reports with KPI cards and charts](docs/screenshots/admin-reports.png)
+
+---
+
+### Dispatch Map
+
+The dispatch map is the day-to-day operational hub. It shows every delivery and pickup for a selected date, or every dumpster currently on-site across the entire fleet.
+
+**Day view** — date picker, color-coded delivery (orange) and pickup (blue) pins, job tables below.
+
+![Dispatch map day view](docs/screenshots/dispatch-map-day-view.png)
+
+**Job popup** — tap any pin to see customer phone (click-to-call), dumpster size and unit code, current status, and one-tap action buttons to advance the status without leaving the map.
+
+![Dispatch map popup with phone and status actions](docs/screenshots/dispatch-map-popup.png)
+
+**Optimized route** — click *Optimize Route* to run a TSP solve via the OSRM routing engine. Markers become numbered stops, the map draws the actual road path, and the route panel shows drive time, mileage, a Google Maps multi-stop link for the driver's phone, and a printable route sheet.
+
+![Dispatch map with optimized route](docs/screenshots/dispatch-map-route.png)
+
+**All Active view** — switch from the date picker to *All Active* to see every dumpster currently deployed across all jobs, regardless of delivery or pickup date. Useful for answering "where are all my dumpsters right now?"
+
+![Dispatch map all-active fleet view](docs/screenshots/dispatch-map-active.png)
+
+**Route Builder tab** — a separate planning tab for building custom routes from scratch. Type any address (or click the map to drop a pin), build a stop list, drag stops to reorder them, then hit *Optimize* to run the same OSRM TSP solver. The numbered markers update to show the optimized order and the stop panel shows the full route with a Google Maps multi-stop link. The "Start from depot" checkbox adds the company address as the origin point.
+
+![Route Builder with custom stops and optimized route](docs/screenshots/dispatch-map-builder.png)
+
+---
 
 ## Project Structure
 

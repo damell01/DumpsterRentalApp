@@ -8,8 +8,6 @@ require_once dirname(__DIR__, 2) . '/includes/bootstrap.php';
 require_once TMPL_PATH . '/layout.php';
 require_login();
 
-$pdo = get_db();
-
 // ── Filter ────────────────────────────────────────────────────────────────────
 $filter = trim($_GET['filter'] ?? '');
 $valid_filters = ['draft', 'sent', 'paid', 'void'];
@@ -38,29 +36,94 @@ $per_page   = 25;
 $page       = max(1, (int)($_GET['page'] ?? 1));
 $offset     = ($page - 1) * $per_page;
 
-$total_count = (int)db_fetch("SELECT COUNT(*) AS cnt FROM invoices i $where_sql", $params)['cnt'];
+$total_count = (int)(db_try_fetch("SELECT COUNT(*) AS cnt FROM invoices i $where_sql", $params, ['cnt' => 0])['cnt'] ?? 0);
 $pages       = max(1, (int)ceil($total_count / $per_page));
 
-$invoices = db_fetchall(
-    "SELECT i.*,
-            c.name AS customer_name_linked
-     FROM invoices i
-     LEFT JOIN customers c ON c.id = i.customer_id
-     $where_sql
-     ORDER BY i.created_at DESC
-     LIMIT $per_page OFFSET $offset",
-    $params
-);
+$invoices = [];
+if (db_table_exists('customers')) {
+    $invoices = db_try_fetchall(
+        "SELECT i.*,
+                c.name AS customer_name_linked
+         FROM invoices i
+         LEFT JOIN customers c ON c.id = i.customer_id
+         $where_sql
+         ORDER BY i.created_at DESC
+         LIMIT $per_page OFFSET $offset",
+        $params
+    );
+}
+
+if (empty($invoices) && $total_count > 0) {
+    $invoices = db_try_fetchall(
+        "SELECT i.*, NULL AS customer_name_linked
+         FROM invoices i
+         $where_sql
+         ORDER BY i.created_at DESC
+         LIMIT $per_page OFFSET $offset",
+        $params
+    );
+}
 
 // ── Tab counts ────────────────────────────────────────────────────────────────
 $counts = [];
-foreach (db_fetchall("SELECT status, COUNT(*) AS cnt FROM invoices GROUP BY status") as $r) {
+foreach (db_try_fetchall("SELECT status, COUNT(*) AS cnt FROM invoices GROUP BY status") as $r) {
     $counts[$r['status']] = (int)$r['cnt'];
 }
 $counts[''] = array_sum($counts);
 
 layout_start('Invoices', 'invoices');
 ?>
+
+<style>
+.invoice-filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .85rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+    background: var(--dk2);
+    border: 1px solid var(--st2);
+    border-radius: var(--radius);
+    padding: .75rem .9rem;
+}
+.invoice-filter-tabs {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex: 1 1 420px;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+}
+.invoice-filter-tabs .filter-tab {
+    flex: 0 0 auto;
+    min-height: 38px;
+}
+.invoice-filter-search {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex: 0 1 420px;
+    margin-left: auto;
+}
+.invoice-filter-search .form-control {
+    min-width: 0;
+}
+@media (max-width: 767px) {
+    .invoice-filter-bar {
+        align-items: stretch;
+        padding: .72rem .8rem;
+    }
+    .invoice-filter-tabs,
+    .invoice-filter-search {
+        flex-basis: 100%;
+        margin-left: 0;
+    }
+}
+</style>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 class="mb-0">Invoices</h5>
@@ -72,7 +135,8 @@ layout_start('Invoices', 'invoices');
 </div>
 
 <!-- Filter tabs -->
-<div class="filter-bar mb-3">
+<div class="invoice-filter-bar">
+    <div class="invoice-filter-tabs">
     <?php
     $tab_defs = [
         ''      => 'All',
@@ -91,9 +155,10 @@ layout_start('Invoices', 'invoices');
         <span class="tp-badge"><?= $cnt ?></span>
     </a>
     <?php endforeach; ?>
+    </div>
 
     <!-- Search -->
-    <form method="get" action="" class="ms-auto d-flex gap-2" style="max-width:280px;">
+    <form method="get" action="" class="invoice-filter-search">
         <input type="hidden" name="filter" value="<?= e($filter) ?>">
         <input type="text" name="q" value="<?= e($search) ?>"
                class="form-control form-control-sm"

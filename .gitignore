@@ -1,6 +1,5 @@
 # Composer dependencies
-admin/vendor/
-vendor/
+
 
 # Composer lock file (keep composer.json but ignore lock in shared deployments)
 # composer.lock
@@ -34,3 +33,7 @@ admin/uploads/*.jpeg
 admin/uploads/*.gif
 admin/uploads/*.webp
 admin/uploads/*.svg
+
+# Node
+node_modules/
+package-lock.json

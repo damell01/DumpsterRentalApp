@@ -48,6 +48,10 @@ if ($allowed[$action]['payment_method'] !== null) {
     $update['payment_method'] = $allowed[$action]['payment_method'];
 }
 
+if ($allowed[$action]['status'] === 'paid') {
+    $update['paid_at'] = date('Y-m-d H:i:s');
+}
+
 if ($payment_notes !== '') {
     $update['payment_notes'] = $payment_notes;
 }

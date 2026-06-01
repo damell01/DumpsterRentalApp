@@ -8,6 +8,75 @@ require_once dirname(__DIR__, 2) . '/includes/bootstrap.php';
 require_once TMPL_PATH . '/layout.php';
 require_login();
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && has_role('admin', 'office')) {
+    csrf_check();
+    $action = trim((string)($_POST['action'] ?? ''));
+
+    if ($action === 'add_size_option') {
+        $label = trim((string)($_POST['label'] ?? ''));
+        $description = trim((string)($_POST['description'] ?? ''));
+        $sortOrder = (int)($_POST['sort_order'] ?? 0);
+        $publicEnabled = isset($_POST['public_enabled']) ? 1 : 0;
+        $activeSize = isset($_POST['active_size']) ? 1 : 0;
+
+        if ($label === '') {
+            flash_error('Size label is required.');
+            redirect('index.php');
+        }
+
+        if (!db_table_exists('dumpster_size_options')) {
+            flash_error('Size catalog is not installed yet. Run the database upgrade first.');
+            redirect('index.php');
+        }
+
+        $existing = db_fetch('SELECT id FROM dumpster_size_options WHERE label = ? LIMIT 1', [$label]);
+        if ($existing) {
+            flash_error('That size already exists in the catalog.');
+            redirect('index.php');
+        }
+
+        if ($sortOrder <= 0) {
+            preg_match('/\d+/', $label, $match);
+            $sortOrder = isset($match[0]) ? (int)$match[0] : 999;
+        }
+
+        db_insert('dumpster_size_options', [
+            'label' => $label,
+            'description' => $description !== '' ? $description : null,
+            'sort_order' => $sortOrder,
+            'public_enabled' => $publicEnabled,
+            'active' => $activeSize,
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+        log_activity('create', 'Added dumpster size catalog option ' . $label, 'settings', 0);
+        flash_success('Size option added.');
+        redirect('index.php');
+    }
+
+    if (($action === 'toggle_size_public' || $action === 'toggle_size_active') && db_table_exists('dumpster_size_options')) {
+        $sizeId = (int)($_POST['size_id'] ?? 0);
+        $row = db_fetch('SELECT * FROM dumpster_size_options WHERE id = ? LIMIT 1', [$sizeId]);
+        if (!$row) {
+            flash_error('Size option not found.');
+            redirect('index.php');
+        }
+
+        if ($action === 'toggle_size_public') {
+            $newValue = !empty($row['public_enabled']) ? 0 : 1;
+            db_update('dumpster_size_options', ['public_enabled' => $newValue, 'updated_at' => date('Y-m-d H:i:s')], 'id', $sizeId);
+            log_activity('update', 'Toggled public visibility for size ' . ($row['label'] ?? $sizeId), 'settings', 0);
+            flash_success(($row['label'] ?? 'Size') . ($newValue ? ' is now public.' : ' is now hidden from the public site.'));
+        } else {
+            $newValue = !empty($row['active']) ? 0 : 1;
+            db_update('dumpster_size_options', ['active' => $newValue, 'updated_at' => date('Y-m-d H:i:s')], 'id', $sizeId);
+            log_activity('update', 'Toggled active state for size ' . ($row['label'] ?? $sizeId), 'settings', 0);
+            flash_success(($row['label'] ?? 'Size') . ($newValue ? ' is active in admin forms.' : ' is now inactive in admin forms.'));
+        }
+        redirect('index.php');
+    }
+}
+
 // ── Status filter ─────────────────────────────────────────────────────────────
 $status_filter = trim($_GET['status'] ?? '');
 $valid_statuses = ['available', 'reserved', 'in_use', 'maintenance'];
@@ -26,11 +95,17 @@ $where_sql = 'WHERE ' . implode(' AND ', $where);
 $dumpsters = db_fetchall(
     "SELECT d.*,
             wo.id        AS wo_id,
-            wo.wo_number AS wo_number
+            wo.wo_number AS wo_number,
+            bk.id        AS bk_id,
+            bk.booking_number AS bk_number
      FROM dumpsters d
      LEFT JOIN work_orders wo
            ON  wo.dumpster_id = d.id
            AND wo.status NOT IN ('completed','canceled','picked_up')
+     LEFT JOIN bookings bk
+           ON  bk.dumpster_id = d.id
+           AND bk.booking_status NOT IN ('canceled')
+           AND bk.rental_end >= CURDATE()
      $where_sql
      ORDER BY d.unit_code ASC",
     $params
@@ -44,6 +119,22 @@ foreach ($count_rows as $cr) {
 }
 $total_all = array_sum($status_counts);
 
+function maintenance_service_html(array $d): string
+{
+    $last = $d['last_maintenance_date'] ?? null;
+    if (!$last) {
+        return ($d['status'] ?? '') === 'maintenance'
+            ? '<span class="text-muted">—</span>'
+            : '<span class="tp-badge badge-canceled">Never</span>';
+    }
+    $days = (int)floor((time() - strtotime($last)) / 86400);
+    $out  = '<small>' . htmlspecialchars(date('m/d/Y', strtotime($last))) . '</small>';
+    if ($days > 90) {
+        $out .= ' <span class="tp-badge badge-canceled" title="' . $days . ' days ago">Due</span>';
+    }
+    return $out;
+}
+
 $tabs = [
     ''            => ['label' => 'All',         'count' => $total_all],
     'available'   => ['label' => 'Available',   'count' => $status_counts['available']   ?? 0],
@@ -51,6 +142,8 @@ $tabs = [
     'in_use'      => ['label' => 'In Use',      'count' => $status_counts['in_use']      ?? 0],
     'maintenance' => ['label' => 'Maintenance', 'count' => $status_counts['maintenance'] ?? 0],
 ];
+
+$size_catalog = dumpster_size_catalog(false, null);
 
 $stripeConfigured = trim(get_setting('stripe_secret_key', '')) !== '';
 $can_edit = has_role('admin', 'office');
@@ -85,6 +178,11 @@ layout_start('Inventory', 'inventory');
                 <li>
                     <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#bulkEditModal">
                         <i class="fa-solid fa-table-cells me-2"></i>Bulk Edit Pricing
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="categories.php">
+                        <i class="fa-solid fa-layer-group me-2"></i>Manage Size Catalog
                     </a>
                 </li>
                 <li><hr class="dropdown-divider"></li>
@@ -131,8 +229,110 @@ layout_start('Inventory', 'inventory');
 </div>
 <?php endif; ?>
 
+<?php if ($can_edit): ?>
+<div class="tp-card mb-3">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+            <h6 class="mb-1">Size Catalog</h6>
+            <div class="text-muted" style="font-size:.85rem;">Manage which dumpster sizes exist and which ones show on the public site.</div>
+        </div>
+    </div>
+    <form method="POST" action="index.php">
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="add_size_option">
+    <div class="row g-3 align-items-end mb-3">
+        <div class="col-lg-3">
+            <label class="form-label" for="size_label">New Size Label</label>
+            <input type="text" id="size_label" name="label" class="form-control" placeholder="e.g. 12 Yard" required>
+        </div>
+        <div class="col-lg-4">
+            <label class="form-label" for="size_description">Description</label>
+            <input type="text" id="size_description" name="description" class="form-control" placeholder="Short public-facing description">
+        </div>
+        <div class="col-md-2 col-lg-1">
+            <label class="form-label" for="size_sort_order">Sort</label>
+            <input type="number" id="size_sort_order" name="sort_order" class="form-control" min="0" placeholder="12">
+        </div>
+        <div class="col-md-3 col-lg-2">
+            <label class="form-label d-block">Visibility</label>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="size_public_enabled" name="public_enabled" checked>
+                <label class="form-check-label" for="size_public_enabled">Show publicly</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="size_active_size" name="active_size" checked>
+                <label class="form-check-label" for="size_active_size">Use in admin forms</label>
+            </div>
+        </div>
+        <div class="col-md-3 col-lg-2">
+            <button type="submit" class="btn-tp-primary btn-tp-sm w-100">
+                <i class="fa-solid fa-plus"></i> Add Size
+            </button>
+        </div>
+    </div>
+    </form>
+    <?php if (!empty($size_catalog)): ?>
+    <div class="table-responsive">
+        <table class="table tp-table mb-0">
+            <thead>
+                <tr>
+                    <th>Size</th>
+                    <th>Description</th>
+                    <th>Public</th>
+                    <th>Forms</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($size_catalog as $size_option): ?>
+                <tr>
+                    <td><strong><?= e($size_option['label']) ?></strong></td>
+                    <td><?= e($size_option['description'] ?: '—') ?></td>
+                    <td>
+                        <?php if (!empty($size_option['public_enabled'])): ?>
+                            <span class="tp-badge badge-available">Public</span>
+                        <?php else: ?>
+                            <span class="tp-badge badge-canceled">Hidden</span>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php if (!empty($size_option['active'])): ?>
+                            <span class="tp-badge badge-active">Enabled</span>
+                        <?php else: ?>
+                            <span class="tp-badge badge-canceled">Inactive</span>
+                        <?php endif; ?>
+                    </td>
+                    <td class="text-end">
+                        <form method="POST" action="index.php" class="d-inline">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="toggle_size_public">
+                            <input type="hidden" name="size_id" value="<?= (int)$size_option['id'] ?>">
+                            <button type="submit" class="btn-tp-ghost btn-tp-sm">
+                                <i class="fa-solid fa-eye<?= !empty($size_option['public_enabled']) ? '-slash' : '' ?>"></i>
+                                <?= !empty($size_option['public_enabled']) ? 'Hide Publicly' : 'Show Publicly' ?>
+                            </button>
+                        </form>
+                        <form method="POST" action="index.php" class="d-inline">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="toggle_size_active">
+                            <input type="hidden" name="size_id" value="<?= (int)$size_option['id'] ?>">
+                            <button type="submit" class="btn-tp-ghost btn-tp-sm">
+                                <i class="fa-solid fa-toggle-<?= !empty($size_option['active']) ? 'on' : 'off' ?>"></i>
+                                <?= !empty($size_option['active']) ? 'Disable in Forms' : 'Enable in Forms' ?>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
 <!-- Status filter tabs -->
-<div class="tp-filter-tabs mb-3">
+<div class="tp-filter-tabs tp-filter-strip mb-3">
     <?php foreach ($tabs as $key => $tab): ?>
     <a class="tp-filter-tab <?= $status_filter === $key ? 'active' : '' ?>"
        href="?status=<?= urlencode($key) ?>">
@@ -158,8 +358,9 @@ layout_start('Inventory', 'inventory');
                     <th>Base Price</th>
                     <th>Incl. Days</th>
                     <th>Extra Day</th>
-                    <th>Current WO#</th>
-                    <th>Notes</th>
+                    <th>Assignment</th>
+                    <th>Last Service</th>
+                    <th class="d-none d-xl-table-cell">Notes</th>
                     <?php if ($can_edit): ?>
                     <th class="text-end">Actions</th>
                     <?php endif; ?>
@@ -239,11 +440,16 @@ layout_start('Inventory', 'inventory');
                             <a href="<?= e(APP_URL) ?>/modules/work_orders/view.php?id=<?= (int)$d['wo_id'] ?>">
                                 <?= e($d['wo_number']) ?>
                             </a>
+                        <?php elseif (!empty($d['bk_id'])): ?>
+                            <a href="<?= e(APP_URL) ?>/modules/bookings/view.php?id=<?= (int)$d['bk_id'] ?>">
+                                <?= e($d['bk_number']) ?>
+                            </a>
                         <?php else: ?>
                             <span class="text-muted">—</span>
                         <?php endif; ?>
                     </td>
-                    <td>
+                    <td><?= maintenance_service_html($d) ?></td>
+                    <td class="d-none d-xl-table-cell">
                         <?php if (!empty($d['notes'])): ?>
                             <span class="tp-text-tooltip" title="<?= e($d['notes']) ?>">
                                 <?= e(mb_strimwidth($d['notes'], 0, 40, '…')) ?>

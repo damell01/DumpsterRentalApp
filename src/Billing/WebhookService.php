@@ -53,6 +53,7 @@ class WebhookService
             return ['duplicate' => false] + $context;
         } catch (\Throwable $e) {
             $this->webhookLogService->markFailed($logId, $e->getMessage());
+            $this->sendFailureAlert($event, $e);
             throw $e;
         }
     }
@@ -109,11 +110,15 @@ class WebhookService
                     'stripe_customer_id' => is_string($session->customer ?? null) ? $session->customer : null,
                 ]);
                 if ($paymentMethod === 'ach') {
-                    $this->notificationService->sendAchInitiated(
-                        ['email' => $booking['customer_email'] ?? ''],
-                        $booking['booking_number'] ?? ('Booking ' . $bookingId),
-                        (float)$booking['total_amount']
-                    );
+                    try {
+                        $this->notificationService->sendAchInitiated(
+                            ['email' => $booking['customer_email'] ?? ''],
+                            $booking['booking_number'] ?? ('Booking ' . $bookingId),
+                            (float)$booking['total_amount']
+                        );
+                    } catch (\Throwable $e) {
+                        \error_log('[Webhook] sendAchInitiated failed for booking ' . $bookingId . ': ' . $e->getMessage());
+                    }
                 } else {
                     // Card payment settled — send customer confirmation + admin email
                     $alreadyEmailed = (bool)\db_value(
@@ -122,10 +127,10 @@ class WebhookService
                     );
                     if (!$alreadyEmailed) {
                         try {
-                            \notify_booking_confirmed($booking);
-                            \log_activity('booking_paid_emailed', 'Sent booking paid confirmation for ' . ($booking['booking_number'] ?? $bookingId), 'booking', $bookingId);
+                            \notify_payment_received($booking, (float)$booking['total_amount'], $paymentMethod);
+                            \log_activity('booking_paid_emailed', 'Sent payment received email for ' . ($booking['booking_number'] ?? $bookingId), 'booking', $bookingId);
                         } catch (\Throwable $e) {
-                            \error_log('[Webhook] notify_booking_confirmed failed for booking ' . $bookingId . ': ' . $e->getMessage());
+                            \error_log('[Webhook] notify_payment_received failed for booking ' . $bookingId . ': ' . $e->getMessage());
                         }
                     }
                 }
@@ -171,20 +176,25 @@ class WebhookService
                         );
                     }
 
-                    // Email customer + admin — skip if success page already sent it
+                    // Email customer + admin — skip if success page already sent it.
+                    // Wrapped in try/catch so a mail failure does NOT roll back the DB transaction.
                     $alreadyEmailed = (bool)\db_value(
                         "SELECT COUNT(*) FROM activity_log WHERE action = 'invoice_paid_emailed' AND entity_id = ?",
                         [$invoiceId]
                     );
                     if (!$alreadyEmailed) {
                         $custEmail = trim((string)(\db_value('SELECT email FROM customers WHERE id = ?', [(int)($invoice['customer_id'] ?? 0)]) ?? ''));
-                        $this->notificationService->sendInvoicePaid(
-                            ['email' => $custEmail],
-                            $invoice['invoice_number'] ?? ('INV-' . $invoiceId),
-                            (float)$invoice['total'],
-                            $invoice['cust_name'] ?? ''
-                        );
-                        \log_activity('invoice_paid_emailed', 'Sent invoice paid notification for ' . ($invoice['invoice_number'] ?? $invoiceId), 'invoice', $invoiceId);
+                        try {
+                            $this->notificationService->sendInvoicePaid(
+                                ['email' => $custEmail],
+                                $invoice['invoice_number'] ?? ('INV-' . $invoiceId),
+                                (float)$invoice['total'],
+                                $invoice['cust_name'] ?? ''
+                            );
+                            \log_activity('invoice_paid_emailed', 'Sent invoice paid notification for ' . ($invoice['invoice_number'] ?? $invoiceId), 'invoice', $invoiceId);
+                        } catch (\Throwable $e) {
+                            \error_log('[Webhook] sendInvoicePaid failed for invoice ' . $invoiceId . ': ' . $e->getMessage());
+                        }
                     }
                 }
             }
@@ -268,12 +278,36 @@ class WebhookService
                 'created_at' => date('Y-m-d H:i:s'),
             ]);
 
-            if ($customer) {
-                $this->notificationService->sendSubscriptionRenewed(
-                    ['email' => $customer['email'] ?? ''],
-                    $subscription['service_name'] ?? ('Subscription ' . $subscriptionId),
-                    ((int)$invoice->amount_paid) / 100
+            if ($localInvoiceId > 0) {
+                $alreadyEmailed = (bool)\db_value(
+                    "SELECT COUNT(*) FROM activity_log WHERE action = 'invoice_paid_emailed' AND entity_id = ?",
+                    [$localInvoiceId]
                 );
+                $localInvoice = \db_fetch('SELECT * FROM invoices WHERE id = ? LIMIT 1', [$localInvoiceId]);
+                if (!$alreadyEmailed && $localInvoice) {
+                    try {
+                        $this->notificationService->sendInvoicePaidReceipt(
+                            ['email' => $customer['email'] ?? ($localInvoice['cust_email'] ?? '')],
+                            $localInvoice['invoice_number'] ?? ('INV-' . $localInvoiceId),
+                            (float)($localInvoice['total'] ?? (((int)$invoice->amount_paid) / 100)),
+                            $customer['name'] ?? ($localInvoice['cust_name'] ?? '')
+                        );
+                        $this->notificationService->notifySubscriptionPaymentReceived(
+                            $subscription['service_name'] ?? ('Subscription ' . $subscriptionId),
+                            (float)($localInvoice['total'] ?? (((int)$invoice->amount_paid) / 100)),
+                            $customer['name'] ?? ($localInvoice['cust_name'] ?? '')
+                        );
+                        \log_activity('invoice_paid_emailed', 'Sent subscription receipt for ' . ($localInvoice['invoice_number'] ?? $localInvoiceId), 'invoice', $localInvoiceId);
+                    } catch (\Throwable $e) {
+                        \error_log('[Webhook] subscription receipt send failed for invoice ' . $localInvoiceId . ': ' . $e->getMessage());
+                    }
+                } elseif (!$alreadyEmailed) {
+                    $this->notificationService->notifySubscriptionPaymentReceived(
+                        $subscription['service_name'] ?? ('Subscription ' . $subscriptionId),
+                        ((int)$invoice->amount_paid) / 100,
+                        $customer['name'] ?? ''
+                    );
+                }
             }
         }
 
@@ -331,6 +365,11 @@ class WebhookService
             if (!empty($payment['invoice_id'])) {
                 \db_update('invoices', ['status' => 'void', 'updated_at' => date('Y-m-d H:i:s')], 'id', (int)$payment['invoice_id']);
             }
+            try {
+                \notify_payment_refunded($payment, ((int)$charge->amount_refunded) / 100);
+            } catch (\Throwable $e) {
+                \error_log('[Webhook] notify_payment_refunded failed: ' . $e->getMessage());
+            }
         }
 
         return ['entity_type' => 'payment', 'entity_id' => (int)($payment['id'] ?? 0)];
@@ -380,13 +419,17 @@ class WebhookService
                         );
                         if (!$alreadyEmailed) {
                             $custEmail = trim((string)(\db_value('SELECT email FROM customers WHERE id = ?', [(int)($invoice['customer_id'] ?? 0)]) ?? ''));
-                            $this->notificationService->sendInvoicePaid(
-                                ['email' => $custEmail],
-                                $invoice['invoice_number'] ?? ('INV-' . $invoiceId),
-                                (float)$invoice['total'],
-                                $invoice['cust_name'] ?? ''
-                            );
-                            \log_activity('invoice_paid_emailed', 'Sent invoice paid notification for ' . ($invoice['invoice_number'] ?? $invoiceId), 'invoice', $invoiceId);
+                            try {
+                                $this->notificationService->sendInvoicePaid(
+                                    ['email' => $custEmail],
+                                    $invoice['invoice_number'] ?? ('INV-' . $invoiceId),
+                                    (float)$invoice['total'],
+                                    $invoice['cust_name'] ?? ''
+                                );
+                                \log_activity('invoice_paid_emailed', 'Sent invoice paid notification for ' . ($invoice['invoice_number'] ?? $invoiceId), 'invoice', $invoiceId);
+                            } catch (\Throwable $e) {
+                                \error_log('[Webhook] sendInvoicePaid failed (ACH settled) for invoice ' . $invoiceId . ': ' . $e->getMessage());
+                            }
                         }
                     }
                 }
@@ -483,5 +526,29 @@ class WebhookService
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
+    }
+
+    private function sendFailureAlert(object $event, \Throwable $e): void
+    {
+        try {
+            $adminEmail = \get_setting('admin_email', '');
+            if (!$adminEmail) {
+                return;
+            }
+            $appName = \get_setting('company_name', 'Trash Panda Roll-Offs');
+            $appUrl  = \get_setting('app_url', '');
+            $subject = '[' . $appName . '] Webhook failed: ' . $event->type;
+            $body    = "A Stripe webhook event failed to process and requires attention.\r\n\r\n"
+                     . "Event Type : " . $event->type . "\r\n"
+                     . "Event ID   : " . $event->id . "\r\n"
+                     . "Error      : " . $e->getMessage() . "\r\n"
+                     . "File       : " . $e->getFile() . ':' . $e->getLine() . "\r\n"
+                     . "Time       : " . date('Y-m-d H:i:s') . "\r\n\r\n"
+                     . ($appUrl ? "Review webhook logs: " . $appUrl . "/modules/webhooks/\r\n" : '');
+            $headers = 'From: ' . $adminEmail . "\r\nContent-Type: text/plain; charset=UTF-8";
+            \mail($adminEmail, $subject, $body, $headers);
+        } catch (\Throwable $ignored) {
+            \error_log('[Webhook] sendFailureAlert failed: ' . $ignored->getMessage());
+        }
     }
 }

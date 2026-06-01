@@ -136,6 +136,77 @@ if (!column_exists($pdo, 'dumpsters', 'image')) {
     $log[] = "[SKIP] dumpsters.image (already exists)";
 }
 
+echo "\n--- Upgrade 1b: dumpster size catalog ---\n";
+
+if (!table_exists($pdo, 'dumpster_size_options')) {
+    run_step($pdo, "CREATE TABLE dumpster_size_options", "
+        CREATE TABLE `dumpster_size_options` (
+          `id`             INT(11)      NOT NULL AUTO_INCREMENT,
+          `label`          VARCHAR(80)  NOT NULL,
+          `description`    VARCHAR(255)          DEFAULT NULL,
+          `sort_order`     INT(11)      NOT NULL DEFAULT 0,
+          `public_enabled` TINYINT(1)   NOT NULL DEFAULT 1,
+          `active`         TINYINT(1)   NOT NULL DEFAULT 1,
+          `created_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          `updated_at`     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          PRIMARY KEY (`id`),
+          UNIQUE KEY `uq_dumpster_size_options_label` (`label`),
+          KEY `idx_dumpster_size_options_public` (`public_enabled`),
+          KEY `idx_dumpster_size_options_active` (`active`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+} else {
+    $log[] = "[SKIP] dumpster_size_options table (already exists)";
+}
+
+if (table_exists($pdo, 'dumpster_size_options')) {
+    $defaultSizes = [
+        ['10 Yard', 'Best for small cleanouts, garage purge jobs, and light remodeling.', 10],
+        ['15 Yard', 'Great for medium room remodels, flooring jobs, and compact property cleanups.', 15],
+        ['20 Yard', 'Ideal for remodels, roofing, and all-around residential renovation work.', 20],
+        ['30 Yard', 'Built for larger renovations, contractor jobs, and major property cleanouts.', 30],
+        ['40 Yard', 'Best for demolition, commercial work, and the biggest debris loads.', 40],
+    ];
+    foreach ($defaultSizes as [$label, $description, $sortOrder]) {
+        try {
+            $pdo->prepare(
+                "INSERT IGNORE INTO `dumpster_size_options`
+                 (`label`, `description`, `sort_order`, `public_enabled`, `active`)
+                 VALUES (?, ?, ?, 1, 1)"
+            )->execute([$label, $description, $sortOrder]);
+            $log[] = "[OK]  dumpster_size_options.$label (inserted if missing)";
+        } catch (PDOException $e) {
+            $errors[] = "[FAIL] dumpster_size_options.$label - " . $e->getMessage();
+        }
+    }
+
+    if (table_exists($pdo, 'dumpsters') && column_exists($pdo, 'dumpsters', 'size')) {
+        try {
+            $sizes = $pdo->query(
+                "SELECT DISTINCT TRIM(`size`) AS label
+                 FROM `dumpsters`
+                 WHERE `size` IS NOT NULL AND TRIM(`size`) <> ''"
+            )->fetchAll(PDO::FETCH_ASSOC);
+            $insert = $pdo->prepare(
+                "INSERT IGNORE INTO `dumpster_size_options` (`label`, `sort_order`, `public_enabled`, `active`)
+                 VALUES (?, ?, 1, 1)"
+            );
+            foreach ($sizes as $row) {
+                $label = trim((string)($row['label'] ?? ''));
+                if ($label === '') {
+                    continue;
+                }
+                preg_match('/\d+/', $label, $match);
+                $sortOrder = isset($match[0]) ? (int)$match[0] : 999;
+                $insert->execute([$label, $sortOrder]);
+            }
+            $log[] = "[OK]  dumpster_size_options synced from dumpsters";
+        } catch (PDOException $e) {
+            $errors[] = "[FAIL] dumpster_size_options sync - " . $e->getMessage();
+        }
+    }
+}
+
 // =============================================================================
 // UPGRADE 2 — bookings table
 // =============================================================================
@@ -454,6 +525,29 @@ echo "\n--- Upgrade 15: settings defaults (invoice_terms, vapid keys) ---\n";
 if (table_exists($pdo, 'settings')) {
     $extra_defaults = [
         'invoice_terms'   => 'Payment is due within 30 days of invoice date. Thank you for your business!',
+        'payment_note_cash'  => 'Please have cash payment ready at time of delivery.',
+        'payment_note_check' => 'Please have your check made out to {company_name} ready at time of delivery.',
+        'booking_success_pending_intro' => 'Thank you, {customer_name}. {subject_phrase} been submitted for review. We will follow up with approval details and payment instructions if needed.',
+        'booking_success_confirmed_intro' => 'Thank you, {customer_name}! {subject_phrase} been booked.',
+        'booking_success_terms_text' => 'Keep a copy of the signed rental terms for your records.',
+        'booking_success_keep_title' => 'Keep this page handy.',
+        'booking_success_keep_body' => 'Use these booking numbers when you call, email, or check your order in the customer portal.',
+        'booking_success_contact_prompt' => 'Questions? Call us at',
+        'invoice_paid_intro_named' => 'Thank you, {customer_name}! Your invoice has been paid.',
+        'invoice_paid_intro_generic' => 'Your invoice payment has been received. Thank you!',
+        'invoice_paid_contact_prompt' => 'Questions? Call us at',
+        'invoice_canceled_intro' => 'Your payment was not completed and the invoice has not been charged. No amount has been collected.',
+        'invoice_canceled_contact_prompt' => 'Need help? Call us at',
+        'portal_request_lead' => 'Get a secure one-time link to review invoices, payment history, saved billing methods, and subscription activity without needing a password.',
+        'portal_request_sub' => 'Enter your billing email and we’ll send a secure one-time link to access your invoices, subscriptions, and saved payment methods.',
+        'portal_request_success' => 'If that email address is on file, a secure portal link has been sent. Check your inbox.',
+        'portal_request_security_note' => 'Links are single-use and expire automatically. No password needed.',
+        'portal_link_email_subject' => 'Your {company_name} Billing Portal Link',
+        'portal_link_email_intro' => 'Your secure {company_name} billing portal link is ready. This link expires automatically.',
+        'portal_link_email_button' => 'Open Billing Portal',
+        'invoice_paid_email_subject' => 'Invoice Paid — {invoice_number}',
+        'invoice_paid_email_body' => 'Hi {customer_name}, Your payment of {amount} for invoice {invoice_number} has been received. Thank you!',
+        'super_admin_user_ids' => '[]',
         'vapid_public_key'  => '',
         'vapid_private_key' => '',
         'vapid_subject'     => '',
@@ -884,6 +978,90 @@ if (table_exists($pdo, 'work_orders')) {
          MODIFY COLUMN `service_address` VARCHAR(200) DEFAULT NULL");
 } else {
     $log[] = '[SKIP] work_orders.service_address (table missing)';
+}
+
+// =============================================================================
+// UPGRADE 34 — geocode_cache table (dispatch map lat/lng cache)
+// =============================================================================
+echo "\n--- Upgrade 34: geocode_cache table ---\n";
+
+if (!table_exists($pdo, 'geocode_cache')) {
+    run_step($pdo, 'CREATE TABLE geocode_cache',
+        "CREATE TABLE IF NOT EXISTS `geocode_cache` (
+          `address_hash` CHAR(32)      NOT NULL COMMENT 'md5 of normalised full address',
+          `address`      VARCHAR(500)  NOT NULL,
+          `lat`          DECIMAL(10,7) NOT NULL,
+          `lng`          DECIMAL(10,7) NOT NULL,
+          `created_at`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (`address_hash`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+} else {
+    $log[] = '[SKIP] geocode_cache table (already exists)';
+}
+
+// =============================================================================
+// UPGRADE 35 — dumpster unit tracking columns + maintenance log table
+// =============================================================================
+echo "\n--- Upgrade 35: dumpster unit tracking + dumpster_maintenance_logs ---\n";
+
+if (table_exists($pdo, 'dumpsters')) {
+    if (!column_exists($pdo, 'dumpsters', 'last_maintenance_date')) {
+        run_step($pdo, 'dumpsters.last_maintenance_date',
+            "ALTER TABLE `dumpsters`
+             ADD COLUMN `last_maintenance_date` DATE DEFAULT NULL
+             COMMENT 'Date of last maintenance/service' AFTER `condition`");
+    } else {
+        $log[] = '[SKIP] dumpsters.last_maintenance_date (already exists)';
+    }
+    if (!column_exists($pdo, 'dumpsters', 'purchase_date')) {
+        run_step($pdo, 'dumpsters.purchase_date',
+            "ALTER TABLE `dumpsters`
+             ADD COLUMN `purchase_date` DATE DEFAULT NULL
+             COMMENT 'Date unit was acquired' AFTER `last_maintenance_date`");
+    } else {
+        $log[] = '[SKIP] dumpsters.purchase_date (already exists)';
+    }
+}
+
+if (!table_exists($pdo, 'dumpster_maintenance_logs')) {
+    run_step($pdo, 'CREATE TABLE dumpster_maintenance_logs',
+        "CREATE TABLE IF NOT EXISTS `dumpster_maintenance_logs` (
+          `id`               INT(11)       NOT NULL AUTO_INCREMENT,
+          `dumpster_id`      INT(11)       NOT NULL,
+          `maintenance_date` DATE          NOT NULL,
+          `description`      VARCHAR(255)  NOT NULL DEFAULT '',
+          `performed_by`     VARCHAR(100)  DEFAULT NULL,
+          `cost`             DECIMAL(10,2) DEFAULT NULL,
+          `created_by`       INT(11)       DEFAULT NULL,
+          `created_at`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (`id`),
+          KEY `idx_dml_dumpster_id` (`dumpster_id`),
+          CONSTRAINT `fk_dml_dumpster_id`
+              FOREIGN KEY (`dumpster_id`) REFERENCES `dumpsters` (`id`) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+} else {
+    $log[] = '[SKIP] dumpster_maintenance_logs table (already exists)';
+}
+
+// =============================================================================
+// UPGRADE 36 — api_rate_limits table
+// =============================================================================
+echo "\n--- Upgrade 36: api_rate_limits table ---\n";
+
+if (!table_exists($pdo, 'api_rate_limits')) {
+    run_step($pdo, 'CREATE TABLE api_rate_limits',
+        "CREATE TABLE IF NOT EXISTS `api_rate_limits` (
+          `bucket`       VARCHAR(120) NOT NULL COMMENT 'action:ip composite key',
+          `attempts`     INT(11)      NOT NULL DEFAULT 1,
+          `window_start` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          `locked_until` DATETIME              DEFAULT NULL,
+          `updated_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          PRIMARY KEY (`bucket`),
+          KEY `idx_arl_window_start` (`window_start`),
+          KEY `idx_arl_locked_until` (`locked_until`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+} else {
+    $log[] = '[SKIP] api_rate_limits table (already exists)';
 }
 
 // =============================================================================
