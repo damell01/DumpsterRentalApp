@@ -138,6 +138,19 @@ foreach ($rows as $row) {
     }
 }
 
+// Overlay category-level descriptions from dumpster_categories (admin Size Catalog)
+if (db_table_exists('dumpster_categories')) {
+    $catRows = db_fetchall(
+        "SELECT name, description FROM dumpster_categories WHERE description IS NOT NULL AND description <> ''"
+    );
+    foreach ($catRows as $cat) {
+        $sizeName = (string)$cat['name'];
+        if (isset($grouped[$sizeName])) {
+            $grouped[$sizeName]['description'] = trim((string)$cat['description']);
+        }
+    }
+}
+
 $items = array_values($grouped);
 
 usort($items, static function (array $a, array $b): int {

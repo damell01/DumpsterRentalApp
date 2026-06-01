@@ -14,10 +14,10 @@ CREATE TABLE IF NOT EXISTS `dumpster_categories` (
   UNIQUE KEY `uq_dumpster_categories_name` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Seed default sizes (IGNORE so re-running is safe)
-INSERT IGNORE INTO `dumpster_categories` (`name`, `sort_order`) VALUES
-('10 Yard', 10),
-('15 Yard', 15),
-('20 Yard', 20),
-('30 Yard', 30),
-('40 Yard', 40);
+-- Seed default sizes with descriptions (IGNORE so re-running is safe)
+INSERT IGNORE INTO `dumpster_categories` (`name`, `description`, `sort_order`) VALUES
+('10 Yard', 'Perfect for small cleanouts, single-room remodels, and garage or attic purges.', 10),
+('15 Yard', 'Great for medium home cleanouts, flooring removal, and compact renovation projects.', 15),
+('20 Yard', 'Ideal for whole-home remodels, roofing tear-offs, and mid-size construction debris.', 20),
+('30 Yard', 'Best for large renovations, new construction waste, and major property cleanouts.', 30),
+('40 Yard', 'Suited for commercial jobs, large-scale demolition, and heavy debris removal.', 40);

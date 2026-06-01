@@ -1081,16 +1081,38 @@ if (!$pdo->query("SHOW TABLES LIKE 'dumpster_categories'")->fetch()) {
           UNIQUE KEY `uq_dumpster_categories_name` (`name`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
-    // Seed default sizes (safe to re-run)
-    foreach (['10 Yard' => 10, '15 Yard' => 15, '20 Yard' => 20, '30 Yard' => 30, '40 Yard' => 40] as $name => $order) {
+    // Seed default sizes with descriptions (safe to re-run)
+    $defaultSizes = [
+        '10 Yard' => [10, 'Perfect for small cleanouts, single-room remodels, and garage or attic purges.'],
+        '15 Yard' => [15, 'Great for medium home cleanouts, flooring removal, and compact renovation projects.'],
+        '20 Yard' => [20, 'Ideal for whole-home remodels, roofing tear-offs, and mid-size construction debris.'],
+        '30 Yard' => [30, 'Best for large renovations, new construction waste, and major property cleanouts.'],
+        '40 Yard' => [40, 'Suited for commercial jobs, large-scale demolition, and heavy debris removal.'],
+    ];
+    foreach ($defaultSizes as $name => [$order, $desc]) {
         try {
-            $pdo->prepare("INSERT IGNORE INTO `dumpster_categories` (`name`, `sort_order`) VALUES (?, ?)")
-                ->execute([$name, $order]);
+            $pdo->prepare("INSERT IGNORE INTO `dumpster_categories` (`name`, `description`, `sort_order`) VALUES (?, ?, ?)")
+                ->execute([$name, $desc, $order]);
         } catch (PDOException $e) { /* ignore duplicates */ }
     }
     $log[] = '[OK]  dumpster_categories seeded with default sizes';
 } else {
-    $log[] = '[SKIP] dumpster_categories table (already exists)';
+    // Table already exists — fill in descriptions for any sizes that are still blank
+    $defaultSizes = [
+        '10 Yard' => 'Perfect for small cleanouts, single-room remodels, and garage or attic purges.',
+        '15 Yard' => 'Great for medium home cleanouts, flooring removal, and compact renovation projects.',
+        '20 Yard' => 'Ideal for whole-home remodels, roofing tear-offs, and mid-size construction debris.',
+        '30 Yard' => 'Best for large renovations, new construction waste, and major property cleanouts.',
+        '40 Yard' => 'Suited for commercial jobs, large-scale demolition, and heavy debris removal.',
+    ];
+    foreach ($defaultSizes as $name => $desc) {
+        try {
+            $pdo->prepare(
+                "UPDATE `dumpster_categories` SET `description` = ? WHERE `name` = ? AND (`description` IS NULL OR `description` = '')"
+            )->execute([$desc, $name]);
+        } catch (PDOException $e) { /* non-fatal */ }
+    }
+    $log[] = '[SKIP] dumpster_categories table (already exists) — filled missing descriptions';
 }
 
 // =============================================================================
