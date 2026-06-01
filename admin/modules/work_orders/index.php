@@ -44,35 +44,44 @@ if ($delivery_date_to !== '') {
 $where_sql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
 // ── Database connection ───────────────────────────────────────────────────────
-$pdo = get_db();
-
 // ── Count ─────────────────────────────────────────────────────────────────────
-$count_stmt = $pdo->prepare(
-    "SELECT COUNT(*)
-     FROM work_orders wo
-     LEFT JOIN dumpsters d ON wo.dumpster_id = d.id
-     LEFT JOIN users u ON wo.assigned_driver = u.id
-     $where_sql"
+$total = (int)db_try_value(
+    "SELECT COUNT(*) FROM work_orders wo $where_sql",
+    $params,
+    0
 );
-$count_stmt->execute($params);
-$total       = (int)$count_stmt->fetchColumn();
 $total_pages = max(1, (int)ceil($total / $per_page));
 
 // ── Fetch rows ────────────────────────────────────────────────────────────────
-$sql = "SELECT wo.*,
-               d.unit_code AS dumpster_code,
-               d.size      AS dumpster_size,
-               u.name      AS driver_name
-        FROM work_orders wo
-        LEFT JOIN dumpsters d ON wo.dumpster_id = d.id
-        LEFT JOIN users u ON wo.assigned_driver = u.id
-        $where_sql
-        ORDER BY wo.created_at DESC
-        LIMIT $per_page OFFSET $offset";
+$work_orders = [];
+$can_join_dumpsters = db_table_exists('dumpsters');
+$can_join_users = db_table_exists('users');
 
-$stmt = $pdo->prepare($sql);
-$stmt->execute($params);
-$work_orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+if ($can_join_dumpsters && $can_join_users) {
+    $sql = "SELECT wo.*,
+                   d.unit_code AS dumpster_code,
+                   d.size      AS dumpster_size,
+                   u.name      AS driver_name
+            FROM work_orders wo
+            LEFT JOIN dumpsters d ON wo.dumpster_id = d.id
+            LEFT JOIN users u ON wo.assigned_driver = u.id
+            $where_sql
+            ORDER BY wo.created_at DESC
+            LIMIT $per_page OFFSET $offset";
+    $work_orders = db_try_fetchall($sql, $params);
+}
+
+if (empty($work_orders) && $total > 0) {
+    $fallback_sql = "SELECT wo.*,
+                            NULL AS dumpster_code,
+                            NULL AS dumpster_size,
+                            NULL AS driver_name
+                     FROM work_orders wo
+                     $where_sql
+                     ORDER BY wo.created_at DESC
+                     LIMIT $per_page OFFSET $offset";
+    $work_orders = db_try_fetchall($fallback_sql, $params);
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function wo_status_badge(string $status): string
@@ -135,7 +144,7 @@ layout_start('Work Orders', 'work_orders');
 </div>
 
 <!-- Status Tabs -->
-<div class="tp-filter-tabs mb-3">
+<div class="tp-filter-tabs tp-filter-strip mb-3">
     <?php foreach ($status_labels as $sv => $sl): ?>
     <a class="tp-filter-tab <?= $status_filter === $sv ? 'active' : '' ?>"
        href="?<?= wo_qs(['status' => $sv, 'page' => 1]) ?>">
@@ -145,7 +154,7 @@ layout_start('Work Orders', 'work_orders');
 </div>
 
 <!-- Search & Date Filters -->
-<form method="get" class="mb-3" action="">
+<form method="get" class="mb-3 tp-filter-form-compact" action="">
     <?php if ($status_filter): ?>
         <input type="hidden" name="status" value="<?= htmlspecialchars($status_filter) ?>">
     <?php endif; ?>

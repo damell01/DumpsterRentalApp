@@ -9,6 +9,12 @@ require_once TMPL_PATH . '/layout.php';
 require_login();
 require_role('admin', 'office');
 
+$settings_copy_visible = current_user_is_super_admin();
+$settings_tab_names = ['company', 'branding', 'email', 'stripe', 'database'];
+if ($settings_copy_visible) {
+    array_splice($settings_tab_names, 1, 0, ['copy']);
+}
+
 function normalize_retry_days_input(string $input): string
 {
     $input = trim($input);
@@ -71,6 +77,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
 
     $action = trim($_POST['action'] ?? 'save_company');
+
+    if ($action === 'save_copy' && !$settings_copy_visible) {
+        flash_error('You do not have permission to edit customer-facing copy settings.');
+        redirect('index.php#settings-company');
+    }
 
     // ── Test email ───────────────────────────────────────────────────────────
     if ($action === 'test_email') {
@@ -151,6 +162,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'company_name', 'company_phone', 'company_email', 'company_address',
             'quote_terms', 'wo_footer', 'invoice_footer', 'booking_terms', 'currency',
             'hide_launch_checklist',
+        ],
+        'save_copy' => [
+            'payment_note_cash', 'payment_note_check',
+            'booking_success_pending_intro', 'booking_success_confirmed_intro',
+            'booking_success_terms_text', 'booking_success_keep_title',
+            'booking_success_keep_body', 'booking_success_contact_prompt',
+            'invoice_paid_intro_named', 'invoice_paid_intro_generic',
+            'invoice_paid_contact_prompt', 'invoice_canceled_intro',
+            'invoice_canceled_contact_prompt', 'portal_request_lead',
+            'portal_request_sub', 'portal_request_success',
+            'portal_request_security_note', 'portal_link_email_subject',
+            'portal_link_email_intro', 'portal_link_email_button',
+            'invoice_paid_email_subject', 'invoice_paid_email_body',
         ],
         'save_email' => [
             'email_from_name', 'email_from_email', 'notification_emails',
@@ -264,8 +288,78 @@ layout_start('Settings', 'settings');
     flex-wrap: wrap;
     margin-bottom: 1rem;
 }
-.settings-panel { display: none; }
+.settings-tabs .settings-tab {
+    min-height: 42px;
+    padding-inline: 1rem;
+    border-radius: 12px;
+}
+.settings-tabs .settings-tab.active {
+    box-shadow: 0 8px 18px rgba(249,115,22,.12);
+}
+.settings-panel {
+    display: none;
+    border-radius: 18px;
+    border: 1px solid var(--st,#e5e7eb);
+    box-shadow: 0 10px 28px rgba(15,23,42,.06);
+    overflow: hidden;
+}
 .settings-panel.active { display: block; }
+.settings-panel > form,
+.settings-panel > div,
+.settings-panel > .row {
+    padding: 1.15rem 1.2rem;
+}
+.settings-panel h6 {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: .9rem !important;
+}
+.settings-panel .row.g-3 {
+    --bs-gutter-x: 1rem;
+    --bs-gutter-y: .95rem;
+}
+.settings-panel .d-flex.gap-2 {
+    margin-top: .5rem;
+}
+.settings-copy-group {
+    border: 1px solid var(--st,#e5e7eb);
+    border-radius: 14px;
+    padding: 1rem 1.05rem;
+    background: linear-gradient(180deg, rgba(249,115,22,.03), rgba(255,255,255,0));
+    margin-bottom: 1rem;
+}
+.settings-copy-group h6 {
+    margin: 0 0 .35rem;
+    font-weight: 700;
+}
+.settings-copy-group p {
+    margin: 0 0 .9rem;
+    color: var(--gy,#6b7280);
+    font-size: .85rem;
+}
+.settings-copy-editor textarea {
+    min-height: 84px;
+    resize: vertical;
+}
+.settings-copy-editor textarea.rows-lg {
+    min-height: 120px;
+}
+.settings-token-note {
+    font-size: .8rem;
+    color: var(--gy,#6b7280);
+}
+@media (max-width: 767px) {
+    .settings-panel > form,
+    .settings-panel > div,
+    .settings-panel > .row {
+        padding: 1rem;
+    }
+    .settings-tabs .settings-tab {
+        flex: 1 1 calc(50% - .5rem);
+        justify-content: center;
+    }
+}
 </style>
 
 <div class="settings-shell">
@@ -288,12 +382,18 @@ layout_start('Settings', 'settings');
                 <strong>4. Stripe in Test Mode</strong>
                 <span>Enter test keys first, confirm booking and invoice payments work, then switch to live later.</span>
             </a>
+            <?php if ($settings_copy_visible): ?>
+            <a href="#settings-copy" class="settings-checkitem">
+                <strong>5. Customer Copy</strong>
+                <span>Adjust booking, billing, portal, and payment wording without touching code.</span>
+            </a>
+            <?php endif; ?>
             <a href="#settings-stripe" class="settings-checkitem">
-                <strong>5. Portal & Booking Rules</strong>
+                <strong>6. Portal & Booking Rules</strong>
                 <span>Review booking flow mode, portal link TTL, ACH, subscriptions, and customer-facing booking terms.</span>
             </a>
             <a href="#settings-database" class="settings-checkitem">
-                <strong>6. Final Launch Pass</strong>
+                <strong>7. Final Launch Pass</strong>
                 <span>Run the database upgrade if needed, verify live inventory on the public site, and complete one full end-to-end test.</span>
             </a>
         </div>
@@ -301,6 +401,9 @@ layout_start('Settings', 'settings');
 
     <div class="settings-tabs" role="tablist" aria-label="Settings Sections">
         <a href="#settings-company" class="filter-tab settings-tab active" data-settings-tab="company" role="tab" aria-selected="true"><i class="fa-solid fa-building"></i> Company</a>
+        <?php if ($settings_copy_visible): ?>
+        <a href="#settings-copy" class="filter-tab settings-tab" data-settings-tab="copy" role="tab" aria-selected="false"><i class="fa-solid fa-language"></i> Copy</a>
+        <?php endif; ?>
         <a href="#settings-branding" class="filter-tab settings-tab" data-settings-tab="branding" role="tab" aria-selected="false"><i class="fa-solid fa-image"></i> Branding</a>
         <a href="#settings-email" class="filter-tab settings-tab" data-settings-tab="email" role="tab" aria-selected="false"><i class="fa-solid fa-envelope"></i> Email</a>
         <a href="#settings-stripe" class="filter-tab settings-tab" data-settings-tab="stripe" role="tab" aria-selected="false"><i class="fa-brands fa-stripe"></i> Stripe</a>
@@ -378,6 +481,125 @@ layout_start('Settings', 'settings');
                           placeholder="Terms &amp; conditions shown to customers on the public booking page…"><?= e(get_setting('booking_terms', '')) ?></textarea>
                 <div class="form-text" style="color:var(--gy);">Displayed to customers on the booking page. They must scroll and agree before submitting.</div>
             </div>
+            <div class="col-12">
+                <label class="form-label" for="payment_note_cash">Cash Payment Note</label>
+                <textarea id="payment_note_cash" name="payment_note_cash" class="form-control" rows="2"
+                          placeholder="Shown to customers on the booking success page when they choose cash…"><?= e(get_setting('payment_note_cash', 'Please have cash payment ready at time of delivery.')) ?></textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="payment_note_check">Check Payment Note</label>
+                <textarea id="payment_note_check" name="payment_note_check" class="form-control" rows="2"
+                          placeholder="Shown to customers on the booking success page when they choose check…"><?= e(get_setting('payment_note_check', 'Please have your check made out to {company_name} ready at time of delivery.')) ?></textarea>
+                <div class="form-text" style="color:var(--gy);">You can use <code>{company_name}</code> and it will be replaced automatically.</div>
+            </div>
+        </div>
+
+        <h6 class="mb-3" style="font-weight:600;border-bottom:1px solid #e5e7eb;padding-bottom:.5rem;">
+            <i class="fa-solid fa-language" style="color:#f97316;"></i> Customer-Facing Copy
+        </h6>
+
+        <div class="row g-3 mb-4">
+            <div class="col-12">
+                <label class="form-label" for="booking_success_pending_intro">Booking Success: Pending Review Intro</label>
+                <textarea id="booking_success_pending_intro" name="booking_success_pending_intro" class="form-control" rows="3"
+                          placeholder="Shown when the booking is waiting for approval…"><?= e(get_setting('booking_success_pending_intro', 'Thank you, {customer_name}. {subject_phrase} been submitted for review. We will follow up with approval details and payment instructions if needed.')) ?></textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="booking_success_confirmed_intro">Booking Success: Confirmed Intro</label>
+                <textarea id="booking_success_confirmed_intro" name="booking_success_confirmed_intro" class="form-control" rows="3"
+                          placeholder="Shown after the booking is confirmed…"><?= e(get_setting('booking_success_confirmed_intro', 'Thank you, {customer_name}! {subject_phrase} been booked.')) ?></textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="booking_success_terms_text">Booking Success: Terms Card Text</label>
+                <textarea id="booking_success_terms_text" name="booking_success_terms_text" class="form-control" rows="2"
+                          placeholder="Shown above the terms PDF button…"><?= e(get_setting('booking_success_terms_text', 'Keep a copy of the signed rental terms for your records.')) ?></textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="booking_success_keep_title">Booking Success: Reminder Title</label>
+                <input type="text" id="booking_success_keep_title" name="booking_success_keep_title" class="form-control"
+                       value="<?= e(get_setting('booking_success_keep_title', 'Keep this page handy.')) ?>">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="booking_success_contact_prompt">Booking Success: Contact Prompt</label>
+                <input type="text" id="booking_success_contact_prompt" name="booking_success_contact_prompt" class="form-control"
+                       value="<?= e(get_setting('booking_success_contact_prompt', 'Questions? Call us at')) ?>">
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="booking_success_keep_body">Booking Success: Reminder Body</label>
+                <textarea id="booking_success_keep_body" name="booking_success_keep_body" class="form-control" rows="2"
+                          placeholder="Shown below the booking details…"><?= e(get_setting('booking_success_keep_body', 'Use these booking numbers when you call, email, or check your order in the customer portal.')) ?></textarea>
+                <div class="form-text" style="color:var(--gy);">Supported placeholders: <code>{company_name}</code>, <code>{customer_name}</code>, <code>{subject_phrase}</code>.</div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="invoice_paid_intro_named">Invoice Paid: Thank-you Message</label>
+                <textarea id="invoice_paid_intro_named" name="invoice_paid_intro_named" class="form-control" rows="2"
+                          placeholder="Shown when the customer name is known…"><?= e(get_setting('invoice_paid_intro_named', 'Thank you, {customer_name}! Your invoice has been paid.')) ?></textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="invoice_paid_intro_generic">Invoice Paid: Generic Message</label>
+                <textarea id="invoice_paid_intro_generic" name="invoice_paid_intro_generic" class="form-control" rows="2"
+                          placeholder="Shown when no customer name is available…"><?= e(get_setting('invoice_paid_intro_generic', 'Your invoice payment has been received. Thank you!')) ?></textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="invoice_paid_contact_prompt">Invoice Paid: Contact Prompt</label>
+                <input type="text" id="invoice_paid_contact_prompt" name="invoice_paid_contact_prompt" class="form-control"
+                       value="<?= e(get_setting('invoice_paid_contact_prompt', 'Questions? Call us at')) ?>">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="invoice_canceled_contact_prompt">Payment Not Completed: Contact Prompt</label>
+                <input type="text" id="invoice_canceled_contact_prompt" name="invoice_canceled_contact_prompt" class="form-control"
+                       value="<?= e(get_setting('invoice_canceled_contact_prompt', 'Need help? Call us at')) ?>">
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="invoice_canceled_intro">Payment Not Completed: Message</label>
+                <textarea id="invoice_canceled_intro" name="invoice_canceled_intro" class="form-control" rows="2"
+                          placeholder="Shown when checkout is canceled or abandoned…"><?= e(get_setting('invoice_canceled_intro', 'Your payment was not completed and the invoice has not been charged. No amount has been collected.')) ?></textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="portal_request_lead">Portal Request: Hero Text</label>
+                <textarea id="portal_request_lead" name="portal_request_lead" class="form-control" rows="2"
+                          placeholder="Shown on the billing portal request page…"><?= e(get_setting('portal_request_lead', 'Get a secure one-time link to review invoices, payment history, saved billing methods, and subscription activity without needing a password.')) ?></textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="portal_request_sub">Portal Request: Form Intro</label>
+                <textarea id="portal_request_sub" name="portal_request_sub" class="form-control" rows="2"
+                          placeholder="Shown above the email field…"><?= e(get_setting('portal_request_sub', 'Enter your billing email and we’ll send a secure one-time link to access your invoices, subscriptions, and saved payment methods.')) ?></textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="portal_request_success">Portal Request: Success Message</label>
+                <textarea id="portal_request_success" name="portal_request_success" class="form-control" rows="2"
+                          placeholder="Shown after a portal link request is submitted…"><?= e(get_setting('portal_request_success', 'If that email address is on file, a secure portal link has been sent. Check your inbox.')) ?></textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="portal_request_security_note">Portal Request: Security Note</label>
+                <textarea id="portal_request_security_note" name="portal_request_security_note" class="form-control" rows="2"
+                          placeholder="Shown under the send button…"><?= e(get_setting('portal_request_security_note', 'Links are single-use and expire automatically. No password needed.')) ?></textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="portal_link_email_subject">Portal Link Email Subject</label>
+                <input type="text" id="portal_link_email_subject" name="portal_link_email_subject" class="form-control"
+                       value="<?= e(get_setting('portal_link_email_subject', 'Your {company_name} Billing Portal Link')) ?>">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="portal_link_email_button">Portal Link Email Button Label</label>
+                <input type="text" id="portal_link_email_button" name="portal_link_email_button" class="form-control"
+                       value="<?= e(get_setting('portal_link_email_button', 'Open Billing Portal')) ?>">
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="portal_link_email_intro">Portal Link Email Body</label>
+                <textarea id="portal_link_email_intro" name="portal_link_email_intro" class="form-control" rows="2"
+                          placeholder="Shown inside the portal access email…"><?= e(get_setting('portal_link_email_intro', 'Your secure {company_name} billing portal link is ready. This link expires automatically.')) ?></textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="invoice_paid_email_subject">Invoice Paid Email Subject</label>
+                <input type="text" id="invoice_paid_email_subject" name="invoice_paid_email_subject" class="form-control"
+                       value="<?= e(get_setting('invoice_paid_email_subject', 'Invoice Paid — {invoice_number}')) ?>">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="invoice_paid_email_body">Invoice Paid Email Body</label>
+                <textarea id="invoice_paid_email_body" name="invoice_paid_email_body" class="form-control" rows="3"
+                          placeholder="Shown in the payment receipt email…"><?= e(get_setting('invoice_paid_email_body', 'Hi {customer_name}, Your payment of {amount} for invoice {invoice_number} has been received. Thank you!')) ?></textarea>
+            </div>
         </div>
 
         <div class="row g-3 mb-3">
@@ -402,6 +624,146 @@ layout_start('Settings', 'settings');
 </div>
 
 <!-- ── Branding / Logo ──────────────────────────────────────────────────── -->
+<?php if ($settings_copy_visible): ?>
+<div id="settings-copy" class="tp-card mt-4 settings-panel" style="max-width:980px;">
+    <form method="POST" action="index.php">
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="save_copy">
+
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div>
+                <h6 class="mb-1" style="font-weight:700;"><i class="fa-solid fa-language" style="color:#f97316;"></i> Customer-Facing Copy</h6>
+                <div class="settings-token-note">Group copy by where it appears so updates are easier to review. Supported placeholders vary by screen, including <code>{company_name}</code>, <code>{customer_name}</code>, <code>{invoice_number}</code>, <code>{amount}</code>, and <code>{subject_phrase}</code>.</div>
+            </div>
+            <button type="submit" class="btn-tp-primary btn-tp-sm"><i class="fa-solid fa-floppy-disk"></i> Save Copy Settings</button>
+        </div>
+
+        <div class="settings-copy-group settings-copy-editor">
+            <h6>Booking Success</h6>
+            <p>Shown after a customer submits or completes a booking.</p>
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <label class="form-label" for="copy_booking_success_pending_intro">Pending Review Intro</label>
+                    <textarea id="copy_booking_success_pending_intro" name="booking_success_pending_intro" class="form-control rows-lg"><?= e(get_setting('booking_success_pending_intro', 'Thank you, {customer_name}. {subject_phrase} been submitted for review. We will follow up with approval details and payment instructions if needed.')) ?></textarea>
+                </div>
+                <div class="col-lg-6">
+                    <label class="form-label" for="copy_booking_success_confirmed_intro">Confirmed Intro</label>
+                    <textarea id="copy_booking_success_confirmed_intro" name="booking_success_confirmed_intro" class="form-control rows-lg"><?= e(get_setting('booking_success_confirmed_intro', 'Thank you, {customer_name}! {subject_phrase} been booked.')) ?></textarea>
+                </div>
+                <div class="col-lg-6">
+                    <label class="form-label" for="copy_booking_success_terms_text">Terms Card Text</label>
+                    <textarea id="copy_booking_success_terms_text" name="booking_success_terms_text" class="form-control"><?= e(get_setting('booking_success_terms_text', 'Keep a copy of the signed rental terms for your records.')) ?></textarea>
+                </div>
+                <div class="col-lg-3">
+                    <label class="form-label" for="copy_booking_success_keep_title">Reminder Title</label>
+                    <input type="text" id="copy_booking_success_keep_title" name="booking_success_keep_title" class="form-control" value="<?= e(get_setting('booking_success_keep_title', 'Keep this page handy.')) ?>">
+                </div>
+                <div class="col-lg-3">
+                    <label class="form-label" for="copy_booking_success_contact_prompt">Contact Prompt</label>
+                    <input type="text" id="copy_booking_success_contact_prompt" name="booking_success_contact_prompt" class="form-control" value="<?= e(get_setting('booking_success_contact_prompt', 'Questions? Call us at')) ?>">
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="copy_booking_success_keep_body">Reminder Body</label>
+                    <textarea id="copy_booking_success_keep_body" name="booking_success_keep_body" class="form-control"><?= e(get_setting('booking_success_keep_body', 'Use these booking numbers when you call, email, or check your order in the customer portal.')) ?></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-copy-group settings-copy-editor">
+            <h6>Payment Notes</h6>
+            <p>Offline payment instructions for cash and check flows.</p>
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <label class="form-label" for="copy_payment_note_cash">Cash Payment Note</label>
+                    <textarea id="copy_payment_note_cash" name="payment_note_cash" class="form-control"><?= e(get_setting('payment_note_cash', 'Please have cash payment ready at time of delivery.')) ?></textarea>
+                </div>
+                <div class="col-lg-6">
+                    <label class="form-label" for="copy_payment_note_check">Check Payment Note</label>
+                    <textarea id="copy_payment_note_check" name="payment_note_check" class="form-control"><?= e(get_setting('payment_note_check', 'Please have your check made out to {company_name} ready at time of delivery.')) ?></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-copy-group settings-copy-editor">
+            <h6>Invoice Pages</h6>
+            <p>Messages shown after successful payment and after canceled or abandoned payment attempts.</p>
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <label class="form-label" for="copy_invoice_paid_intro_named">Paid Page: Named Message</label>
+                    <textarea id="copy_invoice_paid_intro_named" name="invoice_paid_intro_named" class="form-control"><?= e(get_setting('invoice_paid_intro_named', 'Thank you, {customer_name}! Your invoice has been paid.')) ?></textarea>
+                </div>
+                <div class="col-lg-6">
+                    <label class="form-label" for="copy_invoice_paid_intro_generic">Paid Page: Generic Message</label>
+                    <textarea id="copy_invoice_paid_intro_generic" name="invoice_paid_intro_generic" class="form-control"><?= e(get_setting('invoice_paid_intro_generic', 'Your invoice payment has been received. Thank you!')) ?></textarea>
+                </div>
+                <div class="col-lg-6">
+                    <label class="form-label" for="copy_invoice_paid_contact_prompt">Paid Page: Contact Prompt</label>
+                    <input type="text" id="copy_invoice_paid_contact_prompt" name="invoice_paid_contact_prompt" class="form-control" value="<?= e(get_setting('invoice_paid_contact_prompt', 'Questions? Call us at')) ?>">
+                </div>
+                <div class="col-lg-6">
+                    <label class="form-label" for="copy_invoice_canceled_contact_prompt">Canceled Page: Contact Prompt</label>
+                    <input type="text" id="copy_invoice_canceled_contact_prompt" name="invoice_canceled_contact_prompt" class="form-control" value="<?= e(get_setting('invoice_canceled_contact_prompt', 'Need help? Call us at')) ?>">
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="copy_invoice_canceled_intro">Canceled / Abandoned Message</label>
+                    <textarea id="copy_invoice_canceled_intro" name="invoice_canceled_intro" class="form-control"><?= e(get_setting('invoice_canceled_intro', 'Your payment was not completed and the invoice has not been charged. No amount has been collected.')) ?></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-copy-group settings-copy-editor">
+            <h6>Billing Portal</h6>
+            <p>Copy shown on the portal request page and inside portal access emails.</p>
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <label class="form-label" for="copy_portal_request_lead">Hero Text</label>
+                    <textarea id="copy_portal_request_lead" name="portal_request_lead" class="form-control rows-lg"><?= e(get_setting('portal_request_lead', 'Get a secure one-time link to review invoices, payment history, saved billing methods, and subscription activity without needing a password.')) ?></textarea>
+                </div>
+                <div class="col-lg-6">
+                    <label class="form-label" for="copy_portal_request_sub">Form Intro</label>
+                    <textarea id="copy_portal_request_sub" name="portal_request_sub" class="form-control rows-lg"><?= e(get_setting('portal_request_sub', 'Enter your billing email and we’ll send a secure one-time link to access your invoices, subscriptions, and saved payment methods.')) ?></textarea>
+                </div>
+                <div class="col-lg-6">
+                    <label class="form-label" for="copy_portal_request_success">Success Message</label>
+                    <textarea id="copy_portal_request_success" name="portal_request_success" class="form-control"><?= e(get_setting('portal_request_success', 'If that email address is on file, a secure portal link has been sent. Check your inbox.')) ?></textarea>
+                </div>
+                <div class="col-lg-6">
+                    <label class="form-label" for="copy_portal_request_security_note">Security Note</label>
+                    <textarea id="copy_portal_request_security_note" name="portal_request_security_note" class="form-control"><?= e(get_setting('portal_request_security_note', 'Links are single-use and expire automatically. No password needed.')) ?></textarea>
+                </div>
+                <div class="col-lg-6">
+                    <label class="form-label" for="copy_portal_link_email_subject">Portal Email Subject</label>
+                    <input type="text" id="copy_portal_link_email_subject" name="portal_link_email_subject" class="form-control" value="<?= e(get_setting('portal_link_email_subject', 'Your {company_name} Billing Portal Link')) ?>">
+                </div>
+                <div class="col-lg-6">
+                    <label class="form-label" for="copy_portal_link_email_button">Portal Button Label</label>
+                    <input type="text" id="copy_portal_link_email_button" name="portal_link_email_button" class="form-control" value="<?= e(get_setting('portal_link_email_button', 'Open Billing Portal')) ?>">
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="copy_portal_link_email_intro">Portal Email Body</label>
+                    <textarea id="copy_portal_link_email_intro" name="portal_link_email_intro" class="form-control"><?= e(get_setting('portal_link_email_intro', 'Your secure {company_name} billing portal link is ready. This link expires automatically.')) ?></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-copy-group settings-copy-editor">
+            <h6>Receipt Emails</h6>
+            <p>Copy for payment receipt emails after an invoice is paid.</p>
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <label class="form-label" for="copy_invoice_paid_email_subject">Invoice Paid Subject</label>
+                    <input type="text" id="copy_invoice_paid_email_subject" name="invoice_paid_email_subject" class="form-control" value="<?= e(get_setting('invoice_paid_email_subject', 'Invoice Paid — {invoice_number}')) ?>">
+                </div>
+                <div class="col-lg-6">
+                    <label class="form-label" for="copy_invoice_paid_email_body">Invoice Paid Body</label>
+                    <textarea id="copy_invoice_paid_email_body" name="invoice_paid_email_body" class="form-control rows-lg"><?= e(get_setting('invoice_paid_email_body', 'Hi {customer_name}, Your payment of {amount} for invoice {invoice_number} has been received. Thank you!')) ?></textarea>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+<?php endif; ?>
+
 <div id="settings-branding" class="tp-card mt-4 settings-panel" style="max-width:780px;">
     <h6 class="mb-3" style="font-weight:600;border-bottom:1px solid var(--st);padding-bottom:.5rem;">
         <i class="fa-solid fa-image" style="color:#f97316;"></i> Logo
@@ -929,7 +1291,7 @@ function activateSettingsTab(tabName) {
 function currentSettingsTabFromHash() {
     var hash = window.location.hash || '#settings-company';
     var normalized = hash.replace('#settings-', '');
-    return ['company', 'branding', 'email', 'stripe', 'database'].indexOf(normalized) >= 0
+    return <?= json_encode(array_values($settings_tab_names)) ?>.indexOf(normalized) >= 0
         ? normalized
         : 'company';
 }
@@ -945,6 +1307,46 @@ window.addEventListener('hashchange', function() {
 });
 
 activateSettingsTab(currentSettingsTabFromHash());
+
+[
+    'payment_note_cash',
+    'payment_note_check',
+    'booking_success_pending_intro',
+    'booking_success_confirmed_intro',
+    'booking_success_terms_text',
+    'booking_success_keep_title',
+    'booking_success_contact_prompt',
+    'booking_success_keep_body',
+    'invoice_paid_intro_named',
+    'invoice_paid_intro_generic',
+    'invoice_paid_contact_prompt',
+    'invoice_canceled_contact_prompt',
+    'invoice_canceled_intro',
+    'portal_request_lead',
+    'portal_request_sub',
+    'portal_request_success',
+    'portal_request_security_note',
+    'portal_link_email_subject',
+    'portal_link_email_button',
+    'portal_link_email_intro',
+    'invoice_paid_email_subject',
+    'invoice_paid_email_body'
+].forEach(function(id) {
+    var node = document.getElementById(id);
+    if (!node) return;
+    var col = node.closest('[class*="col-"]');
+    if (col) col.style.display = 'none';
+});
+
+Array.from(document.querySelectorAll('#settings-company h6')).forEach(function(h) {
+    if (h.textContent.indexOf('Customer-Facing Copy') !== -1) {
+        h.style.display = 'none';
+        var next = h.nextElementSibling;
+        if (next && next.classList.contains('row')) {
+            next.style.display = 'none';
+        }
+    }
+});
 
 function toggleField(id) {
     var inp  = document.getElementById(id);

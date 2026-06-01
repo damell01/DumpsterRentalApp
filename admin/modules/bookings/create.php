@@ -29,6 +29,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $customer_email   = trim($_POST['customer_email']   ?? '');
     $customer_address = trim($_POST['customer_address'] ?? '');
     $customer_city    = trim($_POST['customer_city']    ?? '');
+    $customer_state   = strtoupper(trim($_POST['customer_state'] ?? ''));
+    $customer_zip     = trim($_POST['customer_zip'] ?? '');
     $rental_start     = trim($_POST['rental_start']     ?? '');
     $rental_end       = trim($_POST['rental_end']       ?? '');
     $payment_method   = trim($_POST['payment_method']   ?? 'stripe');
@@ -101,6 +103,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'customer_email'   => $customer_email,
                 'customer_address' => $customer_address,
                 'customer_city'    => $customer_city,
+                'customer_state'   => $customer_state,
+                'customer_zip'     => $customer_zip,
             ]);
         } catch (\Throwable $e) {
             error_log('[Admin Booking] Customer dedup failed: ' . $e->getMessage());
@@ -171,8 +175,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'cust_email'      => $customer_email ?: null,
                 'service_address' => $customer_address ?: '',
                 'service_city'    => $customer_city ?: null,
-                'service_state'   => null,
-                'service_zip'     => null,
+                'service_state'   => $customer_state ?: null,
+                'service_zip'     => $customer_zip ?: null,
                 'size'            => $unit['size'],
                 'project_type'    => null,
                 'dumpster_id'     => (int)$unit['id'],
@@ -221,6 +225,8 @@ $f = [
     'customer_email'   => $_POST['customer_email']   ?? ($prefill_customer['email']   ?? ''),
     'customer_address' => $_POST['customer_address'] ?? ($prefill_customer['address'] ?? ''),
     'customer_city'    => $_POST['customer_city']    ?? ($prefill_customer['city']    ?? ''),
+    'customer_state'   => $_POST['customer_state']   ?? ($prefill_customer['state']   ?? ''),
+    'customer_zip'     => $_POST['customer_zip']     ?? ($prefill_customer['zip']     ?? ''),
     'selected_ids'     => array_map('intval', (array)($_POST['dumpster_ids'] ?? [])),
     'rental_start'     => $_POST['rental_start']     ?? '',
     'rental_end'       => $_POST['rental_end']       ?? '',
@@ -295,13 +301,24 @@ layout_start('New Booking', 'bookings');
                     <div class="col-md-6">
                         <label class="form-label" for="customer_city">City</label>
                         <input type="text" id="customer_city" name="customer_city" class="form-control"
-                               value="<?= e($f['customer_city']) ?>">
+                               value="<?= e($f['customer_city']) ?>" autocomplete="address-level2">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="customer_state">State</label>
+                        <input type="text" id="customer_state" name="customer_state" class="form-control"
+                               value="<?= e($f['customer_state']) ?>" maxlength="2" placeholder="AL" autocomplete="address-level1">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="customer_zip">ZIP</label>
+                        <input type="text" id="customer_zip" name="customer_zip" class="form-control"
+                               value="<?= e($f['customer_zip']) ?>" maxlength="10" placeholder="36551" autocomplete="postal-code">
                     </div>
                     <div class="col-12">
                         <label class="form-label" for="customer_address">Service Address</label>
                         <input type="text" id="customer_address" name="customer_address" class="form-control"
                                value="<?= e($f['customer_address']) ?>"
-                               placeholder="Where the dumpster will be placed">
+                               placeholder="Where the dumpster will be placed" autocomplete="street-address">
+                        <div id="customer_address_suggest" class="tp-address-suggest" hidden></div>
                     </div>
                 </div>
             </div>
@@ -436,6 +453,37 @@ layout_start('New Booking', 'bookings');
 
 </div><!-- /tp-form-layout -->
 
+<style>
+.tp-address-suggest {
+    margin-top: .5rem;
+    background: var(--dk1);
+    border: 1px solid var(--st);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+.tp-address-option {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--wh);
+    text-align: left;
+    padding: .75rem .9rem;
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+}
+.tp-address-option + .tp-address-option {
+    border-top: 1px solid var(--st);
+}
+.tp-address-option:hover {
+    background: rgba(249,115,22,.08);
+}
+.tp-address-option span {
+    font-size: .8rem;
+    color: var(--gy);
+}
+</style>
+
 <!-- Sticky save bar -->
 <div class="tp-sticky-bar">
     <div class="tp-sticky-bar-info">
@@ -453,6 +501,91 @@ layout_start('New Booking', 'bookings');
 </form>
 
 <script>
+function setupAddressAutocomplete(opts) {
+    var address = document.getElementById(opts.addressId);
+    var city = document.getElementById(opts.cityId);
+    var state = document.getElementById(opts.stateId);
+    var zip = document.getElementById(opts.zipId);
+    var box = document.getElementById(opts.boxId);
+    if (!address || !city || !state || !zip || !box) return;
+
+    var timer = null;
+    var controller = null;
+
+    function esc(s) {
+        return String(s).replace(/[&<>"]/g, function(ch) {
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch];
+        });
+    }
+
+    function hideBox() {
+        box.hidden = true;
+        box.innerHTML = '';
+    }
+
+    function partsFor(item) {
+        var a = item.address || {};
+        var street = [a.house_number || '', a.road || a.pedestrian || a.footway || a.cycleway || a.path || '']
+            .join(' ').trim();
+        if (!street) {
+            street = String(item.display_name || '').split(',')[0].trim();
+        }
+        return {
+            street: street,
+            city: a.city || a.town || a.village || a.hamlet || a.county || '',
+            state: (a.state_code || a.state || '').toString().trim(),
+            zip: (a.postcode || '').toString().trim()
+        };
+    }
+
+    function choose(item) {
+        var parts = partsFor(item);
+        address.value = parts.street;
+        if (parts.city) city.value = parts.city;
+        if (parts.state) state.value = parts.state.length === 2 ? parts.state.toUpperCase() : parts.state;
+        if (parts.zip) zip.value = parts.zip;
+        hideBox();
+    }
+
+    address.addEventListener('input', function() {
+        var q = address.value.trim();
+        if (controller) controller.abort();
+        clearTimeout(timer);
+        if (q.length < 5) { hideBox(); return; }
+
+        timer = setTimeout(function() {
+            controller = new AbortController();
+            fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&countrycodes=us&limit=5&viewbox=-88.5,31.2,-86.5,30.0&bounded=0&q=' + encodeURIComponent(q), {
+                signal: controller.signal,
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(function(r) { return r.ok ? r.json() : []; })
+            .then(function(items) {
+                if (!Array.isArray(items) || items.length === 0) { hideBox(); return; }
+                box.innerHTML = items.map(function(item, idx) {
+                    var parts = partsFor(item);
+                    var subtitle = [parts.city, parts.state, parts.zip].filter(Boolean).join(', ');
+                    return '<button type="button" class="tp-address-option" data-idx="' + idx + '">'
+                        + '<strong>' + esc(parts.street || item.display_name || 'Address') + '</strong>'
+                        + (subtitle ? '<span>' + esc(subtitle) + '</span>' : '')
+                        + '</button>';
+                }).join('');
+                box.hidden = false;
+                box.querySelectorAll('.tp-address-option').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        choose(items[parseInt(btn.dataset.idx, 10)]);
+                    });
+                });
+            })
+            .catch(function() { hideBox(); });
+        }, 250);
+    });
+
+    address.addEventListener('blur', function() {
+        setTimeout(hideBox, 150);
+    });
+}
+
 function calcDays() {
     var s = document.getElementById('rental_start').value;
     var e = document.getElementById('rental_end').value;
@@ -531,6 +664,13 @@ function refreshSummary() {
 
 // Init on load in case form is pre-filled
 refreshSummary();
+setupAddressAutocomplete({
+    addressId: 'customer_address',
+    cityId: 'customer_city',
+    stateId: 'customer_state',
+    zipId: 'customer_zip',
+    boxId: 'customer_address_suggest'
+});
 </script>
 
 <?php layout_end(); ?>

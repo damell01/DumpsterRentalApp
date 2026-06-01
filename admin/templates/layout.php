@@ -756,7 +756,7 @@ $js_ver  = ($js_file && file_exists($js_file))
 <!-- Service Worker registration -->
 <script>
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('<?= htmlspecialchars($app_url, ENT_QUOTES, 'UTF-8') ?>/sw.js', {
+    navigator.serviceWorker.register('<?= htmlspecialchars($app_url, ENT_QUOTES, 'UTF-8') ?>/sw.js?v=<?= rawurlencode((string)$js_ver) ?>', {
         scope: '<?= htmlspecialchars($app_url, ENT_QUOTES, 'UTF-8') ?>/'
     }).catch(function(){});
 }

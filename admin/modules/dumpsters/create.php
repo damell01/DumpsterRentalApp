@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Validate size is in allowed list
-    if ($size !== '' && !in_array($size, dumpster_sizes(), true)) {
+    if ($size !== '' && !in_array($size, dumpster_size_labels(true, null), true)) {
         $errors[] = 'Invalid size selected.';
     }
 
@@ -205,7 +205,7 @@ layout_start('Add Dumpster', 'inventory');
                 </label>
                 <select id="size" name="size" class="form-select" required>
                     <option value="">— Select size —</option>
-                    <?php foreach (dumpster_sizes() as $sz): ?>
+                    <?php foreach (dumpster_size_labels(true, null) as $sz): ?>
                     <option value="<?= e($sz) ?>" <?= $f['size'] === $sz ? 'selected' : '' ?>>
                         <?= e($sz) ?>
                     </option>

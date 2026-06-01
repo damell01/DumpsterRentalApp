@@ -3,80 +3,66 @@
 A complete dumpster rental business platform including a public-facing website and an internal admin work order management system. Built from scratch to replace a spreadsheet-and-phone-call operation with a modern, self-contained software system.
 
 ---
-
 ## Case Study — From Spreadsheets to Software
 
-### The Problem
+### The Challenge
 
-A small dumpster rental company in Baldwin County and Mobile, Alabama was running its entire operation from a combination of phone calls, text messages, and a shared spreadsheet. There was no way to track work orders across drivers, no customer payment history, no automated emails, and no online booking — every rental required manual back-and-forth. As the business grew, the spreadsheet became a liability: double-bookings, missed pickups, lost payment records, and no visibility into monthly revenue.
+A growing dumpster rental company serving Baldwin County and Mobile, Alabama was managing daily operations through phone calls, text messages, and a shared spreadsheet. As more customers came in, things started becoming harder to track — bookings could overlap, pickups were missed, payments were difficult to organize, and there was no simple way to see how the business was performing month to month.
 
-The goal was to replace all of that with a single, self-hosted platform the business owner could run on shared hosting without needing a developer on retainer.
-
----
-
-### What Was Built
-
-A full-stack PHP + MySQL web application with two distinct sides:
-
-**Public website** — A branded, mobile-first customer-facing site where customers can browse dumpster sizes, check real-time availability, book online, pay via Stripe (card or ACH), request a quote, and look up their own active rentals — all without creating an account.
-
-**Admin panel** — A protected internal operations hub for the office and drivers: booking management, work order dispatch, invoice generation, subscription billing, customer records, reporting, and configurable email templates.
-
-Everything runs on standard shared hosting (PHP 8.1+, MySQL) with no external services required beyond Stripe for payments.
+The company needed a better system that would simplify operations, reduce manual work, and make the business easier to manage day to day.
 
 ---
 
-### Technical Architecture
+### The Solution
 
-| Layer | Choice | Why |
-|-------|--------|-----|
-| Language | PHP 8.1+ | Runs everywhere, no Node.js or containers required |
-| Database | MySQL / MariaDB | Standard on every shared host |
-| Frontend | Bootstrap 5.3 + Vanilla JS | No build step, no framework dependencies |
-| Payments | Stripe Checkout + Webhooks | PCI-safe, handles cards and ACH bank transfers |
-| Maps | Leaflet.js | Interactive service-area map with zero API key required |
-| Email | PHPMailer (SMTP) or PHP `mail()` | Works with or without Composer |
-| PDF | Pure PHP PDF generation | No third-party library, invoice and terms PDFs generated server-side |
-| Auth | Session-based + TOTP 2FA | Secure without requiring OAuth or external identity providers |
-| Push | Web Push API (VAPID) | Real-time delivery/pickup alerts to customers on mobile |
-| PWA | Service Worker + Web Manifest | Installable on phone home screen, works offline |
+A custom all-in-one business platform was created specifically for the company’s workflow.
 
----
+The new system included:
 
-### Key Engineering Decisions
+- A modern customer-facing website where customers can:
+  - View dumpster sizes
+  - Check availability
+  - Book online
+  - Pay securely online
+  - Request quotes
+  - Manage their rental information
 
-**No framework.** Every page bootstraps a minimal set of includes (config, DB, helpers, auth, templates) with no ORM, no router, and no package manager required at runtime. This keeps deployment a simple file upload.
+- A private admin dashboard for the business owner and staff to:
+  - Manage bookings and schedules
+  - Assign deliveries and pickups
+  - Track payments and invoices
+  - Manage customer information
+  - Send automated emails and updates
+  - View reports and revenue data
 
-**Stripe Checkout server-side only.** No card data ever touches the PHP server. The backend creates a Checkout Session, Stripe handles all card capture, and a signed webhook fires the confirmation. The entire payment flow is PCI-compliant out of the box.
-
-**Webhook-driven state machine.** Payment status, booking status, and work order status each follow explicit state machines. The Stripe webhook handler processes `checkout.session.completed`, `charge.refunded`, `invoice.paid`, and subscription events in a single transaction with deduplication via event ID — so retried webhooks never double-charge or double-confirm.
-
-**PDF generation without dependencies.** Booking terms PDFs and printable invoice/work-order documents are generated in pure PHP using raw PDF stream construction — no TCPDF, no Dompdf, no Composer package required. The PDF includes the company logo, branded header, and customer-specific data.
-
-**Real-time availability without polling.** The public booking page checks unit availability at the moment the customer selects dates via a lightweight API endpoint. Units that are already booked for an overlapping period are filtered out before they can be selected — no cron job needed, no eventual consistency lag.
+The platform was designed to work smoothly on desktop and mobile devices and could be managed without needing technical knowledge or ongoing developer support.
 
 ---
 
-### What Replaced the Spreadsheet
+### What Improved
+
+Before the platform, many tasks were handled manually. After launch, the company had a centralized system that streamlined nearly every part of the business.
 
 | Before | After |
-|--------|-------|
-| Shared Google Sheet with booking rows | Bookings module with status workflow, date ranges, and payment tracking |
-| Text messages to drivers | Work orders with delivery/pickup dates, driver assignment, and printable forms |
-| Handwritten invoices or emailed PDFs | Invoice module with line items, Stripe payment links, and one-click cash/check marking |
-| No customer emails | 11 customizable branded email templates covering every touchpoint |
-| No payment visibility | Payments module with Stripe balance, payout history, and revenue by method |
-| No business metrics | Reports module with date-filtered revenue, payment method breakdown, and CSV export |
-| No online booking | Full 2-step booking flow with real-time availability and Stripe checkout |
-| Phone/text for pickup requests | Customer self-lookup page with push notification opt-in |
+|---|---|
+| Bookings tracked in spreadsheets | Centralized booking management |
+| Driver updates handled through texts and calls | Organized work orders and scheduling |
+| Manual invoices and payment tracking | Automated invoicing and online payments |
+| No customer communication system | Automated branded email notifications |
+| No reporting or business insights | Revenue and performance reporting |
+| No online booking process | Full online booking and payment flow |
+| Pickup requests handled manually | Customer self-service tools |
 
 ---
 
-### Outcome
+### The Result
 
-The platform went from zero to production-ready in a single development cycle. It handles the full customer lifecycle — from first website visit through booking, payment, delivery, pickup, and invoice — with automated emails and push notifications at each step. The business owner manages it from the admin panel without needing to touch code. Revenue tracking, work order dispatch, and customer records that once lived in three different places now live in one.
+The business moved from a manual, spreadsheet-based workflow to a professional online system that supports the entire rental process — from booking and payment to delivery, pickup, and invoicing.
 
----
+With everything managed in one place, the owner now has better visibility into operations, fewer scheduling issues, faster payment collection, and a smoother customer experience overall.
+
+The platform helped modernize the business while keeping the system simple, reliable, and easy to manage internally.
+
 
 ## Screenshots
 

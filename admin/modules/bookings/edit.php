@@ -21,6 +21,10 @@ if (!$booking) {
     redirect('index.php');
 }
 
+$linked_customer = !empty($booking['customer_id'])
+    ? db_fetch('SELECT id, address, city, state, zip FROM customers WHERE id = ? LIMIT 1', [(int)$booking['customer_id']])
+    : null;
+
 $errors = [];
 
 $units = db_fetchall(
@@ -39,6 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $customer_email   = trim($_POST['customer_email']   ?? '');
     $customer_address = trim($_POST['customer_address'] ?? '');
     $customer_city    = trim($_POST['customer_city']    ?? '');
+    $customer_state   = strtoupper(trim($_POST['customer_state'] ?? ''));
+    $customer_zip     = trim($_POST['customer_zip'] ?? '');
     $dumpster_id      = (int)($_POST['dumpster_id']     ?? 0);
     $rental_start     = trim($_POST['rental_start']     ?? '');
     $rental_end       = trim($_POST['rental_end']       ?? '');
@@ -146,6 +152,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'updated_at'       => date('Y-m-d H:i:s'),
         ], 'id', $id);
 
+        if (!empty($booking['customer_id'])) {
+            db_update('customers', [
+                'address'    => $customer_address ?: null,
+                'city'       => $customer_city ?: null,
+                'state'      => $customer_state ?: null,
+                'zip'        => $customer_zip ?: null,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ], 'id', (int)$booking['customer_id']);
+        }
+
         log_activity('update', "Updated booking {$booking['booking_number']}", 'booking', $id);
         flash_success("Booking {$booking['booking_number']} updated.");
         redirect('view.php?id=' . $id);
@@ -158,6 +174,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'customer_email'   => $customer_email,
         'customer_address' => $customer_address,
         'customer_city'    => $customer_city,
+        'customer_state'   => $customer_state,
+        'customer_zip'     => $customer_zip,
         'dumpster_id'      => $dumpster_id,
         'rental_start'     => $rental_start,
         'rental_end'       => $rental_end,
@@ -178,6 +196,26 @@ layout_start('Edit Booking', 'bookings');
 }
 .bk-form-card { background:var(--dk1,#fff);border:1px solid var(--st,#e5e7eb);border-radius:10px;padding:1.25rem 1.5rem;margin-bottom:1rem; }
 @media(max-width:576px){ .bk-form-card{padding:1rem;} }
+.tp-address-suggest {
+    margin-top: .5rem;
+    background: var(--dk1,#fff);
+    border: 1px solid var(--st,#e5e7eb);
+    border-radius: 10px;
+    overflow: hidden;
+}
+.tp-address-option {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    padding: .75rem .9rem;
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+}
+.tp-address-option + .tp-address-option { border-top: 1px solid var(--st,#e5e7eb); }
+.tp-address-option:hover { background: rgba(249,115,22,.08); }
+.tp-address-option span { font-size: .8rem; color: var(--gy,#6b7280); }
 </style>
 
 <!-- Header -->
@@ -232,12 +270,23 @@ layout_start('Edit Booking', 'bookings');
             <div class="col-sm-6">
                 <label class="form-label" for="customer_address">Address</label>
                 <input type="text" id="customer_address" name="customer_address" class="form-control"
-                       value="<?= e($booking['customer_address'] ?? '') ?>">
+                       value="<?= e($booking['customer_address'] ?? ($linked_customer['address'] ?? '')) ?>" autocomplete="street-address">
+                <div id="customer_address_suggest" class="tp-address-suggest" hidden></div>
             </div>
-            <div class="col-sm-6">
+            <div class="col-sm-3">
                 <label class="form-label" for="customer_city">City</label>
                 <input type="text" id="customer_city" name="customer_city" class="form-control"
-                       value="<?= e($booking['customer_city'] ?? '') ?>">
+                       value="<?= e($booking['customer_city'] ?? ($linked_customer['city'] ?? '')) ?>" autocomplete="address-level2">
+            </div>
+            <div class="col-sm-3">
+                <label class="form-label" for="customer_state">State</label>
+                <input type="text" id="customer_state" name="customer_state" class="form-control"
+                       value="<?= e($booking['customer_state'] ?? ($linked_customer['state'] ?? '')) ?>" maxlength="2" placeholder="AL" autocomplete="address-level1">
+            </div>
+            <div class="col-sm-3">
+                <label class="form-label" for="customer_zip">ZIP</label>
+                <input type="text" id="customer_zip" name="customer_zip" class="form-control"
+                       value="<?= e($booking['customer_zip'] ?? ($linked_customer['zip'] ?? '')) ?>" maxlength="10" placeholder="36551" autocomplete="postal-code">
             </div>
         </div>
     </div>
@@ -325,6 +374,91 @@ layout_start('Edit Booking', 'bookings');
 </form>
 
 <script>
+function setupAddressAutocomplete(opts) {
+    var address = document.getElementById(opts.addressId);
+    var city = document.getElementById(opts.cityId);
+    var state = document.getElementById(opts.stateId);
+    var zip = document.getElementById(opts.zipId);
+    var box = document.getElementById(opts.boxId);
+    if (!address || !city || !state || !zip || !box) return;
+
+    var timer = null;
+    var controller = null;
+
+    function esc(s) {
+        return String(s).replace(/[&<>"]/g, function(ch) {
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch];
+        });
+    }
+
+    function hideBox() {
+        box.hidden = true;
+        box.innerHTML = '';
+    }
+
+    function partsFor(item) {
+        var a = item.address || {};
+        var street = [a.house_number || '', a.road || a.pedestrian || a.footway || a.cycleway || a.path || '']
+            .join(' ').trim();
+        if (!street) {
+            street = String(item.display_name || '').split(',')[0].trim();
+        }
+        return {
+            street: street,
+            city: a.city || a.town || a.village || a.hamlet || a.county || '',
+            state: (a.state_code || a.state || '').toString().trim(),
+            zip: (a.postcode || '').toString().trim()
+        };
+    }
+
+    function choose(item) {
+        var parts = partsFor(item);
+        address.value = parts.street;
+        if (parts.city) city.value = parts.city;
+        if (parts.state) state.value = parts.state.length === 2 ? parts.state.toUpperCase() : parts.state;
+        if (parts.zip) zip.value = parts.zip;
+        hideBox();
+    }
+
+    address.addEventListener('input', function() {
+        var q = address.value.trim();
+        if (controller) controller.abort();
+        clearTimeout(timer);
+        if (q.length < 5) { hideBox(); return; }
+
+        timer = setTimeout(function() {
+            controller = new AbortController();
+            fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&countrycodes=us&limit=5&viewbox=-88.5,31.2,-86.5,30.0&bounded=0&q=' + encodeURIComponent(q), {
+                signal: controller.signal,
+                headers: { 'Accept': 'application/json' }
+            })
+            .then(function(r) { return r.ok ? r.json() : []; })
+            .then(function(items) {
+                if (!Array.isArray(items) || items.length === 0) { hideBox(); return; }
+                box.innerHTML = items.map(function(item, idx) {
+                    var parts = partsFor(item);
+                    var subtitle = [parts.city, parts.state, parts.zip].filter(Boolean).join(', ');
+                    return '<button type="button" class="tp-address-option" data-idx="' + idx + '">'
+                        + '<strong>' + esc(parts.street || item.display_name || 'Address') + '</strong>'
+                        + (subtitle ? '<span>' + esc(subtitle) + '</span>' : '')
+                        + '</button>';
+                }).join('');
+                box.hidden = false;
+                box.querySelectorAll('.tp-address-option').forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        choose(items[parseInt(btn.dataset.idx, 10)]);
+                    });
+                });
+            })
+            .catch(function() { hideBox(); });
+        }, 250);
+    });
+
+    address.addEventListener('blur', function() {
+        setTimeout(hideBox, 150);
+    });
+}
+
 function updateTotal() {
     var sel   = document.getElementById('dumpster_id');
     var start = document.getElementById('rental_start').value;
@@ -353,6 +487,15 @@ function updateTotal() {
     disp.textContent = days + ' day' + (days !== 1 ? 's' : '') + ' — $' + total.toFixed(2);
 }
 document.addEventListener('DOMContentLoaded', updateTotal);
+document.addEventListener('DOMContentLoaded', function() {
+    setupAddressAutocomplete({
+        addressId: 'customer_address',
+        cityId: 'customer_city',
+        stateId: 'customer_state',
+        zipId: 'customer_zip',
+        boxId: 'customer_address_suggest'
+    });
+});
 </script>
 
 <?php

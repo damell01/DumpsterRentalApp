@@ -10,6 +10,8 @@ class SubscriptionService
         private readonly StripeClientFactory $factory,
         private readonly StripeCustomerService $customerService,
         private readonly AuditLogService $auditLogService,
+        private readonly InvoiceBillingService $invoiceBillingService,
+        private readonly BillingNotificationService $notificationService,
     ) {
     }
 
@@ -28,6 +30,7 @@ class SubscriptionService
             'items' => [['price' => $priceId]],
             'collection_method' => 'charge_automatically',
             'default_payment_method' => $data['stripe_payment_method_id'] ?: null,
+            'expand' => ['latest_invoice'],
             'metadata' => [
                 'customer_id' => (string)$data['customer_id'],
                 'service_name' => (string)$data['service_name'],
@@ -60,6 +63,13 @@ class SubscriptionService
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
+
+        $this->backfillLatestInvoiceForSubscription([
+            'id' => $subscriptionId,
+            'customer_id' => (int)$data['customer_id'],
+            'service_name' => (string)$data['service_name'],
+            'stripe_subscription_id' => (string)$stripeSubscription->id,
+        ], $stripeSubscription);
 
         $this->auditLogService->log('subscription_created', 'Created subscription #' . $subscriptionId, 'subscription', $subscriptionId);
         return $subscriptionId;
@@ -187,6 +197,50 @@ class SubscriptionService
         \db_execute('UPDATE subscriptions SET retry_count = retry_count + 1, updated_at = NOW() WHERE id = ?', [$id]);
     }
 
+    public function repairMissingHistory(?int $subscriptionId = null): void
+    {
+        $params = [];
+        $where = '';
+        if ($subscriptionId !== null && $subscriptionId > 0) {
+            $where = 'WHERE s.id = ?';
+            $params[] = $subscriptionId;
+        } else {
+            $where = 'WHERE NOT EXISTS (
+                SELECT 1 FROM recurring_invoice_logs ril WHERE ril.subscription_id = s.id
+            )';
+        }
+
+        $subscriptions = \db_fetchall(
+            "SELECT s.*
+             FROM subscriptions s
+             {$where}
+             ORDER BY s.id ASC",
+            $params
+        );
+
+        if (!$subscriptions) {
+            return;
+        }
+
+        $client = $this->factory->requireClient();
+        foreach ($subscriptions as $subscription) {
+            if (empty($subscription['stripe_subscription_id'])) {
+                continue;
+            }
+
+            try {
+                $stripeSubscription = $client->subscriptions->retrieve(
+                    (string)$subscription['stripe_subscription_id'],
+                    ['expand' => ['latest_invoice']]
+                );
+                $this->backfillLatestInvoiceForSubscription($subscription, $stripeSubscription);
+            } catch (\Throwable $e) {
+                \error_log('[SubscriptionService] repairMissingHistory failed for subscription '
+                    . (int)$subscription['id'] . ': ' . $e->getMessage());
+            }
+        }
+    }
+
     private function requireLocalSubscription(int $id): array
     {
         $subscription = \db_fetch('SELECT * FROM subscriptions WHERE id = ? LIMIT 1', [$id]);
@@ -222,5 +276,125 @@ class SubscriptionService
         ]);
 
         return $price->id;
+    }
+
+    private function backfillLatestInvoiceForSubscription(array $subscription, ?object $stripeSubscription = null): void
+    {
+        $subscriptionId = (int)($subscription['id'] ?? 0);
+        $customerId = (int)($subscription['customer_id'] ?? 0);
+        if ($subscriptionId <= 0 || $customerId <= 0) {
+            return;
+        }
+
+        $stripeSubscription ??= $this->factory->requireClient()->subscriptions->retrieve(
+            (string)$subscription['stripe_subscription_id'],
+            ['expand' => ['latest_invoice']]
+        );
+
+        $latestInvoice = $stripeSubscription->latest_invoice ?? null;
+        if (!$latestInvoice) {
+            return;
+        }
+
+        if (is_string($latestInvoice)) {
+            $latestInvoice = $this->factory->requireClient()->invoices->retrieve($latestInvoice, []);
+        }
+
+        if (!is_object($latestInvoice) || empty($latestInvoice->id)) {
+            return;
+        }
+
+        $localInvoiceId = $this->invoiceBillingService->createLocalInvoiceFromStripeInvoice(
+            $latestInvoice,
+            $customerId,
+            $subscriptionId
+        );
+
+        $existingLog = \db_fetch(
+            'SELECT id FROM recurring_invoice_logs WHERE subscription_id = ? AND stripe_invoice_id = ? LIMIT 1',
+            [$subscriptionId, (string)$latestInvoice->id]
+        );
+
+        if ($existingLog) {
+            return;
+        }
+
+        $status = $this->normalizeInvoiceStatus((string)($latestInvoice->status ?? 'open'));
+        $amount = $status === 'paid'
+            ? ((int)($latestInvoice->amount_paid ?? 0)) / 100
+            : ((int)($latestInvoice->amount_due ?? 0)) / 100;
+
+        \db_insert('recurring_invoice_logs', [
+            'subscription_id' => $subscriptionId,
+            'invoice_id' => $localInvoiceId ?: null,
+            'stripe_invoice_id' => $latestInvoice->id,
+            'billing_date' => date('Y-m-d H:i:s', (int)($latestInvoice->created ?? time())),
+            'amount' => $amount,
+            'status' => $status,
+            'failure_message' => $latestInvoice->last_finalization_error->message ?? null,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        \db_update('subscriptions', [
+            'status' => $status === 'paid' ? 'active' : ((string)($subscription['status'] ?? 'active')),
+            'stripe_status' => (string)($stripeSubscription->status ?? ($subscription['stripe_status'] ?? 'active')),
+            'next_billing_date' => !empty($stripeSubscription->current_period_end)
+                ? date('Y-m-d', (int)$stripeSubscription->current_period_end)
+                : ($subscription['next_billing_date'] ?? null),
+            'last_paid_at' => $status === 'paid'
+                ? date('Y-m-d H:i:s', (int)($latestInvoice->status_transitions->paid_at ?? $latestInvoice->created ?? time()))
+                : ($subscription['last_paid_at'] ?? null),
+            'retry_count' => $status === 'paid' ? 0 : (int)($subscription['retry_count'] ?? 0),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ], 'id', $subscriptionId);
+
+        if ($status !== 'paid') {
+            return;
+        }
+
+        $customer = \db_fetch('SELECT * FROM customers WHERE id = ? LIMIT 1', [$customerId]);
+        if ($localInvoiceId > 0) {
+            $alreadyEmailed = (bool)\db_value(
+                "SELECT COUNT(*) FROM activity_log WHERE action = 'invoice_paid_emailed' AND entity_id = ?",
+                [$localInvoiceId]
+            );
+            $localInvoice = \db_fetch('SELECT * FROM invoices WHERE id = ? LIMIT 1', [$localInvoiceId]);
+            if (!$alreadyEmailed && $localInvoice) {
+                try {
+                    $this->notificationService->sendInvoicePaidReceipt(
+                        ['email' => $customer['email'] ?? ($localInvoice['cust_email'] ?? '')],
+                        $localInvoice['invoice_number'] ?? ('INV-' . $localInvoiceId),
+                        (float)($localInvoice['total'] ?? $amount),
+                        $customer['name'] ?? ($localInvoice['cust_name'] ?? '')
+                    );
+                    $this->notificationService->notifySubscriptionPaymentReceived(
+                        (string)($subscription['service_name'] ?? ('Subscription ' . $subscriptionId)),
+                        (float)($localInvoice['total'] ?? $amount),
+                        $customer['name'] ?? ($localInvoice['cust_name'] ?? '')
+                    );
+                    \log_activity('invoice_paid_emailed', 'Sent subscription receipt for ' . ($localInvoice['invoice_number'] ?? $localInvoiceId), 'invoice', $localInvoiceId);
+                } catch (\Throwable $e) {
+                    \error_log('[SubscriptionService] subscription receipt send failed for invoice '
+                        . $localInvoiceId . ': ' . $e->getMessage());
+                }
+            } elseif (!$alreadyEmailed) {
+                $this->notificationService->notifySubscriptionPaymentReceived(
+                    (string)($subscription['service_name'] ?? ('Subscription ' . $subscriptionId)),
+                    $amount,
+                    $customer['name'] ?? ''
+                );
+            }
+        }
+    }
+
+    private function normalizeInvoiceStatus(string $status): string
+    {
+        return match (strtolower(trim($status))) {
+            'paid' => 'paid',
+            'uncollectible', 'failed' => 'failed',
+            'void', 'voided' => 'void',
+            'draft' => 'draft',
+            default => 'open',
+        };
     }
 }

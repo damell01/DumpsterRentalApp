@@ -20,6 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 try {
+    $publicSizes = public_dumpster_sizes();
+    $hasCatalog = db_table_exists('dumpster_size_options');
     $columns = ['id', 'unit_code', 'size', 'status'];
     foreach ([
         'product_name', 'type', 'description', 'base_price', 'rental_days',
@@ -56,6 +58,9 @@ $grouped = [];
 foreach ($rows as $row) {
     $size = trim((string)($row['size'] ?? ''));
     if ($size === '') {
+        continue;
+    }
+    if (($hasCatalog || $publicSizes) && !in_array($size, $publicSizes, true)) {
         continue;
     }
 

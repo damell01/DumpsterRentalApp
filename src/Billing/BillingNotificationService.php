@@ -6,20 +6,32 @@ class BillingNotificationService
 {
     public function sendInvoicePaid(array $recipient, string $invoiceNumber, float $amount, string $customerName = ''): void
     {
-        $nameGreeting = $customerName !== '' ? 'Hi ' . \e($customerName) . ',' : 'Hello,';
-        $body = '<p>' . $nameGreeting . '</p>'
-            . '<p>Your payment of <strong>' . \e(\fmt_money($amount)) . '</strong> for invoice '
-            . '<strong>' . \e($invoiceNumber) . '</strong> has been received successfully. Thank you!</p>';
-
-        $this->sendToCustomer($recipient, 'Invoice Paid', $body, 'Invoice Paid — ' . $invoiceNumber);
+        $this->sendInvoicePaidReceipt($recipient, $invoiceNumber, $amount, $customerName);
 
         $adminBody = '<p>Invoice <strong>' . \e($invoiceNumber) . '</strong> has been paid.'
             . ($customerName !== '' ? ' Customer: <strong>' . \e($customerName) . '</strong>.' : '')
             . ' Amount: <strong>' . \e(\fmt_money($amount)) . '</strong>.</p>';
         \notify_admins(
-            'Invoice Paid — ' . $invoiceNumber . ($customerName !== '' ? ' (' . $customerName . ')' : ''),
+            'Invoice Paid - ' . $invoiceNumber . ($customerName !== '' ? ' (' . $customerName . ')' : ''),
             $adminBody
         );
+    }
+
+    public function sendInvoicePaidReceipt(array $recipient, string $invoiceNumber, float $amount, string $customerName = ''): void
+    {
+        $tokens = [
+            'customer_name' => $customerName,
+            'invoice_number' => $invoiceNumber,
+            'amount' => \fmt_money($amount),
+        ];
+        $subject = \setting_text('invoice_paid_email_subject', 'Invoice Paid - {invoice_number}', $tokens);
+        $bodyText = \setting_text(
+            'invoice_paid_email_body',
+            'Hi {customer_name}, Your payment of {amount} for invoice {invoice_number} has been received. Thank you!',
+            $tokens
+        );
+
+        $this->sendToCustomer($recipient, 'Payment Receipt', '<p>' . nl2br(\e($bodyText)) . '</p>', $subject);
     }
 
     public function sendAchInitiated(array $recipient, string $subjectContext, float $amount): void
@@ -65,8 +77,18 @@ class BillingNotificationService
             'Subscription renewed - ' . $subjectContext
         );
         \notify_admins(
-            'Subscription Payment Received — ' . $subjectContext,
+            'Subscription Payment Received - ' . $subjectContext,
             '<p>Subscription <strong>' . \e($subjectContext) . '</strong> renewed successfully.'
+            . ' Amount collected: <strong>' . \e(\fmt_money($amount)) . '</strong>.</p>'
+        );
+    }
+
+    public function notifySubscriptionPaymentReceived(string $subjectContext, float $amount, string $customerName = ''): void
+    {
+        \notify_admins(
+            'Subscription Payment Received - ' . $subjectContext . ($customerName !== '' ? ' (' . $customerName . ')' : ''),
+            '<p>Subscription <strong>' . \e($subjectContext) . '</strong> was paid successfully.'
+            . ($customerName !== '' ? ' Customer: <strong>' . \e($customerName) . '</strong>.' : '')
             . ' Amount collected: <strong>' . \e(\fmt_money($amount)) . '</strong>.</p>'
         );
     }
@@ -82,7 +104,7 @@ class BillingNotificationService
             $paymentUpdateUrl
         );
         \notify_admins(
-            'Subscription Payment Failed — ' . $subjectContext,
+            'Subscription Payment Failed - ' . $subjectContext,
             '<p>A subscription payment failed for <strong>' . \e($subjectContext) . '</strong>.'
             . ' The subscription is now past due. Log in to review and retry the charge.</p>'
         );

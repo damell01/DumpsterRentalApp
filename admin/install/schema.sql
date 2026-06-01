@@ -165,6 +165,24 @@ CREATE TABLE IF NOT EXISTS `dumpsters` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -----------------------------------------------------------------------------
+-- dumpster_size_options
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `dumpster_size_options` (
+  `id`              int(11)      NOT NULL AUTO_INCREMENT,
+  `label`           varchar(80)  NOT NULL,
+  `description`     varchar(255)          DEFAULT NULL,
+  `sort_order`      int(11)      NOT NULL DEFAULT 0,
+  `public_enabled`  tinyint(1)   NOT NULL DEFAULT 1,
+  `active`          tinyint(1)   NOT NULL DEFAULT 1,
+  `created_at`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_dumpster_size_options_label` (`label`),
+  KEY `idx_dumpster_size_options_public` (`public_enabled`),
+  KEY `idx_dumpster_size_options_active` (`active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------------------------------
 -- workers  (simple driver/worker roster for job assignment)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `workers` (
@@ -510,6 +528,13 @@ CREATE TABLE IF NOT EXISTS `password_resets` (
   KEY `idx_pw_reset_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+INSERT IGNORE INTO `dumpster_size_options` (`label`, `description`, `sort_order`, `public_enabled`, `active`) VALUES
+  ('10 Yard', 'Best for small cleanouts, garage purge jobs, and light remodeling.', 10, 1, 1),
+  ('15 Yard', 'Great for medium room remodels, flooring jobs, and compact property cleanups.', 15, 1, 1),
+  ('20 Yard', 'Ideal for remodels, roofing, and all-around residential renovation work.', 20, 1, 1),
+  ('30 Yard', 'Built for larger renovations, contractor jobs, and major property cleanouts.', 30, 1, 1),
+  ('40 Yard', 'Best for demolition, commercial work, and the biggest debris loads.', 40, 1, 1);
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- -----------------------------------------------------------------------------
@@ -521,6 +546,29 @@ INSERT IGNORE INTO `settings` (`key`, `value`) VALUES
   ('stripe_webhook_secret',  ''),
   ('stripe_mode',            'test'),
   ('booking_terms',          'By completing this booking, you agree to our rental terms and conditions.'),
+  ('payment_note_cash',      'Please have cash payment ready at time of delivery.'),
+  ('payment_note_check',     'Please have your check made out to {company_name} ready at time of delivery.'),
+  ('booking_success_pending_intro', 'Thank you, {customer_name}. {subject_phrase} been submitted for review. We will follow up with approval details and payment instructions if needed.'),
+  ('booking_success_confirmed_intro', 'Thank you, {customer_name}! {subject_phrase} been booked.'),
+  ('booking_success_terms_text', 'Keep a copy of the signed rental terms for your records.'),
+  ('booking_success_keep_title', 'Keep this page handy.'),
+  ('booking_success_keep_body', 'Use these booking numbers when you call, email, or check your order in the customer portal.'),
+  ('booking_success_contact_prompt', 'Questions? Call us at'),
+  ('invoice_paid_intro_named', 'Thank you, {customer_name}! Your invoice has been paid.'),
+  ('invoice_paid_intro_generic', 'Your invoice payment has been received. Thank you!'),
+  ('invoice_paid_contact_prompt', 'Questions? Call us at'),
+  ('invoice_canceled_intro', 'Your payment was not completed and the invoice has not been charged. No amount has been collected.'),
+  ('invoice_canceled_contact_prompt', 'Need help? Call us at'),
+  ('portal_request_lead', 'Get a secure one-time link to review invoices, payment history, saved billing methods, and subscription activity without needing a password.'),
+  ('portal_request_sub', 'Enter your billing email and we’ll send a secure one-time link to access your invoices, subscriptions, and saved payment methods.'),
+  ('portal_request_success', 'If that email address is on file, a secure portal link has been sent. Check your inbox.'),
+  ('portal_request_security_note', 'Links are single-use and expire automatically. No password needed.'),
+  ('portal_link_email_subject', 'Your {company_name} Billing Portal Link'),
+  ('portal_link_email_intro', 'Your secure {company_name} billing portal link is ready. This link expires automatically.'),
+  ('portal_link_email_button', 'Open Billing Portal'),
+  ('invoice_paid_email_subject', 'Invoice Paid — {invoice_number}'),
+  ('invoice_paid_email_body', 'Hi {customer_name}, Your payment of {amount} for invoice {invoice_number} has been received. Thank you!'),
+  ('super_admin_user_ids',   '[]'),
   ('currency',               'usd'),
   ('invoice_terms',          'Payment is due within 30 days of invoice date. Thank you for your business!'),
   ('vapid_public_key',       ''),

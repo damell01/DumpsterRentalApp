@@ -158,6 +158,49 @@ function create_invoice_from_booking(array $booking, bool $markSent = true): arr
     ];
 }
 
+function booking_ensure_invoice_payment_link(array $invoice, string $paymentMethod): array
+{
+    $invoiceId = (int)($invoice['id'] ?? 0);
+    if ($invoiceId <= 0 || !empty($invoice['stripe_payment_link'])) {
+        return $invoice;
+    }
+
+    $stripeKey = trim(get_setting('stripe_secret_key', ''));
+    if ($stripeKey === '' || !str_starts_with($stripeKey, 'sk_') || (float)($invoice['total'] ?? 0) <= 0) {
+        return $invoice;
+    }
+
+    $paymentMethod = trim($paymentMethod);
+    if (!in_array($paymentMethod, ['stripe', 'ach', 'card'], true)) {
+        $paymentMethod = 'stripe';
+    }
+
+    try {
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $publicBase = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? parse_url(APP_URL, PHP_URL_HOST));
+        $invoiceToken = hash_hmac('sha256', 'inv_' . $invoiceId, defined('PORTAL_SIGNING_KEY') ? PORTAL_SIGNING_KEY : 'invoice-token-secret');
+        $successUrl = $publicBase . '/invoice-paid.php?id=' . $invoiceId . '&token=' . urlencode($invoiceToken) . '&session_id={CHECKOUT_SESSION_ID}';
+        $cancelUrl = $publicBase . '/invoice-canceled.php?id=' . $invoiceId . '&token=' . urlencode($invoiceToken);
+
+        $session = stripe_create_invoice_checkout($invoice, $successUrl, $cancelUrl, $paymentMethod);
+        db_update('invoices', [
+            'stripe_payment_link' => $session->url,
+            'stripe_session_id'   => $session->id,
+            'payment_method'      => $paymentMethod,
+            'updated_at'          => date('Y-m-d H:i:s'),
+        ], 'id', $invoiceId);
+
+        $fresh = db_fetch('SELECT * FROM invoices WHERE id = ? LIMIT 1', [$invoiceId]);
+        if ($fresh) {
+            return $fresh;
+        }
+    } catch (\Throwable $e) {
+        error_log('[Booking approval] Invoice payment link retry failed: ' . $e->getMessage());
+    }
+
+    return $invoice;
+}
+
 function create_work_order_from_booking(array $booking): array
 {
     $existing = booking_existing_work_order($booking);
@@ -181,6 +224,9 @@ function create_work_order_from_booking(array $booking): array
     $unitCodes    = implode(', ', array_filter(array_column($woGroup, 'unit_code')));
     $unitSizes    = implode(', ', array_unique(array_filter(array_column($woGroup, 'unit_size'))));
     $pickupDate   = !empty($booking['rental_end']) ? (string)$booking['rental_end'] : null;
+    $customerRow  = !empty($booking['customer_id'])
+        ? db_fetch('SELECT address, city, state, zip, billing_address, billing_city, billing_state, billing_zip FROM customers WHERE id = ? LIMIT 1', [(int)$booking['customer_id']])
+        : null;
 
     $woNumber = next_number('WO', 'work_orders', 'wo_number');
 
@@ -190,10 +236,10 @@ function create_work_order_from_booking(array $booking): array
         'cust_name' => $booking['customer_name'] ?: null,
         'cust_phone' => $booking['customer_phone'] ?: null,
         'cust_email' => $booking['customer_email'] ?: null,
-        'service_address' => $booking['customer_address'] ?: null,
-        'service_city' => $booking['customer_city'] ?: null,
-        'service_state' => null,
-        'service_zip' => null,
+        'service_address' => $booking['customer_address'] ?: ($customerRow['address'] ?? $customerRow['billing_address'] ?? null),
+        'service_city' => $booking['customer_city'] ?: ($customerRow['city'] ?? $customerRow['billing_city'] ?? null),
+        'service_state' => $customerRow['state'] ?? $customerRow['billing_state'] ?? null,
+        'service_zip' => $customerRow['zip'] ?? $customerRow['billing_zip'] ?? null,
         'size' => $unitSizes ?: ($booking['unit_size'] ?: null),
         'project_type' => 'Dumpster Rental',
         'dumpster_id' => !empty($booking['dumpster_id']) ? (int)$booking['dumpster_id'] : null,
@@ -286,6 +332,9 @@ try {
     }
 
     $invoiceRow = db_fetch('SELECT * FROM invoices WHERE id = ? LIMIT 1', [(int)$invoice['invoice_id']]) ?: [];
+    if (!empty($invoiceRow)) {
+        $invoiceRow = booking_ensure_invoice_payment_link($invoiceRow, (string)($booking['payment_method'] ?? 'stripe'));
+    }
     $approvalEmailSent = false;
     if ($autoSend && !empty($booking['customer_email']) && !empty($invoiceRow)) {
         try {

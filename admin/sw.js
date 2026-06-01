@@ -7,7 +7,7 @@
  *   - No offline fallback for admin pages (auth state depends on server session).
  */
 
-const CACHE_VERSION = 'tp-admin-v2';
+const CACHE_VERSION = 'tp-admin-v3';
 
 const PRECACHE_URLS = [
   '/admin/assets/css/app.css',
@@ -51,14 +51,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Never intercept dynamic admin/API requests. Let the browser hit PHP directly
+  // so auth/session-sensitive screens don't get synthetic SW 503 responses.
+  if (url.pathname.startsWith('/admin/api/') || /\.php$/i.test(url.pathname)) {
+    return;
+  }
+
   // Static assets: cache-first
   if (isStaticAsset(url.pathname)) {
     event.respondWith(cacheFirst(request));
     return;
   }
 
-  // Admin pages: network-first (always show latest server data)
-  event.respondWith(networkFirst(request));
+  // Leave everything else alone.
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -89,15 +94,6 @@ async function cacheFirst(request) {
     return response;
   } catch {
     return new Response('', { status: 503, statusText: 'Service Unavailable' });
-  }
-}
-
-async function networkFirst(request) {
-  try {
-    return await fetch(request);
-  } catch {
-    const cached = await caches.match(request);
-    return cached || new Response('', { status: 503, statusText: 'Service Unavailable' });
   }
 }
 

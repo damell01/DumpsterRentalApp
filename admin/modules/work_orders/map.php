@@ -16,15 +16,22 @@ $today     = date('Y-m-d');
 $is_today  = ($view_date === $today);
 
 // ── Queries ───────────────────────────────────────────────────────────────────
-$addr_cols = 'wo.service_address, wo.service_city, wo.service_state, wo.service_zip, wo.cust_phone';
+$addr_cols = "
+    COALESCE(NULLIF(TRIM(wo.service_address), ''), NULLIF(TRIM(c.address), ''), NULLIF(TRIM(c.billing_address), '')) AS service_address,
+    COALESCE(NULLIF(TRIM(wo.service_city), ''), NULLIF(TRIM(c.city), ''), NULLIF(TRIM(c.billing_city), '')) AS service_city,
+    COALESCE(NULLIF(TRIM(wo.service_state), ''), NULLIF(TRIM(c.state), ''), NULLIF(TRIM(c.billing_state), '')) AS service_state,
+    COALESCE(NULLIF(TRIM(wo.service_zip), ''), NULLIF(TRIM(c.zip), ''), NULLIF(TRIM(c.billing_zip), '')) AS service_zip,
+    COALESCE(NULLIF(TRIM(wo.cust_phone), ''), NULLIF(TRIM(c.phone), '')) AS cust_phone
+";
 
 if ($view_mode === 'active') {
     // All dumpsters currently on-site, regardless of date
-    $all_jobs = db_fetchall(
+    $all_jobs = db_try_fetchall(
         "SELECT wo.id, wo.wo_number, wo.cust_name, wo.status,
                 wo.delivery_date, wo.pickup_date, wo.priority,
                 $addr_cols, d.size AS dumpster_size, d.unit_code AS dumpster_code
          FROM work_orders wo
+         LEFT JOIN customers c ON wo.customer_id = c.id
          LEFT JOIN dumpsters d ON wo.dumpster_id = d.id
          WHERE wo.status IN ('scheduled','delivered','active','pickup_requested','picked_up')
          ORDER BY wo.status ASC, wo.wo_number ASC"
@@ -43,21 +50,23 @@ if ($view_mode === 'active') {
         'job_type' => in_array($wo['status'], ['scheduled', 'delivered', 'active'], true) ? 'delivery' : 'pickup',
     ]), $all_jobs);
 } else {
-    $deliveries = db_fetchall(
+    $deliveries = db_try_fetchall(
         "SELECT wo.id, wo.wo_number, wo.cust_name, wo.status,
                 wo.delivery_date, wo.pickup_date, wo.priority,
                 $addr_cols, d.size AS dumpster_size, d.unit_code AS dumpster_code
          FROM work_orders wo
+         LEFT JOIN customers c ON wo.customer_id = c.id
          LEFT JOIN dumpsters d ON wo.dumpster_id = d.id
          WHERE wo.delivery_date = ? AND wo.status NOT IN ('completed','canceled','picked_up')
          ORDER BY wo.wo_number ASC",
         [$view_date]
     );
-    $pickups = db_fetchall(
+    $pickups = db_try_fetchall(
         "SELECT wo.id, wo.wo_number, wo.cust_name, wo.status,
                 wo.delivery_date, wo.pickup_date, wo.priority,
                 $addr_cols, d.size AS dumpster_size, d.unit_code AS dumpster_code
          FROM work_orders wo
+         LEFT JOIN customers c ON wo.customer_id = c.id
          LEFT JOIN dumpsters d ON wo.dumpster_id = d.id
          WHERE (
              (wo.pickup_date = ? AND wo.status NOT IN ('completed','canceled','picked_up'))
@@ -83,9 +92,13 @@ function build_full_address(array $wo): string
 }
 
 if (!empty($all_jobs)) {
-    $hashes    = array_map(fn($wo) => md5(build_full_address($wo)), $all_jobs);
-    $ph        = implode(',', array_fill(0, count($hashes), '?'));
-    $cached    = db_fetchall("SELECT address_hash, lat, lng FROM geocode_cache WHERE address_hash IN ($ph)", $hashes);
+    $hashes = array_map(fn($wo) => md5(build_full_address($wo)), $all_jobs);
+    $ph     = implode(',', array_fill(0, count($hashes), '?'));
+    try {
+        $cached = db_fetchall("SELECT address_hash, lat, lng FROM geocode_cache WHERE address_hash IN ($ph)", $hashes);
+    } catch (\Throwable $e) {
+        $cached = [];
+    }
     $cache_map = array_column($cached, null, 'address_hash');
 
     foreach ($all_jobs as &$wo) {
@@ -97,6 +110,14 @@ if (!empty($all_jobs)) {
             $wo['service_state'],
             $wo['service_zip'],
         ])));
+        $has_street = trim((string)($wo['service_address'] ?? '')) !== '';
+        $has_locality = trim((string)($wo['service_city'] ?? '')) !== ''
+            || trim((string)($wo['service_state'] ?? '')) !== ''
+            || trim((string)($wo['service_zip'] ?? '')) !== '';
+        $wo['address_complete'] = $has_street && $has_locality;
+        $wo['address_issue'] = !$has_street
+            ? 'Missing street address'
+            : (!$has_locality ? 'Add city, state, or ZIP for accurate pin placement' : '');
         $wo['lat'] = isset($cache_map[$hash]) ? (float)$cache_map[$hash]['lat'] : null;
         $wo['lng'] = isset($cache_map[$hash]) ? (float)$cache_map[$hash]['lng'] : null;
     }
@@ -108,7 +129,8 @@ if (!empty($all_jobs)) {
 }
 
 $cached_count    = count(array_filter($all_jobs, fn($wo) => $wo['lat'] !== null));
-$missing_count   = count($all_jobs) - $cached_count;
+$incomplete_jobs = array_values(array_filter($all_jobs, fn($wo) => empty($wo['address_complete'])));
+$missing_count   = count(array_filter($all_jobs, fn($wo) => !empty($wo['address_complete']) && $wo['lat'] === null));
 $company_address = get_setting('company_address', '');
 $company_name    = get_setting('company_name', 'Dispatch');
 
@@ -272,7 +294,7 @@ layout_start('Dispatch Map', 'dispatch_map');
 
 <!-- ── Map ─────────────────────────────────────────────────────────────────── -->
 <div class="tp-card p-0 mb-3" style="overflow:hidden;position:relative;">
-    <div id="dispatch-map" style="height:540px;width:100%;"></div>
+    <div id="dispatch-map" class="dp-map-canvas"></div>
     <div id="map-spinner" style="display:none;position:absolute;top:10px;right:10px;
          background:rgba(15,15,15,.85);color:#fff;padding:.4rem .8rem;border-radius:8px;
          font-size:.8rem;z-index:1000;backdrop-filter:blur(4px);">
@@ -314,6 +336,24 @@ layout_start('Dispatch Map', 'dispatch_map');
     </div>
 </div>
 <?php else: ?>
+<?php if (!empty($incomplete_jobs)): ?>
+<div class="alert alert-warning mb-3" style="border:1px solid rgba(245,158,11,.25);background:rgba(245,158,11,.08);">
+    <div class="fw-semibold mb-1">
+        <i class="fa-solid fa-triangle-exclamation me-1"></i>
+        <?= count($incomplete_jobs) ?> stop<?= count($incomplete_jobs) === 1 ? '' : 's' ?> need<?= count($incomplete_jobs) === 1 ? 's' : '' ?> a fuller address before they can pin correctly.
+    </div>
+    <div style="font-size:.9rem;color:#7c2d12;">
+        Add at least a street address plus city, state, or ZIP on the booking, customer, or work order record.
+    </div>
+    <div class="mt-2 d-flex flex-wrap gap-2">
+        <?php foreach ($incomplete_jobs as $wo): ?>
+            <a href="view.php?id=<?= (int)$wo['id'] ?>" class="btn-tp-ghost btn-tp-xs" style="border-color:rgba(245,158,11,.35);">
+                <?= e($wo['wo_number']) ?>: <?= e($wo['cust_name']) ?>
+            </a>
+        <?php endforeach; ?>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- ── Job cards ───────────────────────────────────────────────────────────── -->
 <div class="row g-3">
@@ -440,7 +480,7 @@ layout_start('Dispatch Map', 'dispatch_map');
     <div class="row g-3 mb-3">
         <div class="col-lg-8">
             <div class="tp-card p-0" style="overflow:hidden;position:relative;">
-                <div id="builder-map" style="height:490px;width:100%;"></div>
+                <div id="builder-map" class="dp-builder-canvas"></div>
                 <div id="rb-spinner" style="display:none;position:absolute;top:10px;right:10px;
                      background:rgba(15,15,15,.85);color:#fff;padding:.35rem .8rem;border-radius:8px;
                      font-size:.8rem;z-index:1000;backdrop-filter:blur(4px);">
@@ -456,7 +496,7 @@ layout_start('Dispatch Map', 'dispatch_map');
             </div>
         </div>
         <div class="col-lg-4">
-            <div class="tp-card" style="height:490px;overflow-y:auto;padding:.85rem;">
+            <div class="tp-card dp-builder-list-card" style="overflow-y:auto;padding:.85rem;">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h6 class="mb-0" style="font-size:.88rem;">
                         <i class="fa-solid fa-list-ol me-1" style="color:#f97316;"></i>
@@ -501,6 +541,35 @@ layout_start('Dispatch Map', 'dispatch_map');
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
 
 <style>
+.dp-map-canvas {
+    width: 100%;
+    height: 360px;
+}
+.dp-builder-canvas {
+    width: 100%;
+    height: 380px;
+}
+.dp-builder-list-card {
+    height: 380px;
+}
+@media (max-width: 991.98px) {
+    .dp-map-canvas {
+        height: 320px;
+    }
+    .dp-builder-canvas,
+    .dp-builder-list-card {
+        height: 340px;
+    }
+}
+@media (max-width: 575.98px) {
+    .dp-map-canvas {
+        height: 280px;
+    }
+    .dp-builder-canvas,
+    .dp-builder-list-card {
+        height: 300px;
+    }
+}
 /* Popup */
 .leaflet-popup-content-wrapper {
     border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.22);
@@ -664,6 +733,106 @@ var geocodePending = 0;
 var geocodeTotal   = 0;
 
 document.querySelectorAll('.dispatch-row').forEach(function (r) { rowMap[r.dataset.jobId] = r; });
+jobs.forEach(function (job) {
+    if (!hasMappableAddress(job)) {
+        markRowAddressIssue(job.id, job.address_issue);
+    }
+});
+
+function hasValidCoords(job) {
+    return job
+        && Number.isFinite(Number(job.lat))
+        && Number.isFinite(Number(job.lng))
+        && Math.abs(Number(job.lat)) <= 90
+        && Math.abs(Number(job.lng)) <= 180
+        && !(Number(job.lat) === 0 && Number(job.lng) === 0);
+}
+
+function hasMappableAddress(job) {
+    return !!(job && job.address_complete && (job.full_address || job.service_address));
+}
+
+function ensureRowBadge(row, text, styles) {
+    if (!row) return;
+    var cell = row.querySelector('td:nth-child(4)');
+    if (!cell) return;
+    var existing = cell.querySelector('[data-map-badge]');
+    if (existing) existing.remove();
+    var badge = document.createElement('span');
+    badge.setAttribute('data-map-badge', '1');
+    badge.className = 'tp-badge ms-1';
+    badge.textContent = text;
+    badge.style.cssText = styles || '';
+    cell.appendChild(document.createTextNode(' '));
+    cell.appendChild(badge);
+}
+
+function markRowAddressIssue(jobId, issue) {
+    var row = rowMap[jobId];
+    if (!row) return;
+    row.style.background = 'rgba(245,158,11,.06)';
+    row.title = issue || 'This stop needs a fuller address before it can be pinned.';
+    ensureRowBadge(row, 'Address incomplete', 'background:rgba(245,158,11,.12);color:#b45309;border:1px solid rgba(245,158,11,.2);');
+}
+
+function markRowGeocodeFailure(jobId, issue) {
+    var row = rowMap[jobId];
+    if (!row) return;
+    row.style.background = 'rgba(239,68,68,.05)';
+    row.title = issue || 'This stop could not be pinned from the saved address.';
+    ensureRowBadge(row, 'Pin failed', 'background:rgba(239,68,68,.1);color:#b91c1c;border:1px solid rgba(239,68,68,.2);');
+}
+
+function milesBetween(a, b) {
+    return haversine(a, b) * 0.621371;
+}
+
+function isLikelyLocalCoord(lat, lng) {
+    if (!companyAddress || !depotLatLng) return true;
+    return milesBetween(
+        { lat: Number(lat), lng: Number(lng) },
+        { lat: Number(depotLatLng[0]), lng: Number(depotLatLng[1]) }
+    ) <= 250;
+}
+
+function chooseBestGeocodeResult(results, addr) {
+    if (!results || !results.length) return null;
+
+    var normalized = String(addr || '').toLowerCase();
+    var hasSpecificLocality = /,\s*[a-z]/i.test(normalized) || /\b[a-z]{2}\b/.test(normalized) || /\b\d{5}\b/.test(normalized);
+    var usable = results
+        .map(function (r) {
+            return {
+                raw: r,
+                lat: parseFloat(r.lat),
+                lng: parseFloat(r.lon),
+                display: String(r.display_name || '').toLowerCase(),
+                country: String((r.address && r.address.country_code) || '').toLowerCase()
+            };
+        })
+        .filter(function (r) {
+            return Number.isFinite(r.lat) && Number.isFinite(r.lng);
+        });
+
+    if (!usable.length) return null;
+
+    var usOnly = usable.filter(function (r) { return r.country === '' || r.country === 'us'; });
+    if (usOnly.length) usable = usOnly;
+
+    if (depotLatLng) {
+        usable.sort(function (a, b) {
+            var aMiles = milesBetween({ lat: a.lat, lng: a.lng }, { lat: depotLatLng[0], lng: depotLatLng[1] });
+            var bMiles = milesBetween({ lat: b.lat, lng: b.lng }, { lat: depotLatLng[0], lng: depotLatLng[1] });
+            return aMiles - bMiles;
+        });
+
+        if (!hasSpecificLocality) {
+            return usable[0].raw;
+        }
+    }
+
+    return usable[0].raw;
+}
 
 // ── Popup builder ────────────────────────────────────────────────────────────
 function buildPopup(job) {
@@ -779,15 +948,84 @@ function saveToCache(address, lat, lng) {
 }
 
 function geocodeAddress(addr) {
+    return geocodeSearch(addr);
+}
+
+function geocodeSearch(addr) {
+    var params = [
+        'format=json',
+        'limit=6',
+        'addressdetails=1',
+        'countrycodes=us',
+        'q=' + encodeURIComponent(addr)
+    ];
+
+    if (depotLatLng) {
+        var west = (Number(depotLatLng[1]) - 3).toFixed(4);
+        var north = (Number(depotLatLng[0]) + 3).toFixed(4);
+        var east = (Number(depotLatLng[1]) + 3).toFixed(4);
+        var south = (Number(depotLatLng[0]) - 3).toFixed(4);
+        params.push('viewbox=' + west + ',' + north + ',' + east + ',' + south);
+        params.push('bounded=0');
+    }
+
     return fetchWithTimeout(
-        'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(addr),
+        'https://nominatim.openstreetmap.org/search?' + params.join('&'),
         { headers: { 'Accept-Language': 'en' } },
         8000
-    ).then(function (r) { return r.json(); });
+    )
+        .then(function (r) { return r.json(); })
+        .then(function (results) {
+            var best = chooseBestGeocodeResult(results, addr);
+            return best ? [best] : [];
+        });
+}
+
+function buildGeocodeQueries(job) {
+    var street = String(job.service_address || '').trim();
+    var city = String(job.service_city || '').trim();
+    var state = String(job.service_state || '').trim();
+    var zip = String(job.service_zip || '').trim();
+    var full = String(job.full_address || '').trim();
+    var variants = [];
+
+    function push(q) {
+        q = String(q || '').trim();
+        if (!q) return;
+        if (variants.indexOf(q) === -1) variants.push(q);
+    }
+
+    push(full);
+    push([street, city, state, zip].filter(Boolean).join(', '));
+    push([street, city, state].filter(Boolean).join(', '));
+    push([street, city].filter(Boolean).join(', '));
+    push([street, state, zip].filter(Boolean).join(', '));
+    push([street, zip].filter(Boolean).join(', '));
+
+    return variants;
+}
+
+function geocodeJob(job) {
+    var queries = buildGeocodeQueries(job);
+    var idx = 0;
+
+    function next() {
+        if (idx >= queries.length) return Promise.resolve([]);
+        var q = queries[idx++];
+        return geocodeSearch(q)
+            .then(function(results) {
+                return (results && results.length) ? results : next();
+            })
+            .catch(function() {
+                return next();
+            });
+    }
+
+    return next();
 }
 
 // ── Sequential geocoder (only for cache misses) ──────────────────────────────
-var geocodeQueue = jobs.filter(function (j) { return j.lat === null; });
+var geocodeQueue = jobs.filter(function (j) { return hasMappableAddress(j) && !hasValidCoords(j); });
 geocodeTotal   = geocodeQueue.length;
 geocodePending = geocodeTotal;
 var geocodeIndex = 0;
@@ -802,6 +1040,9 @@ function updateGeocodeProgress() {
         if (geocodedPts.length >= 2) {
             var btn = document.getElementById('btn-optimize');
             if (btn) { btn.disabled = false; btn.title = ''; }
+        } else if (geocodedPts.length === 0) {
+            if (depotLatLng) map.setView(depotLatLng, 11);
+            else map.setView([39.5,-98.35], 4);
         }
     }
 }
@@ -810,18 +1051,28 @@ function geocodeNext() {
     if (geocodeIndex >= geocodeQueue.length) return;
     var job = geocodeQueue[geocodeIndex++];
     var addr = job.full_address || job.service_address;
-    if (!addr) { geocodePending--; updateGeocodeProgress(); setTimeout(geocodeNext, 100); return; }
+    if (!hasMappableAddress(job) || !addr) {
+        markRowAddressIssue(job.id, job.address_issue);
+        geocodePending--;
+        updateGeocodeProgress();
+        setTimeout(geocodeNext, 100);
+        return;
+    }
 
-    geocodeAddress(addr)
+    geocodeJob(job)
         .then(function (results) {
             if (results && results.length > 0) {
                 var lat = parseFloat(results[0].lat);
                 var lng = parseFloat(results[0].lon);
                 addMarker(job, lat, lng);
                 saveToCache(addr, lat, lng);
+            } else {
+                markRowGeocodeFailure(job.id, 'Address could not be geocoded. Try a fuller address or pick one from autocomplete.');
             }
         })
-        .catch(function () {})
+        .catch(function () {
+            markRowGeocodeFailure(job.id, 'Address could not be geocoded. Try a fuller address or pick one from autocomplete.');
+        })
         .finally(function () {
             geocodePending--;
             updateGeocodeProgress();
@@ -829,9 +1080,45 @@ function geocodeNext() {
         });
 }
 
+function queueAllUnmappedJobsForRetry() {
+    geocodeQueue = jobs.filter(function (job) {
+        var addr = job.full_address || job.service_address;
+        var alreadyLoaded = geocodedPts.some(function (pt) { return String(pt.job.id) === String(job.id); });
+        return !alreadyLoaded && hasMappableAddress(job) && !hasValidCoords(job) && !!addr;
+    });
+    geocodeTotal = geocodeQueue.length;
+    geocodePending = geocodeQueue.length;
+    geocodeIndex = 0;
+    updateGeocodeProgress();
+}
+
 // Cached jobs load immediately
-jobs.filter(function (j) { return j.lat !== null; })
-    .forEach(function (j) { addMarker(j, j.lat, j.lng); });
+jobs.filter(function (j) { return hasValidCoords(j); })
+    .forEach(function (j) { addMarker(j, Number(j.lat), Number(j.lng)); });
+
+function resetBadCachedMarkers() {
+    if (!depotLatLng) return;
+
+    var keep = [];
+    geocodedPts.forEach(function (pt) {
+        if (isLikelyLocalCoord(pt.lat, pt.lng)) {
+            keep.push(pt);
+            return;
+        }
+
+        if (pt.marker) {
+            map.removeLayer(pt.marker);
+        }
+
+        pt.job.lat = null;
+        pt.job.lng = null;
+        bounds = bounds.filter(function (b) {
+            return !(Number(b[0]) === Number(pt.lat) && Number(b[1]) === Number(pt.lng));
+        });
+    });
+
+    geocodedPts = keep;
+}
 
 // ── Route optimization ───────────────────────────────────────────────────────
 function haversine(a, b) {
@@ -862,7 +1149,7 @@ function optimizeWithOSRM(pts, depotLL) {
     pts.forEach(function (p) { waypoints.push(p.lng + ',' + p.lat); });
 
     var url = 'https://router.project-osrm.org/trip/v1/driving/' + waypoints.join(';')
-            + '?roundtrip=false&source=first&destination=any&overview=full&geometries=geojson&annotations=false';
+            + '?roundtrip=false&source=first&destination=last&overview=full&geometries=geojson&annotations=false';
 
     return fetchWithTimeout(url, {}, 9000)
         .then(function (r) { return r.json(); })
@@ -892,6 +1179,13 @@ function fmtDuration(secs) {
 
 function fmtDist(metres) {
     return metres >= 1000 ? (metres / 1609.34).toFixed(1) + ' mi' : Math.round(metres) + ' m';
+}
+
+function estimateDriveDuration(distanceMetres) {
+    // Rough fallback when live routing duration is unavailable.
+    var estimatedRoadMetres = distanceMetres * 1.25;
+    var averageMetresPerSecond = 30 * 1609.34 / 3600;
+    return Math.max(60, Math.round(estimatedRoadMetres / averageMetresPerSecond));
 }
 
 function clearRoute() {
@@ -979,25 +1273,212 @@ function drawRoute(ordered, distance, duration, geometry, depotLL) {
 }
 
 function runOptimize() {
-    if (geocodedPts.length < 2) return;
+    if (geocodedPts.length < 2) {
+        setSpinner('Need at least 2 mapped stops to optimize.');
+        setTimeout(function () { setSpinner(null); }, 2200);
+        return;
+    }
     setSpinner('Calculating route…');
 
     var depotLL = depotLatLng;
-    var sLat = depotLL ? depotLL[0] : geocodedPts[0].lat;
-    var sLng = depotLL ? depotLL[1] : geocodedPts[0].lng;
+    var ordered = optimizeOrderLocally(geocodedPts, depotLL);
 
-    optimizeWithOSRM(geocodedPts, depotLL)
+    fetchRouteGeometryForOrder(ordered, depotLL)
         .then(function (result) {
+            if (!result || !Array.isArray(result.ordered) || result.ordered.length < 2) {
+                throw new Error('Not enough routed stops returned.');
+            }
             setSpinner(null);
             drawRoute(result.ordered, result.distance, result.duration, result.geometry, depotLL);
         })
         .catch(function () {
             // Fallback: nearest-neighbor with straight-line distances
+            if (!ordered || ordered.length < 2) {
+                setSpinner('Need at least 2 mapped stops to optimize.');
+                setTimeout(function () { setSpinner(null); }, 2200);
+                return;
+            }
             setSpinner(null);
-            var ordered = nearestNeighbor(geocodedPts, sLat, sLng);
-            var dist = 0, lat = sLat, lng = sLng;
-            ordered.forEach(function (p) { dist += haversine({lat:lat,lng:lng}, p) * 1000; lat = p.lat; lng = p.lng; });
-            drawRoute(ordered, dist, null, null, depotLL);
+            var dist = routeDistanceForOrder(ordered, depotLL);
+            drawRoute(ordered, dist, estimateDriveDuration(dist), null, depotLL);
+        });
+}
+
+function routeDistanceForOrder(order, depotLL) {
+    if (!order || !order.length) return 0;
+    var dist = 0;
+    var prev = depotLL ? { lat: depotLL[0], lng: depotLL[1] } : order[0];
+    var startIndex = depotLL ? 0 : 1;
+    for (var i = startIndex; i < order.length; i++) {
+        dist += haversine(prev, order[i]) * 1000;
+        prev = order[i];
+    }
+    return dist;
+}
+
+function improveOrder2Opt(order, depotLL) {
+    var improved = order.slice();
+    var changed = true;
+    var bestDistance = routeDistanceForOrder(improved, depotLL);
+
+    while (changed) {
+        changed = false;
+        for (var a = 0; a < improved.length - 1; a++) {
+            for (var b = a + 1; b < improved.length; b++) {
+                var swapped = improved.slice(0, a)
+                    .concat(improved.slice(a, b + 1).reverse(), improved.slice(b + 1));
+                var swappedDistance = routeDistanceForOrder(swapped, depotLL);
+                if (swappedDistance + 1 < bestDistance) {
+                    improved = swapped;
+                    bestDistance = swappedDistance;
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    return improved;
+}
+
+function improveOrderRelocate(order, depotLL) {
+    var improved = order.slice();
+    var changed = true;
+    var bestDistance = routeDistanceForOrder(improved, depotLL);
+
+    while (changed) {
+        changed = false;
+        for (var from = 0; from < improved.length; from++) {
+            for (var to = 0; to < improved.length; to++) {
+                if (from === to) continue;
+                var moved = improved.slice();
+                var item = moved.splice(from, 1)[0];
+                moved.splice(to, 0, item);
+                var movedDistance = routeDistanceForOrder(moved, depotLL);
+                if (movedDistance + 1 < bestDistance) {
+                    improved = moved;
+                    bestDistance = movedDistance;
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    return improved;
+}
+
+function buildNearestNeighborSeed(stops, depotLL, startStop) {
+    if (!stops.length) return [];
+    if (depotLL) return nearestNeighbor(stops, depotLL[0], depotLL[1]);
+
+    var first = startStop || stops[0];
+    var rem = stops.filter(function (s) { return s !== first; });
+    return [first].concat(nearestNeighbor(rem, first.lat, first.lng));
+}
+
+function optimizeOrderLocally(pts, depotLL) {
+    var stops = pts.slice();
+    if (stops.length <= 1) return stops;
+
+    if (stops.length <= 9) {
+        var bestOrder = null;
+        var bestDistance = Infinity;
+        var used = new Array(stops.length).fill(false);
+        var current = [];
+
+        function walk(prevPoint, distanceSoFar) {
+            if (distanceSoFar >= bestDistance) return;
+            if (current.length === stops.length) {
+                bestDistance = distanceSoFar;
+                bestOrder = current.slice();
+                return;
+            }
+
+            for (var i = 0; i < stops.length; i++) {
+                if (used[i]) continue;
+                var stop = stops[i];
+                var nextDistance = distanceSoFar;
+                if (prevPoint) nextDistance += haversine(prevPoint, stop) * 1000;
+                used[i] = true;
+                current.push(stop);
+                walk(stop, nextDistance);
+                current.pop();
+                used[i] = false;
+            }
+        }
+
+        walk(depotLL ? { lat: depotLL[0], lng: depotLL[1] } : null, 0);
+        return bestOrder || stops;
+    }
+
+    var candidates = [];
+    var seenKeys = {};
+
+    function pushCandidate(order) {
+        if (!order || !order.length) return;
+        var key = order.map(function (s) { return s.id || s.label || (s.lat + ',' + s.lng); }).join('|');
+        if (seenKeys[key]) return;
+        seenKeys[key] = true;
+        candidates.push(order);
+    }
+
+    if (depotLL) {
+        pushCandidate(buildNearestNeighborSeed(stops, depotLL, null));
+    } else {
+        stops.forEach(function (candidate) {
+            pushCandidate(buildNearestNeighborSeed(stops, null, candidate));
+        });
+
+        var sortedByLat = stops.slice().sort(function (a, b) { return a.lat - b.lat; });
+        var sortedByLng = stops.slice().sort(function (a, b) { return a.lng - b.lng; });
+        [
+            sortedByLat[0],
+            sortedByLat[sortedByLat.length - 1],
+            sortedByLng[0],
+            sortedByLng[sortedByLng.length - 1]
+        ].forEach(function (candidate) {
+            if (candidate) pushCandidate(buildNearestNeighborSeed(stops, null, candidate));
+        });
+    }
+
+    pushCandidate(stops.slice());
+
+    var bestOrder = stops.slice();
+    var bestDistance = routeDistanceForOrder(bestOrder, depotLL);
+
+    candidates.forEach(function (candidate) {
+        var improved = improveOrder2Opt(candidate, depotLL);
+        improved = improveOrderRelocate(improved, depotLL);
+        improved = improveOrder2Opt(improved, depotLL);
+        var candidateDistance = routeDistanceForOrder(improved, depotLL);
+        if (candidateDistance + 1 < bestDistance) {
+            bestOrder = improved;
+            bestDistance = candidateDistance;
+        }
+    });
+
+    return bestOrder;
+}
+
+function fetchRouteGeometryForOrder(ordered, depotLL) {
+    var waypoints = [];
+    if (depotLL) waypoints.push(depotLL[1] + ',' + depotLL[0]);
+    ordered.forEach(function (p) { waypoints.push(p.lng + ',' + p.lat); });
+
+    var url = 'https://router.project-osrm.org/route/v1/driving/' + waypoints.join(';')
+        + '?overview=full&geometries=geojson&steps=false&annotations=false';
+
+    return fetchWithTimeout(url, {}, 9000)
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.code !== 'Ok' || !data.routes || !data.routes[0]) {
+                throw new Error('OSRM route error: ' + data.code);
+            }
+            return {
+                ordered: ordered,
+                distance: data.routes[0].distance,
+                duration: data.routes[0].duration,
+                geometry: data.routes[0].geometry,
+            };
         });
 }
 
@@ -1034,6 +1515,10 @@ if (jobs.length === 0) {
 } else {
     // Geocode company address for depot (doesn't count against rate limit display)
     var afterDepot = function () {
+        if (geocodedPts.length === 0 && geocodeQueue.length === 0) {
+            queueAllUnmappedJobsForRetry();
+        }
+
         // Disable optimize button until enough points are geocoded
         if (geocodedPts.length < 2 && geocodePending > 0) {
             var btn = document.getElementById('btn-optimize');
@@ -1048,12 +1533,26 @@ if (jobs.length === 0) {
 
     if (companyAddress) {
         geocodeAddress(companyAddress)
-            .then(function (d) { if (d && d.length) depotLatLng = [parseFloat(d[0].lat), parseFloat(d[0].lon)]; })
+            .then(function (d) {
+                if (d && d.length) {
+                    depotLatLng = [parseFloat(d[0].lat), parseFloat(d[0].lon)];
+                    resetBadCachedMarkers();
+                }
+            })
             .catch(function () {})
             .finally(afterDepot);
     } else {
         afterDepot();
     }
+
+    setTimeout(function () {
+        if (geocodedPts.length === 0) {
+            queueAllUnmappedJobsForRetry();
+            if (geocodeQueue.length > 0) {
+                setTimeout(geocodeNext, 0);
+            }
+        }
+    }, 1800);
 }
 
 
@@ -1142,6 +1641,8 @@ function rbAddStop(label, lat, lng) {
             + '<br><a href="#" onclick="rbRemoveStop(' + id + ');return false;" '
             + 'style="color:#ef4444;font-size:.8rem;">Remove stop</a>');
     rbStops.push({ id: id, label: label, lat: lat, lng: lng, marker: marker });
+    rbClearRoute();
+    rbRenumber();
     rbRenderList();
     rbFitBounds();
 }
@@ -1298,29 +1799,42 @@ function rbClearAll() {
 }
 
 function rbRunOptimize() {
-    if (rbStops.length < 2) return;
+    if (rbStops.length < 2) {
+        rbSetSpinner('Need at least 2 stops to optimize.');
+        setTimeout(function () { rbSetSpinner(null); }, 2200);
+        return;
+    }
     rbClearRoute();
     var useDepot = document.getElementById('rb-use-depot').checked;
     var dLL = (useDepot && depotLatLng) ? depotLatLng : null;
-    var sLat = dLL ? dLL[0] : rbStops[0].lat;
-    var sLng = dLL ? dLL[1] : rbStops[0].lng;
+    var ordered = optimizeOrderLocally(rbStops, dLL);
     rbSetSpinner('Calculating route…');
 
-    optimizeWithOSRM(rbStops, dLL)
+    fetchRouteGeometryForOrder(ordered, dLL)
         .then(function (res) {
+            if (!res || !Array.isArray(res.ordered) || res.ordered.length < 2) {
+                throw new Error('Not enough routed stops returned.');
+            }
             rbSetSpinner(null);
             rbDrawRoute(res.ordered, res.distance, res.duration, res.geometry, dLL);
         })
         .catch(function () {
+            var dist = routeDistanceForOrder(ordered, dLL);
+            if (!ordered || ordered.length < 2) {
+                rbSetSpinner('Need at least 2 stops to optimize.');
+                setTimeout(function () { rbSetSpinner(null); }, 2200);
+                return;
+            }
             rbSetSpinner(null);
-            var ord  = nearestNeighbor(rbStops, sLat, sLng);
-            var dist = 0, la = sLat, ln = sLng;
-            ord.forEach(function (s) { dist += haversine({lat:la,lng:ln}, s) * 1000; la = s.lat; ln = s.lng; });
-            rbDrawRoute(ord, dist, null, null, dLL);
+            rbDrawRoute(ordered, dist, estimateDriveDuration(dist), null, dLL);
         });
 }
 
 function rbDrawRoute(ordered, distance, duration, geometry, dLL) {
+    rbStops = ordered.slice();
+    rbRenumber();
+    rbRenderList();
+
     if (geometry) {
         rbRouteLine = L.geoJSON(geometry, { style: { color: '#f97316', weight: 4, opacity: 0.78 } }).addTo(rbMap);
     } else {
