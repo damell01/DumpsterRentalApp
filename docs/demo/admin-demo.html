@@ -207,8 +207,9 @@ h6{font-size:.86rem;font-weight:700;margin:0;}
     <a class="sb-item" id="nav-calendar" href="#" onclick="showView('calendar');return false;"><span class="sb-icon">📆</span> Calendar</a>
     <div class="sb-section">Finance</div>
     <a class="sb-item" id="nav-invoices" href="#" onclick="showView('invoices');return false;"><span class="sb-icon">🧾</span> Invoices</a>
-    <a class="sb-item" id="nav-payments" href="#" onclick="showView('reports');return false;"><span class="sb-icon">💳</span> Payments</a>
+    <a class="sb-item" id="nav-subscriptions" href="#" onclick="showView('subscriptions');return false;"><span class="sb-icon">🔄</span> Subscriptions</a>
     <a class="sb-item" id="nav-reports" href="#" onclick="showView('reports');return false;"><span class="sb-icon">📊</span> Reports</a>
+    <a class="sb-item" id="nav-webhooks" href="#" onclick="showView('webhooks');return false;"><span class="sb-icon">⚡</span> Webhook Logs</a>
     <div class="sb-section">Assets</div>
     <a class="sb-item" id="nav-inventory" href="#" onclick="showView('inventory');return false;"><span class="sb-icon">🗑</span> Inventory</a>
     <a class="sb-item" id="nav-customers" href="#"><span class="sb-icon">👥</span> Customers</a>
@@ -672,19 +673,258 @@ h6{font-size:.86rem;font-weight:700;margin:0;}
     </div>
   </div>
 
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- VIEW: Subscriptions ─────────────────────────────────────────────── -->
+  <div id="view-subscriptions" style="display:none;">
+    <div class="flex-between mb-md">
+      <div><div class="page-title">Subscriptions</div><div class="page-sub">4 active · $1,840 / month recurring</div></div>
+      <button class="btn btn-primary btn-sm">＋ New Subscription</button>
+    </div>
+    <div class="filter-tabs">
+      <button class="ftab active">All <span class="ftab-count">5</span></button>
+      <button class="ftab">Active <span class="ftab-count">4</span></button>
+      <button class="ftab">Past Due <span class="ftab-count">1</span></button>
+      <button class="ftab">Canceled <span class="ftab-count">0</span></button>
+    </div>
+    <div class="tp-card p-0 mb-md">
+      <table class="tp-table">
+        <thead><tr>
+          <th>Customer</th><th>Service</th><th>Amount</th><th>Billing</th><th>Status</th><th>Last Payment</th><th>Next Billing</th><th></th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td><div class="fw-bold">Gulf View Construction</div><div class="td-gray">gulf@construction.com</div></td>
+            <td class="td-gray">Monthly Roll-Off Service</td>
+            <td style="font-weight:700;">$450.00</td>
+            <td><span class="badge badge-stripe" style="font-size:.68rem;">Monthly</span></td>
+            <td><span class="badge badge-active">Active</span></td>
+            <td><span class="badge badge-paid" style="margin-right:.3rem;">Paid</span><span class="td-gray" style="font-size:.75rem;">May 1</span></td>
+            <td class="td-gray">Jun 1</td>
+            <td><button class="btn btn-ghost btn-xs me-1">History</button><button class="btn btn-ghost btn-xs">⋯</button></td>
+          </tr>
+          <tr>
+            <td><div class="fw-bold">Coastal Remodeling LLC</div><div class="td-gray">info@coastalremodel.com</div></td>
+            <td class="td-gray">Bi-Weekly Pickup</td>
+            <td style="font-weight:700;">$380.00</td>
+            <td><span class="badge" style="background:rgba(16,185,129,.1);color:#059669;font-size:.68rem;">Bi-weekly</span></td>
+            <td><span class="badge badge-active">Active</span></td>
+            <td><span class="badge badge-paid" style="margin-right:.3rem;">Paid</span><span class="td-gray" style="font-size:.75rem;">May 14</span></td>
+            <td class="td-gray">May 28</td>
+            <td><button class="btn btn-ghost btn-xs me-1">History</button><button class="btn btn-ghost btn-xs">⋯</button></td>
+          </tr>
+          <tr>
+            <td><div class="fw-bold">Foley Hardware</div><div class="td-gray">manager@foleyhardware.com</div></td>
+            <td class="td-gray">Weekly Debris Removal</td>
+            <td style="font-weight:700;">$320.00</td>
+            <td><span class="badge" style="background:rgba(59,130,246,.1);color:var(--bl);font-size:.68rem;">Weekly</span></td>
+            <td><span class="badge badge-active">Active</span></td>
+            <td><span class="badge badge-paid" style="margin-right:.3rem;">Paid</span><span class="td-gray" style="font-size:.75rem;">May 19</span></td>
+            <td class="td-gray">May 26</td>
+            <td><button class="btn btn-ghost btn-xs me-1">History</button><button class="btn btn-ghost btn-xs">⋯</button></td>
+          </tr>
+          <tr style="background:rgba(239,68,68,.02);">
+            <td><div class="fw-bold">Magnolia Estates HOA</div><div class="td-gray">board@magnoliaestates.com</div></td>
+            <td class="td-gray">Monthly Container Rental</td>
+            <td style="font-weight:700;">$275.00</td>
+            <td><span class="badge badge-stripe" style="font-size:.68rem;">Monthly</span></td>
+            <td><span class="badge" style="background:rgba(239,68,68,.1);color:var(--rd);">Past Due</span></td>
+            <td><span class="badge badge-void" style="margin-right:.3rem;">Failed</span><span class="td-gray" style="font-size:.75rem;">May 1 · Card declined</span></td>
+            <td class="td-gray" style="color:var(--rd);">Overdue</td>
+            <td><button class="btn btn-ghost btn-xs me-1">History</button><button class="btn btn-ghost btn-xs">⋯</button></td>
+          </tr>
+          <tr>
+            <td><div class="fw-bold">Baldwin County Roofing</div><div class="td-gray">ops@bcroofing.com</div></td>
+            <td class="td-gray">Monthly Roll-Off Service</td>
+            <td style="font-weight:700;">$415.00</td>
+            <td><span class="badge badge-stripe" style="font-size:.68rem;">Monthly</span></td>
+            <td><span class="badge badge-active">Active</span></td>
+            <td><span class="badge badge-paid" style="margin-right:.3rem;">Paid</span><span class="td-gray" style="font-size:.75rem;">May 3</span></td>
+            <td class="td-gray">Jun 3</td>
+            <td><button class="btn btn-ghost btn-xs me-1">History</button><button class="btn btn-ghost btn-xs">⋯</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <!-- Recent Payment Activity -->
+    <div class="tp-card">
+      <div style="font-size:.82rem;font-weight:700;margin-bottom:.75rem;">Recent Payment Activity</div>
+      <table class="tp-table">
+        <thead><tr><th>Customer</th><th>Amount</th><th>Status</th><th>Date</th><th>Invoice</th></tr></thead>
+        <tbody>
+          <tr><td>Foley Hardware</td><td style="font-weight:700;">$320.00</td><td><span class="badge badge-paid">Paid</span></td><td class="td-gray">May 19, 2026</td><td><a href="#" style="color:var(--or);font-size:.8rem;">INV-2026-041</a></td></tr>
+          <tr><td>Coastal Remodeling LLC</td><td style="font-weight:700;">$380.00</td><td><span class="badge badge-paid">Paid</span></td><td class="td-gray">May 14, 2026</td><td><a href="#" style="color:var(--or);font-size:.8rem;">INV-2026-038</a></td></tr>
+          <tr><td>Magnolia Estates HOA</td><td style="font-weight:700;">$275.00</td><td><span class="badge badge-void">Failed</span></td><td class="td-gray">May 1, 2026</td><td class="td-gray">—</td></tr>
+          <tr><td>Baldwin County Roofing</td><td style="font-weight:700;">$415.00</td><td><span class="badge badge-paid">Paid</span></td><td class="td-gray">May 3, 2026</td><td><a href="#" style="color:var(--or);font-size:.8rem;">INV-2026-034</a></td></tr>
+          <tr><td>Gulf View Construction</td><td style="font-weight:700;">$450.00</td><td><span class="badge badge-paid">Paid</span></td><td class="td-gray">May 1, 2026</td><td><a href="#" style="color:var(--or);font-size:.8rem;">INV-2026-033</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- VIEW: Webhooks ──────────────────────────────────────────────────── -->
+  <div id="view-webhooks" style="display:none;">
+    <div class="flex-between mb-md">
+      <div><div class="page-title">Stripe Webhook Logs</div><div class="page-sub">Last 250 events</div></div>
+      <div class="flex-center">
+        <select class="date-input" style="width:150px;"><option>All statuses</option><option>Processed</option><option>Failed</option><option>Duplicate</option></select>
+        <button class="btn btn-ghost btn-sm">Filter</button>
+      </div>
+    </div>
+    <div class="tp-card p-0">
+      <table class="tp-table">
+        <thead><tr><th>Event ID</th><th>Event Type</th><th>Status</th><th>Entity</th><th>Processed</th><th>Error</th></tr></thead>
+        <tbody>
+          <tr>
+            <td style="font-size:.72rem;font-family:monospace;color:var(--gy);">evt_3PkABC12ef…</td>
+            <td style="font-size:.82rem;font-weight:600;color:#059669;">invoice.paid</td>
+            <td><span class="badge badge-active">processed</span></td>
+            <td><div><a href="#" style="color:var(--or);font-weight:600;font-size:.82rem;">INV-2026-041</a></div><div class="td-gray">Foley Hardware</div></td>
+            <td class="td-gray" style="font-size:.82rem;">May 19 10:32 AM</td>
+            <td class="td-gray">—</td>
+          </tr>
+          <tr>
+            <td style="font-size:.72rem;font-family:monospace;color:var(--gy);">evt_3PkDEF34gh…</td>
+            <td style="font-size:.82rem;font-weight:600;color:#059669;">invoice.payment_succeeded</td>
+            <td><span class="badge badge-active">processed</span></td>
+            <td><div><a href="#" style="color:var(--or);font-weight:600;font-size:.82rem;">INV-2026-038</a></div><div class="td-gray">Coastal Remodeling</div></td>
+            <td class="td-gray" style="font-size:.82rem;">May 14 9:15 AM</td>
+            <td class="td-gray">—</td>
+          </tr>
+          <tr style="background:rgba(239,68,68,.02);">
+            <td style="font-size:.72rem;font-family:monospace;color:var(--gy);">evt_3PkGHI56jk…</td>
+            <td style="font-size:.82rem;font-weight:600;color:#dc2626;">invoice.payment_failed</td>
+            <td><span class="badge badge-void">processed</span></td>
+            <td><div><span style="color:var(--gy);font-size:.82rem;">Subscription</span></div><div class="td-gray">Magnolia Estates HOA</div></td>
+            <td class="td-gray" style="font-size:.82rem;">May 1 12:01 AM</td>
+            <td style="font-size:.8rem;max-width:200px;white-space:normal;color:var(--rd);">Card declined — insufficient funds</td>
+          </tr>
+          <tr>
+            <td style="font-size:.72rem;font-family:monospace;color:var(--gy);">evt_3PkJKL78mn…</td>
+            <td style="font-size:.82rem;font-weight:600;color:#059669;">invoice.paid</td>
+            <td><span class="badge badge-active">processed</span></td>
+            <td><div><a href="#" style="color:var(--or);font-weight:600;font-size:.82rem;">INV-2026-034</a></div><div class="td-gray">Baldwin County Roofing</div></td>
+            <td class="td-gray" style="font-size:.82rem;">May 3 8:44 AM</td>
+            <td class="td-gray">—</td>
+          </tr>
+          <tr>
+            <td style="font-size:.72rem;font-family:monospace;color:var(--gy);">evt_3PkMNO90pq…</td>
+            <td style="font-size:.82rem;font-weight:600;color:#059669;">checkout.session.completed</td>
+            <td><span class="badge badge-active">processed</span></td>
+            <td><div><a href="#" style="color:var(--or);font-weight:600;font-size:.82rem;">BK-2026-001</a></div><div class="td-gray">Sarah Johnson</div></td>
+            <td class="td-gray" style="font-size:.82rem;">May 12 3:22 PM</td>
+            <td class="td-gray">—</td>
+          </tr>
+          <tr>
+            <td style="font-size:.72rem;font-family:monospace;color:var(--gy);">evt_3PkPQR12rs…</td>
+            <td style="font-size:.82rem;color:var(--gy);">customer.subscription.updated</td>
+            <td><span class="badge badge-active">processed</span></td>
+            <td><div><span style="color:var(--gy);font-size:.82rem;">Gulf View Construction</span></div></td>
+            <td class="td-gray" style="font-size:.82rem;">May 1 12:00 AM</td>
+            <td class="td-gray">—</td>
+          </tr>
+          <tr>
+            <td style="font-size:.72rem;font-family:monospace;color:var(--gy);">evt_3PkSTU34tu…</td>
+            <td style="font-size:.82rem;font-weight:600;color:#d97706;">charge.refunded</td>
+            <td><span class="badge badge-active">processed</span></td>
+            <td><div><a href="#" style="color:var(--or);font-weight:600;font-size:.82rem;">INV-2026-019</a></div><div class="td-gray">Mike Davis</div></td>
+            <td class="td-gray" style="font-size:.82rem;">Apr 22 2:10 PM</td>
+            <td class="td-gray">—</td>
+          </tr>
+          <tr>
+            <td style="font-size:.72rem;font-family:monospace;color:var(--gy);">evt_3PkVWX56vw…</td>
+            <td style="font-size:.82rem;color:var(--gy);">payment_intent.created</td>
+            <td><span class="badge" style="background:rgba(107,114,128,.1);color:var(--gy);">duplicate</span></td>
+            <td class="td-gray">—</td>
+            <td class="td-gray" style="font-size:.82rem;">Apr 20 11:05 AM</td>
+            <td class="td-gray">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <!-- VIEW: Size Catalog ──────────────────────────────────────────────── -->
+  <div id="view-size-catalog" style="display:none;">
+    <div class="flex-between mb-md">
+      <div>
+        <div style="font-size:.82rem;color:var(--gy);margin-bottom:.3rem;">← Inventory / Size Catalog</div>
+        <div class="page-title">Size Catalog</div>
+      </div>
+      <button class="btn btn-primary btn-sm">＋ Add Size</button>
+    </div>
+    <div class="tp-card p-0 mb-md">
+      <div style="padding:.75rem 1.1rem;border-bottom:1px solid var(--st);font-size:.82rem;font-weight:700;">
+        Dumpster Sizes &nbsp;<span style="font-weight:400;color:var(--gy);">5 sizes defined</span>
+      </div>
+      <table class="tp-table">
+        <thead><tr><th>Size Name</th><th>Description</th><th>Units</th><th>Order</th><th>Active</th><th class="text-end">Actions</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="fw-bold">10 Yard</td>
+            <td style="font-size:.83rem;color:var(--gy);max-width:260px;white-space:normal;">Ideal for small cleanouts, single-room renovations, and yard debris. Fits in a standard driveway.</td>
+            <td><a href="#" style="color:var(--or);font-size:.82rem;">2 units</a></td>
+            <td class="td-gray">10</td>
+            <td><span class="badge badge-active">Active</span></td>
+            <td style="text-align:right;white-space:nowrap;"><button class="btn btn-ghost btn-xs" style="margin-right:.3rem;">✏️ Edit</button><button class="btn btn-ghost btn-xs" style="opacity:.4;" disabled>🗑 Delete</button></td>
+          </tr>
+          <tr>
+            <td class="fw-bold">15 Yard</td>
+            <td style="font-size:.83rem;color:var(--gy);max-width:260px;white-space:normal;">Great for mid-size remodels, flooring removal, or garage cleanouts.</td>
+            <td><a href="#" style="color:var(--or);font-size:.82rem;">2 units</a></td>
+            <td class="td-gray">15</td>
+            <td><span class="badge badge-active">Active</span></td>
+            <td style="text-align:right;white-space:nowrap;"><button class="btn btn-ghost btn-xs" style="margin-right:.3rem;">✏️ Edit</button><button class="btn btn-ghost btn-xs" style="opacity:.4;" disabled>🗑 Delete</button></td>
+          </tr>
+          <tr>
+            <td class="fw-bold">20 Yard</td>
+            <td style="font-size:.83rem;color:var(--gy);max-width:260px;white-space:normal;">Our most popular size. Perfect for whole-home cleanouts, roofing projects, and large renovations.</td>
+            <td><a href="#" style="color:var(--or);font-size:.82rem;">2 units</a></td>
+            <td class="td-gray">20</td>
+            <td><span class="badge badge-active">Active</span></td>
+            <td style="text-align:right;white-space:nowrap;"><button class="btn btn-ghost btn-xs" style="margin-right:.3rem;">✏️ Edit</button><button class="btn btn-ghost btn-xs" style="opacity:.4;" disabled>🗑 Delete</button></td>
+          </tr>
+          <tr>
+            <td class="fw-bold">30 Yard</td>
+            <td style="font-size:.83rem;color:var(--gy);max-width:260px;white-space:normal;">For large commercial jobs, new construction, or major storm cleanup projects.</td>
+            <td><a href="#" style="color:var(--or);font-size:.82rem;">1 unit</a></td>
+            <td class="td-gray">30</td>
+            <td><span class="badge badge-active">Active</span></td>
+            <td style="text-align:right;white-space:nowrap;"><button class="btn btn-ghost btn-xs" style="margin-right:.3rem;">✏️ Edit</button><button class="btn btn-ghost btn-xs" style="opacity:.4;" disabled>🗑 Delete</button></td>
+          </tr>
+          <tr>
+            <td class="fw-bold">40 Yard</td>
+            <td style="font-size:.83rem;color:var(--gy);max-width:260px;white-space:normal;">Maximum capacity for industrial demolition, large commercial sites, or ongoing contracts.</td>
+            <td class="td-gray">0</td>
+            <td class="td-gray">40</td>
+            <td><span class="badge badge-active">Active</span></td>
+            <td style="text-align:right;white-space:nowrap;"><button class="btn btn-ghost btn-xs" style="margin-right:.3rem;">✏️ Edit</button><button class="btn btn-red btn-xs">🗑 Delete</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="background:#f9fafb;border:1px solid var(--st);border-radius:8px;padding:.6rem 1rem;font-size:.82rem;color:var(--gy);">
+      <strong style="color:var(--wh);">Note:</strong> Size names populate the size selector when adding or editing dumpsters. Renaming a size automatically updates all dumpsters that use it. A size can only be deleted when no dumpsters reference it.
+    </div>
+  </div>
+
   </div><!-- /page-content -->
 </div><!-- /main -->
 
 <script>
-var VIEWS = ['work-orders','wo-detail','bookings','invoices','inventory','calendar','reports'];
+var VIEWS = ['work-orders','wo-detail','bookings','invoices','inventory','calendar','reports','subscriptions','webhooks','size-catalog'];
 var NAV_MAP = {
-  'work-orders': 'nav-work-orders',
-  'wo-detail':   'nav-work-orders',
-  'bookings':    'nav-bookings',
-  'invoices':    'nav-invoices',
-  'inventory':   'nav-inventory',
-  'calendar':    'nav-calendar',
-  'reports':     'nav-reports',
+  'work-orders':  'nav-work-orders',
+  'wo-detail':    'nav-work-orders',
+  'bookings':     'nav-bookings',
+  'invoices':     'nav-invoices',
+  'inventory':    'nav-inventory',
+  'calendar':     'nav-calendar',
+  'reports':      'nav-reports',
+  'subscriptions':'nav-subscriptions',
+  'webhooks':     'nav-webhooks',
+  'size-catalog': 'nav-inventory',
 };
 var TITLES = {
   'work-orders':'Work Orders',
@@ -694,6 +934,9 @@ var TITLES = {
   'inventory':'Dumpster Inventory',
   'calendar':'Calendar — May 2026',
   'reports':'Reports',
+  'subscriptions':'Subscriptions',
+  'webhooks':'Stripe Webhook Logs',
+  'size-catalog':'Size Catalog',
 };
 
 window.showView = function(name) {

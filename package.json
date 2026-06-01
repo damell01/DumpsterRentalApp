@@ -10,7 +10,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "screenshots": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node scripts/capture-screenshots.js",
     "map-screenshots": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node scripts/capture-map-screenshots.js",
-    "admin-screenshots": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node scripts/capture-admin-screenshots.js"
+    "admin-screenshots": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node scripts/capture-admin-screenshots.js",
+    "record-demo": "PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers node scripts/record-demo-video.js"
   },
   "repository": {
     "type": "git",

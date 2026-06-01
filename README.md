@@ -64,6 +64,23 @@ With everything managed in one place, the owner now has better visibility into o
 The platform helped modernize the business while keeping the system simple, reliable, and easy to manage internally.
 
 
+## Demo Video
+
+A short walkthrough of the public website and admin panel — public booking flow, work orders, invoices, subscriptions, dispatch map, and reporting.
+
+> **[▶ Download demo-walkthrough.webm](docs/demo-walkthrough.webm)**
+>
+> The video is in WebM format and plays directly in Chrome, Firefox, and Edge. To convert to MP4:
+> ```bash
+> ffmpeg -i docs/demo-walkthrough.webm -c:v libx264 docs/demo-walkthrough.mp4
+> ```
+> To regenerate the video after code changes:
+> ```bash
+> npm run record-demo
+> ```
+
+---
+
 ## Screenshots
 
 ### Public Website
@@ -137,6 +154,18 @@ The platform helped modernize the business while keeping the system simple, reli
 **Reports** — KPI summary cards (revenue, work orders, customers, average job value), a revenue-by-payment-method breakdown, a 6-month revenue trend chart, a work-order status breakdown, and all-time totals — all on a single page with date-range filter.
 
 ![Reports with KPI cards and charts](docs/screenshots/admin-reports.png)
+
+**Subscriptions** — manage recurring service contracts. Each row shows the customer, billing frequency, amount, live status, and the last payment result (paid or failed with reason). The **History** button opens a per-subscription payment ledger linking every recurring invoice. A *Recent Payment Activity* feed at the bottom shows the latest charges across all subscriptions.
+
+![Subscriptions with payment history](docs/screenshots/admin-subscriptions.png)
+
+**Webhook Logs** — a real-time audit trail of every Stripe event the system has received. Event types are color-coded (green for paid/succeeded, red for failed/deleted, amber for refunds). Each row links the event to the exact invoice, booking, or subscription it affected — so you can instantly trace a failed payment to the customer.
+
+![Stripe webhook logs with color-coded events and entity links](docs/screenshots/admin-webhooks.png)
+
+**Size Catalog** — manage dumpster sizes from a central table. Add new sizes, edit names and descriptions, set sort order, and toggle active status. Renaming a size automatically cascades to all units in the fleet. Sizes in use cannot be deleted until all units are reassigned.
+
+![Size catalog management](docs/screenshots/admin-size-catalog.png)
 
 ---
 
@@ -224,6 +253,22 @@ A root-level `.htaccess` file ensures that visiting the bare domain URL (e.g. `h
 - Stripe live data: account balance, recent payouts, monthly charge summary
 - Only shows invoices with actual payment activity (not draft/sent without payment)
 
+#### 🔄 Subscriptions
+- Manage recurring service contracts with flexible billing frequencies (weekly, bi-weekly, monthly)
+- Live status tracking: Active, Past Due, Paused, Canceled
+- Last Payment column shows paid/failed status and failure reason at a glance
+- Per-subscription **payment history modal** — full ledger of every charge with View Invoice links
+- *Recent Payment Activity* feed across all subscriptions on the main page
+- Auto-generates a customer-facing invoice email on every successful recurring payment
+- Admin email alerts on payment success and payment failure events
+
+#### ⚡ Webhook Logs
+- Full audit log of every Stripe webhook event (last 250)
+- Color-coded event types: green for paid/succeeded, red for failed/deleted, amber for refunds
+- Each event links to the related invoice, booking, or subscription it affected
+- Filter by processing status: received, processed, duplicate, failed
+- Stripe Event ID shown in monospace with full ID on hover
+
 #### 🗑️ Inventory (Dumpsters)
 - Full dumpster fleet management with status tracking
 - Dumpster statuses: Available, Reserved, In Use, Maintenance
@@ -231,6 +276,7 @@ A root-level `.htaccess` file ensures that visiting the bare domain URL (e.g. `h
 - Optional delivery fee, pickup fee, mileage fee, and tax rate per unit
 - Sync individual dumpsters or **Sync All to Stripe** with one click
 - Inventory block system: block units from booking for specific date ranges
+- **Size Catalog** — manage available dumpster sizes (name, description, sort order, active flag); renaming a size cascades automatically to all units
 
 #### 📅 Calendar
 - Visual monthly calendar view of all deliveries and pickups
