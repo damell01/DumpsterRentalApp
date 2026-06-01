@@ -70,48 +70,83 @@ $paymentMethods = db_fetchall(
      ORDER BY pm.is_default DESC, pm.updated_at DESC'
 );
 
-// Last payment per subscription (for table column)
-$rawLastPayments = db_fetchall(
-    'SELECT ril.subscription_id, ril.status, ril.amount, ril.billing_date, ril.failure_message
-     FROM recurring_invoice_logs ril
-     INNER JOIN (
-         SELECT subscription_id, MAX(id) AS max_id
-         FROM recurring_invoice_logs
-         GROUP BY subscription_id
-     ) t ON t.subscription_id = ril.subscription_id AND t.max_id = ril.id'
-);
-$lastPayment = [];
-foreach ($rawLastPayments as $r) {
-    $lastPayment[(int)$r['subscription_id']] = $r;
-}
-
-// Recent activity feed (last 30 across all subscriptions)
-$recentLogs = db_fetchall(
-    'SELECT ril.id, ril.subscription_id, ril.amount, ril.status, ril.billing_date,
-            ril.failure_message, s.service_name, c.name AS customer_name
-     FROM recurring_invoice_logs ril
-     JOIN subscriptions s ON s.id = ril.subscription_id
-     JOIN customers c ON c.id = s.customer_id
-     ORDER BY ril.billing_date DESC LIMIT 30'
-);
-
-// All logs grouped by subscription_id for the history modal
+// Comprehensive payment history per subscription:
+// - recurring_invoice_logs (populated by Stripe webhooks)
+// - invoices linked to the subscription that aren't already in recurring_invoice_logs
 $allLogs = db_fetchall(
-    'SELECT subscription_id, amount, status, billing_date, failure_message
-     FROM recurring_invoice_logs
+    "SELECT ril.subscription_id, ril.amount, ril.status, ril.billing_date,
+            ril.failure_message, ril.invoice_id
+     FROM recurring_invoice_logs ril
+
+     UNION ALL
+
+     SELECT i.subscription_id,
+            i.total            AS amount,
+            CASE WHEN i.status = 'paid' THEN 'paid'
+                 WHEN i.status = 'void' THEN 'void'
+                 ELSE 'failed' END AS status,
+            COALESCE(i.paid_at, i.created_at) AS billing_date,
+            NULL               AS failure_message,
+            i.id               AS invoice_id
+     FROM invoices i
+     WHERE i.subscription_id IS NOT NULL
+       AND (i.stripe_invoice_id IS NULL
+            OR NOT EXISTS (
+                SELECT 1 FROM recurring_invoice_logs r
+                WHERE r.stripe_invoice_id = i.stripe_invoice_id
+            ))
+
      ORDER BY billing_date DESC
-     LIMIT 300'
+     LIMIT 300"
 );
+
+// Build both per-subscription history (for modal) and last-payment (for column)
+// from the same data set — SQL is DESC so first entry per sub = most recent
 $logsBySubId = [];
+$lastPayment  = [];
 foreach ($allLogs as $l) {
-    $sid = (int)$l['subscription_id'];
+    $sid   = (int)$l['subscription_id'];
+    $invId = (int)($l['invoice_id'] ?? 0);
     $logsBySubId[$sid][] = [
         'd' => $l['billing_date'] ? date('M j, Y g:i a', strtotime($l['billing_date'])) : '',
         'a' => fmt_money((float)$l['amount']),
         's' => $l['status'],
         'm' => $l['failure_message'] ?? '',
+        'i' => $invId,
     ];
+    if (!isset($lastPayment[$sid])) {
+        $lastPayment[$sid] = $l;   // first = most recent
+    }
 }
+
+// Recent activity feed (last 30, with customer / service name)
+$recentLogs = db_fetchall(
+    "SELECT p.subscription_id, p.amount, p.status, p.billing_date,
+            p.failure_message, s.service_name, c.name AS customer_name
+     FROM (
+         SELECT ril.subscription_id, ril.amount, ril.status, ril.billing_date, ril.failure_message
+         FROM recurring_invoice_logs ril
+
+         UNION ALL
+
+         SELECT i.subscription_id, i.total,
+                CASE WHEN i.status = 'paid' THEN 'paid'
+                     WHEN i.status = 'void' THEN 'void'
+                     ELSE 'failed' END,
+                COALESCE(i.paid_at, i.created_at), NULL
+         FROM invoices i
+         WHERE i.subscription_id IS NOT NULL
+           AND (i.stripe_invoice_id IS NULL
+                OR NOT EXISTS (
+                    SELECT 1 FROM recurring_invoice_logs r
+                    WHERE r.stripe_invoice_id = i.stripe_invoice_id
+                ))
+     ) p
+     JOIN subscriptions s ON s.id = p.subscription_id
+     JOIN customers c ON c.id = s.customer_id
+     ORDER BY p.billing_date DESC
+     LIMIT 30"
+);
 
 layout_start('Subscriptions', 'subscriptions');
 ?>
@@ -446,6 +481,7 @@ layout_start('Subscriptions', 'subscriptions');
 </div>
 
 <script>
+var APP_URL = <?= json_encode(APP_URL) ?>;
 var subLogs = <?= json_encode($logsBySubId, JSON_HEX_TAG | JSON_HEX_AMP) ?>;
 
 function openEditSub(id, name, address, amount, intervalUnit, intervalCount, autopay) {
@@ -467,17 +503,19 @@ function openSubHistory(subId, label) {
         body.innerHTML = '<p class="text-muted p-3 mb-0">No payment history recorded yet.</p>';
     } else {
         var rows = logs.map(function(l) {
-            var isPaid = l.s === 'paid';
-            var badge = isPaid
+            var badge = l.s === 'paid'
                 ? '<span class="tp-badge badge-paid"><i class="fa-solid fa-check me-1"></i>Paid</span>'
                 : (l.s === 'failed'
                     ? '<span class="tp-badge badge-canceled"><i class="fa-solid fa-xmark me-1"></i>Failed</span>'
                     : '<span class="tp-badge badge-void">' + escH(l.s) + '</span>');
             var note = l.m ? '<div style="font-size:.75rem;color:#ef4444;margin-top:.15rem;">' + escH(l.m) + '</div>' : '';
+            var invLink = l.i ? '<a href="' + APP_URL + '/modules/invoices/view.php?id=' + l.i
+                + '" style="font-size:.75rem;display:block;margin-top:.2rem;" target="_blank">'
+                + '<i class="fa-solid fa-file-invoice me-1"></i>View Invoice</a>' : '';
             return '<tr>'
                 + '<td style="font-size:.83rem;white-space:nowrap;">' + escH(l.d) + '</td>'
                 + '<td class="fw-semibold">' + escH(l.a) + '</td>'
-                + '<td>' + badge + note + '</td>'
+                + '<td>' + badge + note + invLink + '</td>'
                 + '</tr>';
         }).join('');
         body.innerHTML = '<div class="table-responsive"><table class="table tp-table mb-0">'
