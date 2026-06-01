@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'updated_at'  => date('Y-m-d H:i:s'),
             ]);
             log_activity('create', "Created dumpster category: $name", 'dumpster_category', 0);
-            flash_success("Category "$name" added.");
+            flash_success("Category \"{$name}\" added.");
 
         } elseif ($action === 'edit') {
             $id          = (int)($_POST['id']          ?? 0);
@@ -93,13 +93,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ) ?? 0);
             if ($inUse > 0) {
                 throw new RuntimeException(
-                    "Cannot delete "{$cat['name']}" — $inUse dumpster(s) currently use this size. "
+                    "Cannot delete \"{$cat['name']}\" — $inUse dumpster(s) currently use this size. "
                     . "Reassign those dumpsters first."
                 );
             }
             db_execute('DELETE FROM dumpster_categories WHERE id = ?', [$id]);
             log_activity('delete', "Deleted dumpster category: {$cat['name']}", 'dumpster_category', $id);
-            flash_success("Category "{$cat['name']}" deleted.");
+            flash_success("Category \"{$cat['name']}\" deleted.");
         }
     } catch (Throwable $e) {
         flash_error($e->getMessage());
