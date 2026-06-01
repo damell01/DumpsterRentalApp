@@ -459,46 +459,16 @@ function dumpster_sizes(): array
 
     try {
         $rows = db_fetchall(
-            "SELECT DISTINCT size
-             FROM dumpsters
-             WHERE active = 1
-               AND type = 'dumpster'
-               AND size IS NOT NULL
-               AND TRIM(size) <> ''"
+            "SELECT name FROM dumpster_categories
+             WHERE active = 1 ORDER BY sort_order ASC, name ASC"
         );
     } catch (Throwable $e) {
         $sizes = $fallback;
         return $sizes;
     }
 
-    $found = [];
-    foreach ($rows as $row) {
-        $size = trim((string)($row['size'] ?? ''));
-        if ($size !== '') {
-            $found[] = $size;
-        }
-    }
-
-    $found = array_values(array_unique($found));
-    if (!$found) {
-        $sizes = $fallback;
-        return $sizes;
-    }
-
-    usort($found, static function (string $a, string $b): int {
-        preg_match('/\d+/', $a, $aMatch);
-        preg_match('/\d+/', $b, $bMatch);
-        $aNum = isset($aMatch[0]) ? (int)$aMatch[0] : PHP_INT_MAX;
-        $bNum = isset($bMatch[0]) ? (int)$bMatch[0] : PHP_INT_MAX;
-
-        if ($aNum === $bNum) {
-            return strcasecmp($a, $b);
-        }
-
-        return $aNum <=> $bNum;
-    });
-
-    $sizes = $found;
+    $found = array_filter(array_map(fn($r) => trim((string)($r['name'] ?? '')), $rows));
+    $sizes = $found ? array_values($found) : $fallback;
     return $sizes;
 }
 

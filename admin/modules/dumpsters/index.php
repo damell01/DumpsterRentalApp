@@ -109,6 +109,11 @@ layout_start('Inventory', 'inventory');
                         <i class="fa-solid fa-table-cells me-2"></i>Bulk Edit Pricing
                     </a>
                 </li>
+                <li>
+                    <a class="dropdown-item" href="categories.php">
+                        <i class="fa-solid fa-layer-group me-2"></i>Manage Size Catalog
+                    </a>
+                </li>
                 <li><hr class="dropdown-divider"></li>
                 <?php if ($stripeConfigured): ?>
                 <li>
