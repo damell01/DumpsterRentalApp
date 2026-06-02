@@ -41,6 +41,7 @@ $stripe_pub_key = get_setting('stripe_publishable_key', '');
 $ach_enabled = get_setting('ach_enabled', '1') === '1';
 $booking_flow_mode = get_setting('booking_flow_mode', 'instant');
 $request_mode = $booking_flow_mode === 'request';
+$card_fee_percent = max(0, (float)get_setting('card_fee_percent', '0'));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -574,6 +575,16 @@ $request_mode = $booking_flow_mode === 'request';
                         </label>
                     </div>
                 </div>
+                <?php if ($card_fee_percent > 0): ?>
+                <div class="col-12" id="card-fee-notice" style="display:none;">
+                    <div style="background:rgba(249,115,22,.08);border:1px solid rgba(249,115,22,.25);border-radius:.5rem;padding:.65rem 1rem;font-size:.875rem;color:var(--gray);">
+                        <i class="fas fa-circle-info me-1" style="color:var(--orange);"></i>
+                        A <strong><?= htmlspecialchars(number_format($card_fee_percent, 2), ENT_QUOTES, 'UTF-8') ?>%</strong> card processing fee will be added to your total.
+                        Fee: <strong id="card-fee-display" style="color:var(--orange);">$0.00</strong>
+                        &mdash; Grand Total: <strong id="card-fee-grand-total" style="color:var(--orange);">$0.00</strong>
+                    </div>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -698,12 +709,48 @@ document.querySelectorAll('input.unit-checkbox').forEach(function(cb) {
 });
 
 // ─── Payment method card selection ───────────────────────────────────────────
+var CARD_FEE_PCT = <?= (float)$card_fee_percent ?>;
+
+function _isCardPayment() {
+    var pm = document.querySelector('input[name="payment_method"]:checked');
+    return pm && (pm.value === 'stripe' || pm.value === 'ach');
+}
+
+function _updateCardFeeNotice(subtotal) {
+    var notice = document.getElementById('card-fee-notice');
+    if (!notice) return;
+    if (CARD_FEE_PCT <= 0) return;
+    var fee = Math.round(subtotal * CARD_FEE_PCT / 100 * 100) / 100;
+    var grand = Math.round((subtotal + fee) * 100) / 100;
+    if (_isCardPayment() && subtotal > 0) {
+        document.getElementById('card-fee-display').textContent = '$' + fee.toFixed(2);
+        document.getElementById('card-fee-grand-total').textContent = '$' + grand.toFixed(2);
+        notice.style.display = '';
+    } else {
+        notice.style.display = 'none';
+    }
+}
+
 document.querySelectorAll('input[name="payment_method"]').forEach(function(radio) {
     radio.addEventListener('change', function() {
         document.querySelectorAll('label.unit-card input[name="payment_method"]').forEach(function(r) {
             r.closest('label').classList.remove('selected');
         });
         this.closest('label').classList.add('selected');
+        // Recompute fee notice whenever payment method changes
+        var start = document.getElementById('rental_start').value;
+        var end   = document.getElementById('rental_end').value;
+        if (selectedUnits.length > 0 && start && end) {
+            var startUTC = Date.UTC.apply(null, start.split('-').map(function(v,i){ return i===1?parseInt(v,10)-1:parseInt(v,10); }));
+            var endUTC   = Date.UTC.apply(null, end.split('-').map(function(v,i){ return i===1?parseInt(v,10)-1:parseInt(v,10); }));
+            var days = Math.round((endUTC - startUTC) / 86400000);
+            if (days > 0) {
+                var sub = 0;
+                selectedUnits.forEach(function(u) { sub += calcUnitTotal(u, days); });
+                _updateCardFeeNotice(sub);
+                _updateStep2Summary(sub, days, start, end);
+            }
+        }
     });
     if (radio.checked) radio.closest('label').classList.add('selected');
 });
@@ -1025,10 +1072,24 @@ function goStep2() {
     });
     document.getElementById('sum-units-list').innerHTML = listHtml;
     document.getElementById('sum-dates').textContent = start + ' – ' + end;
-    document.getElementById('sum-total').textContent = '$' + grandTotal.toFixed(2);
-
+    _updateStep2Summary(grandTotal, days, start, end);
     _updateStickyBar(selectedUnits, start, end, grandTotal);
     setStep(2);
+}
+
+function _updateStep2Summary(subtotal, days, start, end) {
+    var feeAmt = (_isCardPayment() && CARD_FEE_PCT > 0)
+        ? Math.round(subtotal * CARD_FEE_PCT / 100 * 100) / 100 : 0;
+    var grandTotal = Math.round((subtotal + feeAmt) * 100) / 100;
+    var totalEl = document.getElementById('sum-total');
+    if (feeAmt > 0) {
+        totalEl.innerHTML = '$' + subtotal.toFixed(2)
+            + ' <span style="font-size:.8rem;color:var(--gray);">+ $' + feeAmt.toFixed(2)
+            + ' card fee</span><br><span style="font-size:1.1rem;">$' + grandTotal.toFixed(2) + ' total</span>';
+    } else {
+        totalEl.textContent = '$' + grandTotal.toFixed(2);
+    }
+    _updateCardFeeNotice(subtotal);
 }
 
 function goStep1() { _hideStickyBar(); setStep(1); }

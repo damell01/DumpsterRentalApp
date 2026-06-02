@@ -133,6 +133,12 @@ if ($print_mode):
         <td class="text-end"><?= e(fmt_money($inv['tax_amount'])) ?></td>
       </tr>
       <?php endif; ?>
+      <?php if ((float)($inv['card_fee_rate'] ?? 0) > 0): ?>
+      <tr>
+        <td colspan="4" class="text-end">Card Processing Fee (<?= number_format((float)$inv['card_fee_rate'], 2) ?>%)</td>
+        <td class="text-end"><?= e(fmt_money($inv['card_fee_amount'] ?? 0)) ?></td>
+      </tr>
+      <?php endif; ?>
       <tr class="total-row">
         <td colspan="4" class="text-end">Total Due</td>
         <td class="text-end"><?= e(fmt_money($inv['total'])) ?></td>
@@ -278,6 +284,14 @@ layout_start('Invoice ' . $inv['invoice_number'], 'invoices');
                                 Tax (<?= number_format((float)$inv['tax_rate'], 2) ?>%)
                             </td>
                             <td class="text-end fw-semibold"><?= e(fmt_money($inv['tax_amount'])) ?></td>
+                        </tr>
+                        <?php endif; ?>
+                        <?php if ((float)($inv['card_fee_rate'] ?? 0) > 0): ?>
+                        <tr>
+                            <td colspan="4" class="text-end" style="color:var(--gl);">
+                                Card Processing Fee (<?= number_format((float)$inv['card_fee_rate'], 2) ?>%)
+                            </td>
+                            <td class="text-end fw-semibold"><?= e(fmt_money($inv['card_fee_amount'] ?? 0)) ?></td>
                         </tr>
                         <?php endif; ?>
                         <tr>
