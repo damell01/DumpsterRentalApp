@@ -762,6 +762,31 @@ if (table_exists($pdo, 'invoices')) {
 }
 
 // =============================================================================
+// UPGRADE 22c — invoices.card_fee_rate + card_fee_amount
+// =============================================================================
+echo "\n--- Upgrade 22c: invoices.card_fee_rate + card_fee_amount ---\n";
+if (table_exists($pdo, 'invoices')) {
+    if (!column_exists($pdo, 'invoices', 'card_fee_rate')) {
+        run_step($pdo, "invoices.card_fee_rate", "ALTER TABLE `invoices`
+            ADD COLUMN `card_fee_rate` DECIMAL(5,3) NOT NULL DEFAULT 0.000
+            COMMENT 'Card processing fee percentage applied to this invoice'
+            AFTER `tax_amount`");
+    } else {
+        $log[] = "[SKIP] invoices.card_fee_rate (already exists)";
+    }
+    if (!column_exists($pdo, 'invoices', 'card_fee_amount')) {
+        run_step($pdo, "invoices.card_fee_amount", "ALTER TABLE `invoices`
+            ADD COLUMN `card_fee_amount` DECIMAL(10,2) NOT NULL DEFAULT 0.00
+            COMMENT 'Dollar amount of card processing fee'
+            AFTER `card_fee_rate`");
+    } else {
+        $log[] = "[SKIP] invoices.card_fee_amount (already exists)";
+    }
+} else {
+    $log[] = "[SKIP] invoices table does not exist";
+}
+
+// =============================================================================
 // UPGRADE 23 — settings: invoice_footer; logo_url for uploaded images
 // =============================================================================
 echo "\n--- Upgrade 23: invoice_footer setting + logo_url ---\n";

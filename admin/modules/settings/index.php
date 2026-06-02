@@ -187,7 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'stripe_mode', 'stripe_publishable_key', 'stripe_secret_key', 'stripe_webhook_secret',
             'portal_signing_key', 'portal_link_ttl_minutes', 'stripe_statement_descriptor',
             'billing_retry_days', 'booking_flow_mode', 'ach_enabled', 'subscription_enabled',
-            'approval_auto_send_invoice', 'tax_rate',
+            'approval_auto_send_invoice', 'tax_rate', 'card_fee_percent',
         ],
     ];
 
@@ -1187,6 +1187,31 @@ layout_start('Settings', 'settings');
                 <div id="stripeRateList" class="mt-2" style="display:none;"></div>
                 <div class="form-text" style="color:var(--gy);">
                     Set manually or click <strong>Sync from Stripe</strong> to pull your Stripe Tax rates.
+                </div>
+            </div>
+        </div>
+
+        <!-- Card Processing Fee -->
+        <div class="row g-3 mb-4 mt-0" style="border-top:1px solid var(--st,#2a2f3e);padding-top:1.25rem;">
+            <div class="col-12">
+                <h6 class="mb-0" style="font-weight:600;color:var(--or,#f97316);">
+                    <i class="fa-solid fa-credit-card me-1"></i> Card Processing Fee
+                </h6>
+                <div class="form-text mt-0 mb-2" style="color:var(--gy);">
+                    When set, this fee is added to invoices and shown to customers on the booking page when they select card/ACH payment.
+                </div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="card_fee_percent">Card Fee (%)</label>
+                <div class="input-group">
+                    <input type="number" id="card_fee_percent" name="card_fee_percent" class="form-control"
+                           step="0.001" min="0" max="100"
+                           value="<?= e(get_setting('card_fee_percent', '0')) ?>"
+                           placeholder="0.000">
+                    <span class="input-group-text">%</span>
+                </div>
+                <div class="form-text" style="color:var(--gy);">
+                    E.g. <code>3.000</code> adds a 3% card processing fee. Set to <code>0</code> to disable.
                 </div>
             </div>
         </div>

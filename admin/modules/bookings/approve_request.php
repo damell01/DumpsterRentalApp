@@ -86,6 +86,12 @@ function create_invoice_from_booking(array $booking, bool $markSent = true): arr
 
     $customerId = !empty($booking['customer_id']) ? (int)$booking['customer_id'] : null;
     $paymentMethod = (string)($booking['payment_method'] ?? 'stripe');
+
+    // Card processing fee
+    $cardFeePct = in_array($paymentMethod, ['stripe', 'ach', 'card'], true)
+        ? (float)get_setting('card_fee_percent', '0') : 0.0;
+    $cardFeeAmount = round($subtotal * $cardFeePct / 100, 2);
+    $invoiceTotal  = round($subtotal + $cardFeeAmount, 2);
     $invoiceStatus = ($markSent && !empty($booking['customer_email'])) ? 'sent' : 'draft';
     $invoiceId = 0;
     $invoiceNumber = '';
@@ -105,10 +111,12 @@ function create_invoice_from_booking(array $booking, bool $markSent = true): arr
             'cust_email' => $booking['customer_email'] ?: null,
             'cust_phone' => $booking['customer_phone'] ?: null,
             'cust_address' => trim(((string)($booking['customer_address'] ?? '')) . (((string)($booking['customer_city'] ?? '')) !== '' ? ', ' . (string)$booking['customer_city'] : '')),
-            'subtotal' => $subtotal,
-            'tax_rate' => 0,
-            'tax_amount' => 0,
-            'total' => $subtotal,
+            'subtotal'        => $subtotal,
+            'tax_rate'        => 0,
+            'tax_amount'      => 0,
+            'card_fee_rate'   => $cardFeePct,
+            'card_fee_amount' => $cardFeeAmount,
+            'total'           => $invoiceTotal,
             'notes' => booking_invoice_notes($booking),
             'terms' => $terms,
             'status' => $invoiceStatus,

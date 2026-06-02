@@ -105,7 +105,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         // Calculate totals — tax is handled by Stripe, not the app
         $subtotal = array_sum(array_column($items, 'amount'));
-        $total    = $subtotal;
+
+        // Card processing fee (only when payment method is card/ACH)
+        $payment_method_post = trim($_POST['payment_method'] ?? 'stripe');
+        $card_fee_pct = in_array($payment_method_post, ['stripe', 'ach', 'card'], true)
+            ? (float)get_setting('card_fee_percent', '0') : 0.0;
+        $card_fee_amount = round($subtotal * $card_fee_pct / 100, 2);
+        $total    = round($subtotal + $card_fee_amount, 2);
 
         $invoice_number = next_number('INV', 'invoices', 'invoice_number');
 
@@ -120,6 +126,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'subtotal'            => $subtotal,
             'tax_rate'            => 0,
             'tax_amount'          => 0,
+            'card_fee_rate'       => $card_fee_pct,
+            'card_fee_amount'     => $card_fee_amount,
             'total'               => $total,
             'notes'               => $old['notes'],
             'terms'               => $old['terms'],
@@ -366,6 +374,20 @@ layout_start('New Invoice', 'invoices');
                         </select>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">Payment Method</label>
+                        <select name="payment_method" id="inv_payment_method" class="form-select" onchange="updateCalcTotal()">
+                            <option value="stripe">Card (Stripe)</option>
+                            <option value="ach">ACH / Bank Transfer</option>
+                            <option value="cash">Cash</option>
+                            <option value="check">Check</option>
+                        </select>
+                        <?php if ((float)get_setting('card_fee_percent', '0') > 0): ?>
+                        <div class="form-text">
+                            A <?= e(number_format((float)get_setting('card_fee_percent', '0'), 2)) ?>% card fee is added for Card/ACH.
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Due Date</label>
                         <input type="date" name="due_date" class="form-control"
                                value="<?= e($old['due_date']) ?>">
@@ -380,6 +402,14 @@ layout_start('New Invoice', 'invoices');
                 </div>
                 <div class="card-body">
                     <table class="table table-sm mb-0">
+                        <tr>
+                            <td class="text-muted">Subtotal</td>
+                            <td class="text-end" id="calcSubtotal">$0.00</td>
+                        </tr>
+                        <tr id="calcFeeRow" style="display:none;">
+                            <td class="text-muted" id="calcFeeLabel">Card Fee (0%)</td>
+                            <td class="text-end" id="calcFeeAmt">$0.00</td>
+                        </tr>
                         <tr>
                             <td class="fw-bold">Total</td>
                             <td class="text-end fw-bold fs-5" id="calcTotal">$0.00</td>
@@ -460,14 +490,31 @@ function recalcRow(i) {
     return amt;
 }
 
+var CARD_FEE_PCT = <?= (float)get_setting('card_fee_percent', '0') ?>;
+
+function updateCalcTotal() { recalcAll(); }
+
 function recalcAll() {
     var subtotal = 0;
     document.querySelectorAll('#itemsBody tr').forEach(function(row) {
         var id = parseInt(row.id.replace('row', ''), 10);
         subtotal += recalcRow(id);
     });
-    var total = subtotal;
-    document.getElementById('calcTotal').textContent    = fmtMoney(total);
+    document.getElementById('calcSubtotal').textContent = fmtMoney(subtotal);
+
+    var pm = document.getElementById('inv_payment_method');
+    var isCard = pm && (pm.value === 'stripe' || pm.value === 'ach');
+    var feeAmt = (isCard && CARD_FEE_PCT > 0) ? Math.round(subtotal * CARD_FEE_PCT / 100 * 100) / 100 : 0;
+    var feeRow = document.getElementById('calcFeeRow');
+    if (feeAmt > 0) {
+        document.getElementById('calcFeeLabel').textContent = 'Card Fee (' + CARD_FEE_PCT.toFixed(2) + '%)';
+        document.getElementById('calcFeeAmt').textContent  = fmtMoney(feeAmt);
+        feeRow.style.display = '';
+    } else {
+        feeRow.style.display = 'none';
+    }
+
+    document.getElementById('calcTotal').textContent = fmtMoney(subtotal + feeAmt);
 }
 
 function escAttr(s) {
