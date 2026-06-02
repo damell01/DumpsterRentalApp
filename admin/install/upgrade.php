@@ -743,6 +743,25 @@ if (table_exists($pdo, 'invoices')) {
 }
 
 // =============================================================================
+// UPGRADE 22b — invoices.booking_id (links invoice to the originating booking)
+// =============================================================================
+echo "\n--- Upgrade 22b: invoices.booking_id ---\n";
+if (table_exists($pdo, 'invoices')) {
+    if (!column_exists($pdo, 'invoices', 'booking_id')) {
+        run_step($pdo, "invoices.booking_id", "ALTER TABLE `invoices`
+            ADD COLUMN `booking_id` INT(11) DEFAULT NULL
+            COMMENT 'Booking this invoice was created from'
+            AFTER `customer_id`");
+        run_step($pdo, "invoices.idx_booking_id", "ALTER TABLE `invoices`
+            ADD KEY `idx_invoices_booking_id` (`booking_id`)");
+    } else {
+        $log[] = "[SKIP] invoices.booking_id (already exists)";
+    }
+} else {
+    $log[] = "[SKIP] invoices table does not exist";
+}
+
+// =============================================================================
 // UPGRADE 23 — settings: invoice_footer; logo_url for uploaded images
 // =============================================================================
 echo "\n--- Upgrade 23: invoice_footer setting + logo_url ---\n";

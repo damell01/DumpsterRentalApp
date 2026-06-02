@@ -30,13 +30,29 @@ function booking_invoice_notes(array $booking): string
 
 function booking_existing_invoice(array $booking): ?array
 {
+    $bookingId = (int)($booking['id'] ?? 0);
+
+    // Prefer the reliable booking_id FK (added in upgrade 22b)
+    if ($bookingId > 0) {
+        $byId = db_fetch(
+            'SELECT id, invoice_number FROM invoices WHERE booking_id = ? ORDER BY id DESC LIMIT 1',
+            [$bookingId]
+        );
+        if ($byId) {
+            return $byId;
+        }
+    }
+
+    // Fall back to notes LIKE only when booking_number is non-empty
+    $bkNum = trim((string)($booking['booking_number'] ?? ''));
+    if ($bkNum === '') {
+        return null;
+    }
+
     return db_fetch(
-        'SELECT i.id, i.invoice_number
-         FROM invoices i
-         WHERE i.notes LIKE ?
-         ORDER BY i.id DESC
-         LIMIT 1',
-        ['%Booking ' . ($booking['booking_number'] ?? '') . '%']
+        'SELECT id, invoice_number FROM invoices
+         WHERE notes LIKE ? ORDER BY id DESC LIMIT 1',
+        ['%Booking ' . $bkNum . '%']
     ) ?: null;
 }
 
@@ -83,6 +99,7 @@ function create_invoice_from_booking(array $booking, bool $markSent = true): arr
 
         $invoiceId = (int)db_insert('invoices', [
             'invoice_number' => $invoiceNumber,
+            'booking_id'     => (int)$booking['id'] > 0 ? (int)$booking['id'] : null,
             'customer_id' => $customerId,
             'cust_name' => $booking['customer_name'] ?: null,
             'cust_email' => $booking['customer_email'] ?: null,
@@ -337,10 +354,18 @@ try {
     }
     $approvalEmailSent = false;
     if ($autoSend && !empty($booking['customer_email']) && !empty($invoiceRow)) {
+        // 1. Send the formal invoice email (line items, amount due, payment link)
         try {
-            $approvalEmailSent = notify_booking_approved($booking, $invoiceRow);
+            $approvalEmailSent = send_invoice_email_to_customer($invoiceRow);
         } catch (\Throwable $e) {
-            error_log('[Booking approval] Approval email failed: ' . $e->getMessage());
+            error_log('[Booking approval] Invoice email failed: ' . $e->getMessage());
+        }
+
+        // 2. Send the booking-confirmed notification (includes terms PDF if customer accepted)
+        try {
+            notify_booking_approved($booking, $invoiceRow);
+        } catch (\Throwable $e) {
+            error_log('[Booking approval] Booking approval notification failed: ' . $e->getMessage());
         }
     }
 
