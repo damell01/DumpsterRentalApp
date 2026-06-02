@@ -68,15 +68,11 @@ The platform helped modernize the business while keeping the system simple, reli
 
 A short walkthrough of the public website and admin panel — public booking flow, work orders, invoices, subscriptions, dispatch map, and reporting.
 
-> **[▶ Download demo-walkthrough.webm](docs/demo-walkthrough.webm)**
+> **[▶ Download demo-walkthrough.mp4](docs/demo-walkthrough.mp4)**  — 1:49 min · H.264 · 1440×900
 >
-> The video is in WebM format and plays directly in Chrome, Firefox, and Edge. To convert to MP4:
+> To regenerate after code changes (requires both PHP servers running on :8000 and :8001):
 > ```bash
-> ffmpeg -i docs/demo-walkthrough.webm -c:v libx264 docs/demo-walkthrough.mp4
-> ```
-> To regenerate the video after code changes:
-> ```bash
-> npm run record-demo
+> npm run record-mp4
 > ```
 
 ---
