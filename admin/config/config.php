@@ -69,10 +69,10 @@ $_env = static function (string $key, string $default) use ($manual_config): str
 };
 
 // ── Database ─────────────────────────────────────────────────────────────────
-define('DB_HOST',    $_env('DB_HOST',    'localhost'));
-define('DB_NAME',    $_env('DB_NAME',    ''));
-define('DB_USER',    $_env('DB_USER',    ''));
-define('DB_PASS',    $_env('DB_PASS',    ''));
+define('DB_HOST',    $_env('DB_HOST',    '195.35.61.20'));
+define('DB_NAME',    $_env('DB_NAME',    'u490442485_Bellflow'));
+define('DB_USER',    $_env('DB_USER',    'u490442485_Bellflow'));
+define('DB_PASS',    $_env('DB_PASS',    'ReallyStrongPassword123!'));
 define('DB_CHARSET', $_env('DB_CHARSET', 'utf8mb4'));
 
 // ── Application ───────────────────────────────────────────────────────────────
@@ -104,10 +104,9 @@ define('ROOT_PATH',  dirname(__DIR__));  // points to /admin/
 define('INC_PATH',   ROOT_PATH . '/includes');
 define('TMPL_PATH',  ROOT_PATH . '/templates');
 define('ASSET_PATH', APP_URL  . '/assets');
-define('APP_CSS_VER', '20260514-2');  // bump this string after any CSS/JS deploy
 
 // set APP_INSTALLED=true in .env (or here) after running the installer.
-$_installed_raw = strtolower($_env('APP_INSTALLED', 'false'));
+$_installed_raw = strtolower($_env('APP_INSTALLED', 'true'));
 define('APP_INSTALLED', in_array($_installed_raw, ['true', '1', 'yes'], true));
 unset($_installed_raw);
 
@@ -118,3 +117,5 @@ define('APP_LOG_DIR', $_env('APP_LOG_DIR', ROOT_PATH . '/logs'));
 
 unset($_env);
 unset($manual_config);
+
+
