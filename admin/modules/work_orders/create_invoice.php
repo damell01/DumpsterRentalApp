@@ -65,6 +65,11 @@ if (!in_array($paymentMethod, ['stripe', 'ach', 'cash', 'check'], true)) {
     $paymentMethod = 'stripe';
 }
 
+$cardFeePct    = in_array($paymentMethod, ['stripe', 'ach', 'card'], true)
+    ? (float)get_setting('card_fee_percent', '0') : 0.0;
+$cardFeeAmount = round($subtotal * $cardFeePct / 100, 2);
+$invoiceTotal  = round($subtotal + $cardFeeAmount, 2);
+
 $customerName = trim((string)($workOrder['cust_name'] ?? ''));
 $customerEmail = trim((string)($workOrder['cust_email'] ?? $workOrder['customer_email_db'] ?? ''));
 $customerPhone = trim((string)($workOrder['cust_phone'] ?? $workOrder['customer_phone_db'] ?? ''));
@@ -94,10 +99,12 @@ $invoiceId = (int)db_insert('invoices', [
     'cust_email' => $customerEmail ?: null,
     'cust_phone' => $customerPhone ?: null,
     'cust_address' => $customerAddress ?: null,
-    'subtotal' => $subtotal,
-    'tax_rate' => 0,
-    'tax_amount' => 0,
-    'total' => $subtotal,
+    'subtotal'        => $subtotal,
+    'tax_rate'        => 0,
+    'tax_amount'      => 0,
+    'card_fee_rate'   => $cardFeePct,
+    'card_fee_amount' => $cardFeeAmount,
+    'total'           => $invoiceTotal,
     'notes' => $notes,
     'terms' => get_setting('invoice_terms', 'Payment is due within 30 days of invoice date. Thank you for your business!'),
     'status' => $invoiceStatus,
@@ -124,6 +131,7 @@ db_insert('invoice_items', [
     'amount' => $subtotal,
     'rate_type' => 'fixed',
 ]);
+
 
 try {
     $stripeKey = trim(get_setting('stripe_secret_key', ''));
