@@ -30,9 +30,11 @@ class CheckoutService
         $lineItems = [];
         $bookingIds = [];
         $bookingNumbers = [];
+        $rentalSubtotal = 0;
 
         foreach ($bookings as $booking) {
             $amountCents = (int)round((float)$booking['total_amount'] * 100);
+            $rentalSubtotal += $amountCents;
             $lineItems[] = [
                 'price_data' => [
                     'currency' => $currency,
@@ -52,6 +54,24 @@ class CheckoutService
             ];
             $bookingIds[] = (string)$booking['id'];
             $bookingNumbers[] = (string)($booking['booking_number'] ?? '');
+        }
+
+        // Add card processing fee line item if configured
+        $cardFeePct = (float)\get_setting('card_fee_percent', '0');
+        if ($cardFeePct > 0) {
+            $feeAmountCents = (int)round($rentalSubtotal * $cardFeePct / 100);
+            if ($feeAmountCents > 0) {
+                $lineItems[] = [
+                    'price_data' => [
+                        'currency' => $currency,
+                        'product_data' => [
+                            'name' => 'Card Processing Fee (' . number_format($cardFeePct, 2) . '%)',
+                        ],
+                        'unit_amount' => $feeAmountCents,
+                    ],
+                    'quantity' => 1,
+                ];
+            }
         }
 
         $unitCodes   = array_filter(array_column($bookings, 'unit_code'));
