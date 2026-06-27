@@ -16,6 +16,19 @@ if (!$inv) { flash_error('Invoice not found.'); redirect('index.php'); }
 
 $items = db_fetchall('SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id ASC', [$id]);
 
+// Recompute display total so old invoices show the correct amount even if
+// the stored total pre-dates the card_fee columns being added.
+$inv_display_total = round(
+    (float)$inv['subtotal']
+    + (float)($inv['tax_amount'] ?? 0)
+    + (float)($inv['card_fee_amount'] ?? 0),
+    2
+);
+// If the stored total is higher than computed (e.g. manual override), trust it.
+if ((float)$inv['total'] > $inv_display_total) {
+    $inv_display_total = (float)$inv['total'];
+}
+
 // Settings
 $company_name    = get_setting('company_name',    'Trash Panda Roll-Offs');
 $company_phone   = get_setting('company_phone',   '');
@@ -141,7 +154,7 @@ if ($print_mode):
       <?php endif; ?>
       <tr class="total-row">
         <td colspan="4" class="text-end">Total Due</td>
-        <td class="text-end"><?= e(fmt_money($inv['total'])) ?></td>
+        <td class="text-end"><?= e(fmt_money($inv_display_total)) ?></td>
       </tr>
     </tfoot>
   </table>
@@ -301,7 +314,7 @@ layout_start('Invoice ' . $inv['invoice_number'], 'invoices');
                             </td>
                             <td class="text-end fw-bold"
                                 style="border-top:2px solid var(--or);font-size:1.15rem;color:var(--or);">
-                                <?= e(fmt_money($inv['total'])) ?>
+                                <?= e(fmt_money($inv_display_total)) ?>
                             </td>
                         </tr>
                     </tfoot>

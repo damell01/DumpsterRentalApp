@@ -30,9 +30,11 @@ class CheckoutService
         $lineItems = [];
         $bookingIds = [];
         $bookingNumbers = [];
+        $rentalSubtotal = 0;
 
         foreach ($bookings as $booking) {
             $amountCents = (int)round((float)$booking['total_amount'] * 100);
+            $rentalSubtotal += $amountCents;
             $lineItems[] = [
                 'price_data' => [
                     'currency' => $currency,
@@ -52,6 +54,24 @@ class CheckoutService
             ];
             $bookingIds[] = (string)$booking['id'];
             $bookingNumbers[] = (string)($booking['booking_number'] ?? '');
+        }
+
+        // Add card processing fee line item if configured
+        $cardFeePct = (float)\get_setting('card_fee_percent', '0');
+        if ($cardFeePct > 0) {
+            $feeAmountCents = (int)round($rentalSubtotal * $cardFeePct / 100);
+            if ($feeAmountCents > 0) {
+                $lineItems[] = [
+                    'price_data' => [
+                        'currency' => $currency,
+                        'product_data' => [
+                            'name' => 'Card Processing Fee (' . number_format($cardFeePct, 2) . '%)',
+                        ],
+                        'unit_amount' => $feeAmountCents,
+                    ],
+                    'quantity' => 1,
+                ];
+            }
         }
 
         $unitCodes   = array_filter(array_column($bookings, 'unit_code'));
@@ -130,7 +150,15 @@ class CheckoutService
         $customer = $this->customerService->ensureForCustomerId($customerId);
         $currency = strtolower(\get_setting('currency', 'usd') ?: 'usd');
         $company = \get_setting('company_name', 'Trash Panda Roll-Offs');
-        $amountCents = (int)round((float)$invoice['total'] * 100);
+        // Recompute from parts so old invoices charge the right amount even if
+        // the stored total pre-dates the card_fee columns.
+        $computedTotal = (float)$invoice['subtotal']
+            + (float)($invoice['tax_amount'] ?? 0)
+            + (float)($invoice['card_fee_amount'] ?? 0);
+        if ((float)$invoice['total'] > $computedTotal) {
+            $computedTotal = (float)$invoice['total'];
+        }
+        $amountCents = (int)round($computedTotal * 100);
 
         $sessionParams = [
             'mode' => 'payment',
