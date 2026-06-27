@@ -150,7 +150,15 @@ class CheckoutService
         $customer = $this->customerService->ensureForCustomerId($customerId);
         $currency = strtolower(\get_setting('currency', 'usd') ?: 'usd');
         $company = \get_setting('company_name', 'Trash Panda Roll-Offs');
-        $amountCents = (int)round((float)$invoice['total'] * 100);
+        // Recompute from parts so old invoices charge the right amount even if
+        // the stored total pre-dates the card_fee columns.
+        $computedTotal = (float)$invoice['subtotal']
+            + (float)($invoice['tax_amount'] ?? 0)
+            + (float)($invoice['card_fee_amount'] ?? 0);
+        if ((float)$invoice['total'] > $computedTotal) {
+            $computedTotal = (float)$invoice['total'];
+        }
+        $amountCents = (int)round($computedTotal * 100);
 
         $sessionParams = [
             'mode' => 'payment',
