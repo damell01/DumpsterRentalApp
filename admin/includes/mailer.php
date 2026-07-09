@@ -761,7 +761,7 @@ function send_customer_portal_link_email(array $customer): bool
         return false;
     }
 
-    $token = billing_portal_access_service()->issueTokenForCustomer($customerId, (int)get_setting('portal_link_ttl_minutes', '30'));
+    $token = billing_portal_access_service()->issueTokenForCustomer($customerId, (int)get_setting('portal_link_ttl_minutes', '1440'));
     $basePublicUrl = preg_replace('#/admin$#', '', APP_URL);
     $portalUrl = rtrim((string)$basePublicUrl, '/') . '/portal/index.php?customer_id=' . $customerId . '&token=' . urlencode($token);
     $copyTokens = [
