@@ -207,6 +207,9 @@ layout_start('Invoice ' . $inv['invoice_number'], 'invoices');
         <a href="view.php?id=<?= $id ?>&print=1" class="btn-tp-ghost btn-tp-sm" target="_blank">
             <i class="fa-solid fa-print"></i> Print / PDF
         </a>
+        <a href="pdf.php?id=<?= $id ?>" class="btn-tp-ghost btn-tp-sm" target="_blank">
+            <i class="fa-solid fa-file-pdf"></i> View PDF Invoice
+        </a>
         <?php if (has_role('admin', 'office')): ?>
         <a href="edit.php?id=<?= $id ?>" class="btn-tp-ghost btn-tp-sm">
             <i class="fa-solid fa-pencil"></i> Edit
