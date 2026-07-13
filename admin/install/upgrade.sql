@@ -108,7 +108,7 @@ INSERT IGNORE INTO `settings` (`key`, `value`) VALUES
   ('currency',               'usd'),
   ('invoice_terms',          'Payment is due within 30 days of invoice date. Thank you for your business!'),
   ('portal_signing_key',     ''),
-  ('portal_link_ttl_minutes','30'),
+  ('portal_link_ttl_minutes','1440'),
   ('stripe_statement_descriptor',''),
   ('billing_email_enabled',  '1'),
   ('billing_retry_days',     '[1,3,5]'),

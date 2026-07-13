@@ -365,7 +365,8 @@ class SubscriptionService
                         ['email' => $customer['email'] ?? ($localInvoice['cust_email'] ?? '')],
                         $localInvoice['invoice_number'] ?? ('INV-' . $localInvoiceId),
                         (float)($localInvoice['total'] ?? $amount),
-                        $customer['name'] ?? ($localInvoice['cust_name'] ?? '')
+                        $customer['name'] ?? ($localInvoice['cust_name'] ?? ''),
+                        $localInvoiceId
                     );
                     $this->notificationService->notifySubscriptionPaymentReceived(
                         (string)($subscription['service_name'] ?? ('Subscription ' . $subscriptionId)),

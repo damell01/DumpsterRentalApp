@@ -4,9 +4,9 @@ namespace TrashPanda\Billing;
 
 class BillingNotificationService
 {
-    public function sendInvoicePaid(array $recipient, string $invoiceNumber, float $amount, string $customerName = ''): void
+    public function sendInvoicePaid(array $recipient, string $invoiceNumber, float $amount, string $customerName = '', int $invoiceId = 0): void
     {
-        $this->sendInvoicePaidReceipt($recipient, $invoiceNumber, $amount, $customerName);
+        $this->sendInvoicePaidReceipt($recipient, $invoiceNumber, $amount, $customerName, $invoiceId);
 
         $adminBody = '<p>Invoice <strong>' . \e($invoiceNumber) . '</strong> has been paid.'
             . ($customerName !== '' ? ' Customer: <strong>' . \e($customerName) . '</strong>.' : '')
@@ -17,7 +17,7 @@ class BillingNotificationService
         );
     }
 
-    public function sendInvoicePaidReceipt(array $recipient, string $invoiceNumber, float $amount, string $customerName = ''): void
+    public function sendInvoicePaidReceipt(array $recipient, string $invoiceNumber, float $amount, string $customerName = '', int $invoiceId = 0): void
     {
         $tokens = [
             'customer_name' => $customerName,
@@ -31,7 +31,19 @@ class BillingNotificationService
             $tokens
         );
 
-        $this->sendToCustomer($recipient, 'Payment Receipt', '<p>' . nl2br(\e($bodyText)) . '</p>', $subject);
+        $attachments = [];
+        if ($invoiceId > 0) {
+            $invoice = \db_fetch('SELECT * FROM invoices WHERE id = ? LIMIT 1', [$invoiceId]);
+            if ($invoice) {
+                $items = \db_fetchall('SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id ASC', [$invoiceId]);
+                $pdfAttachment = \invoice_pdf_attachment($invoice, $items);
+                if ($pdfAttachment !== null) {
+                    $attachments[] = $pdfAttachment;
+                }
+            }
+        }
+
+        $this->sendToCustomer($recipient, 'Payment Receipt', '<p>' . nl2br(\e($bodyText)) . '</p>', $subject, '', '', $attachments);
     }
 
     public function sendAchInitiated(array $recipient, string $subjectContext, float $amount): void
@@ -130,7 +142,7 @@ class BillingNotificationService
         );
     }
 
-    private function sendToCustomer(array $recipient, string $title, string $bodyHtml, string $subject, string $ctaText = '', string $ctaUrl = ''): void
+    private function sendToCustomer(array $recipient, string $title, string $bodyHtml, string $subject, string $ctaText = '', string $ctaUrl = '', array $attachments = []): void
     {
         $email = trim((string)($recipient['email'] ?? ''));
         if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -138,6 +150,6 @@ class BillingNotificationService
         }
 
         $html = \email_template($title, $bodyHtml, $ctaText, $ctaUrl);
-        \send_email($email, $subject, $html);
+        \send_email($email, $subject, $html, '', $attachments);
     }
 }

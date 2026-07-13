@@ -1109,7 +1109,7 @@ layout_start('Settings', 'settings');
             <div class="col-md-4">
                 <label class="form-label" for="portal_link_ttl_minutes">Portal Link TTL (minutes)</label>
                 <input type="number" id="portal_link_ttl_minutes" name="portal_link_ttl_minutes" class="form-control"
-                       value="<?= e(get_setting('portal_link_ttl_minutes', '30')) ?>" min="5" step="5">
+                       value="<?= e(get_setting('portal_link_ttl_minutes', '1440')) ?>" min="5" step="5">
             </div>
             <div class="col-md-4">
                 <label class="form-label" for="stripe_statement_descriptor">Statement Descriptor</label>

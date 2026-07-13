@@ -189,7 +189,8 @@ class WebhookService
                                 ['email' => $custEmail],
                                 $invoice['invoice_number'] ?? ('INV-' . $invoiceId),
                                 (float)$invoice['total'],
-                                $invoice['cust_name'] ?? ''
+                                $invoice['cust_name'] ?? '',
+                                $invoiceId
                             );
                             \log_activity('invoice_paid_emailed', 'Sent invoice paid notification for ' . ($invoice['invoice_number'] ?? $invoiceId), 'invoice', $invoiceId);
                         } catch (\Throwable $e) {
@@ -290,7 +291,8 @@ class WebhookService
                             ['email' => $customer['email'] ?? ($localInvoice['cust_email'] ?? '')],
                             $localInvoice['invoice_number'] ?? ('INV-' . $localInvoiceId),
                             (float)($localInvoice['total'] ?? (((int)$invoice->amount_paid) / 100)),
-                            $customer['name'] ?? ($localInvoice['cust_name'] ?? '')
+                            $customer['name'] ?? ($localInvoice['cust_name'] ?? ''),
+                            $localInvoiceId
                         );
                         $this->notificationService->notifySubscriptionPaymentReceived(
                             $subscription['service_name'] ?? ('Subscription ' . $subscriptionId),
@@ -424,7 +426,8 @@ class WebhookService
                                     ['email' => $custEmail],
                                     $invoice['invoice_number'] ?? ('INV-' . $invoiceId),
                                     (float)$invoice['total'],
-                                    $invoice['cust_name'] ?? ''
+                                    $invoice['cust_name'] ?? '',
+                                    $invoiceId
                                 );
                                 \log_activity('invoice_paid_emailed', 'Sent invoice paid notification for ' . ($invoice['invoice_number'] ?? $invoiceId), 'invoice', $invoiceId);
                             } catch (\Throwable $e) {

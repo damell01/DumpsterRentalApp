@@ -118,6 +118,7 @@ class CheckoutService
                     'rental_days'     => $rentalDays,
                 ],
             ],
+            'expires_at' => time() + 86400, // 24h — Stripe's maximum allowed
         ];
 
         if ($paymentMethod === 'card') {
@@ -187,6 +188,7 @@ class CheckoutService
                     'customer_id' => (string)$customerId,
                 ],
             ],
+            'expires_at' => time() + 86400, // 24h — Stripe's maximum allowed
         ];
 
         if ($paymentMethod === 'card') {

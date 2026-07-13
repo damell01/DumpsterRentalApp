@@ -753,6 +753,206 @@ function booking_terms_pdf_attachment(array $booking): ?array
     ];
 }
 
+/**
+ * Render a printable invoice (line items, totals, PAID/status stamp) as a PDF
+ * and return it in the $attachments shape expected by send_email().
+ *
+ * @param array<int,array<string,mixed>> $items Rows from invoice_items.
+ */
+function invoice_pdf_attachment(array $invoice, array $items): ?array
+{
+    if (!class_exists('Dompdf\\Dompdf')) {
+        return null;
+    }
+
+    $companyName    = (string)get_setting('company_name', 'Trash Panda Roll-Offs');
+    $companyPhone   = (string)get_setting('company_phone', '');
+    $companyEmail   = (string)get_setting('company_email', '');
+    $companyAddress = (string)get_setting('company_address', '');
+    $invoiceFooter  = (string)get_setting('invoice_footer', '');
+    $logoPath       = resolve_logo_file_path();
+
+    $subtotal = (float)($invoice['subtotal'] ?? 0);
+    $taxRate = (float)($invoice['tax_rate'] ?? 0);
+    $taxAmount = (float)($invoice['tax_amount'] ?? 0);
+    $cardFeeRate = (float)($invoice['card_fee_rate'] ?? 0);
+    $cardFeeAmount = (float)($invoice['card_fee_amount'] ?? 0);
+    $displayTotal = round($subtotal + $taxAmount + $cardFeeAmount, 2);
+    if ((float)($invoice['total'] ?? 0) > $displayTotal) {
+        $displayTotal = (float)$invoice['total'];
+    }
+
+    $status = strtolower((string)($invoice['status'] ?? ''));
+    $isPaid = $status === 'paid';
+
+    $rowsHtml = '';
+    foreach ($items as $it) {
+        $qty = rtrim(rtrim(number_format((float)($it['quantity'] ?? 0), 2, '.', ''), '0'), '.');
+        $rowsHtml .= '<tr>'
+            . '<td>' . e($it['description'] ?? '') . '</td>'
+            . '<td>' . e(ucfirst((string)($it['rate_type'] ?? ''))) . '</td>'
+            . '<td class="num">' . e($qty) . '</td>'
+            . '<td class="num">' . e(fmt_money($it['unit_price'] ?? 0)) . '</td>'
+            . '<td class="num">' . e(fmt_money($it['amount'] ?? 0)) . '</td>'
+            . '</tr>';
+    }
+
+    $logoHtml = '';
+    if ($logoPath !== null) {
+        $imgData = @file_get_contents($logoPath);
+        $imgInfo = @getimagesize($logoPath);
+        if (is_string($imgData) && $imgData !== '' && $imgInfo) {
+            $logoHtml = '<img src="data:' . e($imgInfo['mime']) . ';base64,' . base64_encode($imgData) . '" class="logo">';
+        }
+    }
+    if ($logoHtml === '') {
+        $logoHtml = '<div class="logo-text">' . e($companyName) . '</div>';
+    }
+
+    $stampHtml = $isPaid
+        ? '<div class="stamp stamp-paid">PAID</div>'
+        : ($status !== '' ? '<div class="stamp stamp-open">' . e(strtoupper($status)) . '</div>' : '');
+
+    $paidLineHtml = '';
+    if ($isPaid && !empty($invoice['paid_at'])) {
+        $paidLineHtml = '<div class="paid-line">Paid on ' . e(fmt_date((string)$invoice['paid_at']))
+            . (!empty($invoice['payment_method']) ? ' via ' . e(ucfirst((string)$invoice['payment_method'])) : '')
+            . '</div>';
+    }
+
+    $taxRowHtml = $taxRate > 0
+        ? '<tr><td colspan="4" class="num label">Tax (' . number_format($taxRate, 2) . '%)</td><td class="num">' . e(fmt_money($taxAmount)) . '</td></tr>'
+        : '';
+    $cardFeeRowHtml = $cardFeeRate > 0
+        ? '<tr><td colspan="4" class="num label">Card Processing Fee (' . number_format($cardFeeRate, 2) . '%)</td><td class="num">' . e(fmt_money($cardFeeAmount)) . '</td></tr>'
+        : '';
+
+    $notesHtml = trim((string)($invoice['notes'] ?? '')) !== ''
+        ? '<div class="notes"><strong>Notes:</strong><br>' . nl2br(e($invoice['notes'])) . '</div>'
+        : '';
+    $footerHtml = trim($invoiceFooter) !== ''
+        ? '<div class="footer">' . nl2br(e($invoiceFooter)) . '</div>'
+        : '';
+
+    $dueHtml = !empty($invoice['due_date'])
+        ? '<br>Due: ' . e(fmt_date((string)$invoice['due_date']))
+        : '';
+
+    $invoiceNumber = e($invoice['invoice_number'] ?? '');
+    $createdDate = e(fmt_date((string)($invoice['created_at'] ?? '')));
+    $custName = e($invoice['cust_name'] ?? '');
+    $custPhone = e($invoice['cust_phone'] ?? '');
+    $custEmail = e($invoice['cust_email'] ?? '');
+    $custAddress = e($invoice['cust_address'] ?? '');
+    $displaySubtotal = e(fmt_money($subtotal));
+    $displayTotalFmt = e(fmt_money($displayTotal));
+    $companyNameHtml = e($companyName);
+    $companyPhoneHtml = e($companyPhone);
+    $companyEmailHtml = e($companyEmail);
+    $companyAddressHtml = e($companyAddress);
+
+    $html = <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #111; }
+  .header { width: 100%; border-bottom: 2px solid #f97316; padding-bottom: 12px; margin-bottom: 16px; }
+  .logo { max-height: 55px; max-width: 180px; }
+  .logo-text { font-size: 20px; font-weight: bold; }
+  .company-info { font-size: 11px; color: #444; margin-top: 4px; }
+  .inv-title { font-size: 22px; font-weight: bold; text-align: right; }
+  .inv-meta { text-align: right; font-size: 11px; color: #555; }
+  table.layout { width: 100%; }
+  .bill-to { margin: 16px 0; font-size: 12px; }
+  table.items { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  table.items th { background: #f9fafb; text-align: left; font-size: 10px; text-transform: uppercase; color: #6b7280; padding: 6px 8px; border-bottom: 2px solid #e5e7eb; }
+  table.items td { padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 11px; }
+  table.items td.num, table.items th.num { text-align: right; }
+  td.label { color: #6b7280; }
+  .total-row td { border-top: 2px solid #f97316; font-weight: bold; font-size: 13px; padding-top: 8px; }
+  .stamp { display: inline-block; margin-top: 10px; padding: 6px 18px; border: 3px solid; border-radius: 6px; font-size: 20px; font-weight: bold; letter-spacing: 2px; transform: rotate(-6deg); }
+  .stamp-paid { color: #16a34a; border-color: #16a34a; }
+  .stamp-open { color: #b45309; border-color: #b45309; }
+  .paid-line { margin-top: 4px; font-size: 11px; color: #16a34a; font-weight: bold; }
+  .notes { margin-top: 16px; font-size: 11px; }
+  .footer { margin-top: 24px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 10px; color: #6b7280; text-align: center; }
+</style>
+</head>
+<body>
+  <table class="layout">
+    <tr>
+      <td style="width:55%;">
+        {$logoHtml}
+        <div class="company-info">
+          {$companyNameHtml}<br>
+          {$companyPhoneHtml}<br>
+          {$companyEmailHtml}<br>
+          {$companyAddressHtml}
+        </div>
+      </td>
+      <td style="width:45%;">
+        <div class="inv-title">INVOICE</div>
+        <div class="inv-meta">
+          {$invoiceNumber}<br>
+          Date: {$createdDate}{$dueHtml}
+        </div>
+        <div style="text-align:right;">{$stampHtml}</div>
+        <div style="text-align:right;">{$paidLineHtml}</div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="bill-to">
+    <strong>Bill To:</strong><br>
+    {$custName}<br>
+    {$custPhone}<br>
+    {$custEmail}<br>
+    {$custAddress}
+  </div>
+
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:45%;">Description</th>
+        <th>Rate Type</th>
+        <th class="num">Qty</th>
+        <th class="num">Unit Price</th>
+        <th class="num">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {$rowsHtml}
+    </tbody>
+    <tfoot>
+      <tr><td colspan="4" class="num label">Subtotal</td><td class="num">{$displaySubtotal}</td></tr>
+      {$taxRowHtml}
+      {$cardFeeRowHtml}
+      <tr class="total-row"><td colspan="4" class="num">Total Due</td><td class="num">{$displayTotalFmt}</td></tr>
+    </tfoot>
+  </table>
+
+  {$notesHtml}
+  {$footerHtml}
+</body>
+</html>
+HTML;
+
+    $options = new \Dompdf\Options();
+    $options->setIsRemoteEnabled(false);
+    $dompdf = new \Dompdf\Dompdf($options);
+    $dompdf->setPaper('letter', 'portrait');
+    $dompdf->loadHtml($html);
+    $dompdf->render();
+
+    return [
+        'name' => 'Invoice-' . preg_replace('/[^a-z0-9\-]+/i', '-', (string)($invoice['invoice_number'] ?? 'invoice')) . '.pdf',
+        'type' => 'application/pdf',
+        'content' => $dompdf->output(),
+    ];
+}
+
 function send_customer_portal_link_email(array $customer): bool
 {
     $email = trim((string)($customer['email'] ?? ''));
@@ -761,7 +961,7 @@ function send_customer_portal_link_email(array $customer): bool
         return false;
     }
 
-    $token = billing_portal_access_service()->issueTokenForCustomer($customerId, (int)get_setting('portal_link_ttl_minutes', '30'));
+    $token = billing_portal_access_service()->issueTokenForCustomer($customerId, (int)get_setting('portal_link_ttl_minutes', '1440'));
     $basePublicUrl = preg_replace('#/admin$#', '', APP_URL);
     $portalUrl = rtrim((string)$basePublicUrl, '/') . '/portal/index.php?customer_id=' . $customerId . '&token=' . urlencode($token);
     $copyTokens = [
@@ -1210,6 +1410,14 @@ function notify_booking_approved(array $booking, array $invoice = []): bool
     if ($termsAttachment !== null) {
         $attachments[] = $termsAttachment;
     }
+    $invoiceId = (int)($invoice['id'] ?? 0);
+    if ($invoiceId > 0) {
+        $invoiceItems = db_fetchall('SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id ASC', [$invoiceId]);
+        $invoicePdf = invoice_pdf_attachment($invoice, $invoiceItems);
+        if ($invoicePdf !== null) {
+            $attachments[] = $invoicePdf;
+        }
+    }
 
     $html = email_template(
         'Booking Approved — ' . (string)($booking['booking_number'] ?? ''),
@@ -1306,7 +1514,17 @@ function send_invoice_email_to_customer(array $invoice): bool
         $paymentLink !== '' ? $paymentLink : ''
     );
 
-    $sent = send_email($email, $subject, $html);
+    $attachments = [];
+    $invoiceId = (int)($invoice['id'] ?? 0);
+    if ($invoiceId > 0) {
+        $items = db_fetchall('SELECT * FROM invoice_items WHERE invoice_id = ? ORDER BY id ASC', [$invoiceId]);
+        $pdfAttachment = invoice_pdf_attachment($invoice, $items);
+        if ($pdfAttachment !== null) {
+            $attachments[] = $pdfAttachment;
+        }
+    }
+
+    $sent = send_email($email, $subject, $html, '', $attachments);
 
     if ($sent) {
         notify_admins(
