@@ -28,8 +28,9 @@ unset($_tp_phpmailer_autoload);
  * @param string $from  Override From; defaults to company email from settings
  * @return bool
  */
-function send_email(string $to, string $subject, string $html_body, string $from = '', array $attachments = []): bool
+function send_email(string $to, string $subject, string $html_body, string $from = '', array $attachments = [], ?string &$error = null): bool
 {
+    $error = null;
     $from_name  = get_setting('email_from_name',  get_setting('company_name', 'Trash Panda Roll-Offs'));
     $from_email = get_setting('email_from_email', get_setting('company_email', 'noreply@example.com'));
 
@@ -86,6 +87,7 @@ function send_email(string $to, string $subject, string $html_body, string $from
             _log_notification('email', $to, $subject, $html_body, 'sent');
             return true;
         } catch (\Throwable $e) {
+            $error = $mail->ErrorInfo !== '' ? $mail->ErrorInfo : $e->getMessage();
             _log_notification('email', $to, $subject, $html_body, 'failed');
             return false;
         }
@@ -129,6 +131,10 @@ function send_email(string $to, string $subject, string $html_body, string $from
     }
 
     _log_notification('email', $to, $subject, $html_body, $result ? 'sent' : 'failed');
+
+    if (!$result) {
+        $error = 'PHP mail() returned false. Check your PHP mail() configuration.';
+    }
 
     return (bool)$result;
 }

@@ -94,11 +94,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'Test Email',
                 '<p>This is a test email from your Trash Panda Roll-Offs Manager.</p><p>If you received this, email sending is working correctly.</p>'
             );
-            $result = send_email($to, 'Test Email from ' . get_setting('company_name', 'Trash Panda Roll-Offs'), $html);
+            $mail_error = null;
+            $result = send_email($to, 'Test Email from ' . get_setting('company_name', 'Trash Panda Roll-Offs'), $html, '', [], $mail_error);
             if ($result) {
                 flash_success('Test email sent to ' . $to . '.');
             } else {
-                flash_error('Failed to send test email. Check your PHP mail() configuration.');
+                flash_error('Failed to send test email' . ($mail_error ? ': ' . $mail_error : '. Check your PHP mail() configuration.'));
             }
         }
         redirect('index.php');
