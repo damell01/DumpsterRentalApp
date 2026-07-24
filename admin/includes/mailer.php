@@ -88,6 +88,14 @@ function send_email(string $to, string $subject, string $html_body, string $from
             return true;
         } catch (\Throwable $e) {
             $error = $mail->ErrorInfo !== '' ? $mail->ErrorInfo : $e->getMessage();
+            $smtp = $mail->getSMTPInstance();
+            $smtpError = $smtp !== null ? $smtp->getError() : [];
+            if (!empty($smtpError['error'])) {
+                $error .= ' — ' . $smtpError['error'];
+                if (!empty($smtpError['detail'])) {
+                    $error .= ' (' . $smtpError['detail'] . ')';
+                }
+            }
             _log_notification('email', $to, $subject, $html_body, 'failed');
             return false;
         }
