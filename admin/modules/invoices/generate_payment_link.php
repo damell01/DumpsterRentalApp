@@ -1,7 +1,8 @@
 <?php
 /**
- * Invoices – Generate Stripe Payment Link
- * Creates a Stripe Checkout session and stores the URL for the invoice.
+ * Invoices – Generate Payment Link
+ * Stores a stable pay-invoice.php URL; the actual Stripe Checkout session
+ * is created lazily when the customer clicks it (see /pay-invoice.php).
  * Trash Panda Roll-Offs
  */
 
@@ -35,26 +36,16 @@ if ((float)$inv['total'] <= 0) {
     redirect('view.php?id=' . $id);
 }
 
-try {
-    $scheme      = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $public_base = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? parse_url(APP_URL, PHP_URL_HOST));
-    $inv_token   = hash_hmac('sha256', 'inv_' . $id, defined('PORTAL_SIGNING_KEY') ? PORTAL_SIGNING_KEY : 'invoice-token-secret');
-    $success_url = $public_base . '/invoice-paid.php?id=' . $id . '&token=' . urlencode($inv_token) . '&session_id={CHECKOUT_SESSION_ID}';
-    $cancel_url  = $public_base . '/invoice-canceled.php?id=' . $id . '&token=' . urlencode($inv_token);
+// The actual Stripe Checkout session is created on demand when the customer
+// clicks the link (see /pay-invoice.php), so it always gets a fresh 24h
+// expiry window instead of expiring while the invoice sits unpaid.
+db_update('invoices', [
+    'stripe_payment_link' => invoice_pay_url($id),
+    'payment_method'      => $paymentMethod,
+    'updated_at'          => date('Y-m-d H:i:s'),
+], 'id', $id);
 
-    $session = stripe_create_invoice_checkout($inv, $success_url, $cancel_url, $paymentMethod);
-
-    db_update('invoices', [
-        'stripe_payment_link' => $session->url,
-        'stripe_session_id'   => $session->id,
-        'payment_method'      => $paymentMethod,
-        'updated_at'          => date('Y-m-d H:i:s'),
-    ], 'id', $id);
-
-    log_activity('update', "Generated Stripe payment link for invoice {$inv['invoice_number']} ({$paymentMethod}, session: {$session->id})", 'invoice', $id);
-    flash_success("Stripe payment link generated for invoice {$inv['invoice_number']} using " . payment_method_label($paymentMethod) . '.');
-} catch (\Throwable $e) {
-    flash_error('Stripe error: ' . $e->getMessage());
-}
+log_activity('update', "Generated payment link for invoice {$inv['invoice_number']} ({$paymentMethod})", 'invoice', $id);
+flash_success("Payment link generated for invoice {$inv['invoice_number']} using " . payment_method_label($paymentMethod) . '.');
 
 redirect('view.php?id=' . $id);

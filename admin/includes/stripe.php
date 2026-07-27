@@ -49,6 +49,19 @@ function stripe_create_invoice_checkout(array $invoice, string $success_url, str
     return $session;
 }
 
+/**
+ * Build a stable, non-expiring link for a customer to pay an invoice.
+ * Visiting this URL creates a fresh Stripe Checkout session on demand
+ * (see /pay-invoice.php), so the link itself never goes stale sitting
+ * in an email — only the Stripe session created at click-time expires.
+ */
+function invoice_pay_url(int $invoiceId): string
+{
+    $token = hash_hmac('sha256', 'inv_' . $invoiceId, PORTAL_SIGNING_KEY);
+    $publicBase = rtrim((string)preg_replace('#/admin/?$#', '', APP_URL), '/');
+    return $publicBase . '/pay-invoice.php?id=' . $invoiceId . '&token=' . urlencode($token);
+}
+
 function stripe_issue_refund(string $payment_id, ?int $amount_cents = null, string $reason = 'requested_by_customer'): \Stripe\Refund
 {
     $params = ['reason' => $reason];

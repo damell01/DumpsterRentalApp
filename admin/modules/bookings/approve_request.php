@@ -154,25 +154,15 @@ function create_invoice_from_booking(array $booking, bool $markSent = true): arr
         throw $e;
     }
 
-    try {
-        $stripeKey = trim(get_setting('stripe_secret_key', ''));
-        if ($stripeKey !== '' && str_starts_with($stripeKey, 'sk_')) {
-            $invoiceRow = db_fetch('SELECT * FROM invoices WHERE id = ? LIMIT 1', [$invoiceId]);
-            if ($invoiceRow) {
-                $baseUrl = rtrim(APP_URL, '/');
-                $successUrl = $baseUrl . '/modules/invoices/view.php?id=' . $invoiceId . '&paid=1';
-                $cancelUrl = $baseUrl . '/modules/invoices/view.php?id=' . $invoiceId;
-                $checkoutMethod = in_array($paymentMethod, ['stripe', 'ach'], true) ? $paymentMethod : 'stripe';
-                $session = stripe_create_invoice_checkout($invoiceRow, $successUrl, $cancelUrl, $checkoutMethod);
-                db_update('invoices', [
-                    'stripe_payment_link' => $session->url,
-                    'stripe_session_id' => $session->id,
-                    'updated_at' => date('Y-m-d H:i:s'),
-                ], 'id', $invoiceId);
-            }
-        }
-    } catch (\Throwable $e) {
-        error_log('[Booking approval] Stripe payment link generation failed: ' . $e->getMessage());
+    // Store a stable pay link now; the actual Stripe Checkout session is
+    // created on demand when the customer clicks it (see /pay-invoice.php),
+    // so it always gets a fresh 24h expiry instead of expiring in-inbox.
+    $stripeKey = trim(get_setting('stripe_secret_key', ''));
+    if ($stripeKey !== '' && str_starts_with($stripeKey, 'sk_')) {
+        db_update('invoices', [
+            'stripe_payment_link' => invoice_pay_url($invoiceId),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ], 'id', $invoiceId);
     }
 
     $invoice = db_fetch('SELECT * FROM invoices WHERE id = ? LIMIT 1', [$invoiceId]) ?: ['id' => $invoiceId, 'invoice_number' => $invoiceNumber];
@@ -200,30 +190,14 @@ function booking_ensure_invoice_payment_link(array $invoice, string $paymentMeth
         $paymentMethod = 'stripe';
     }
 
-    try {
-        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $publicBase = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? parse_url(APP_URL, PHP_URL_HOST));
-        $invoiceToken = hash_hmac('sha256', 'inv_' . $invoiceId, defined('PORTAL_SIGNING_KEY') ? PORTAL_SIGNING_KEY : 'invoice-token-secret');
-        $successUrl = $publicBase . '/invoice-paid.php?id=' . $invoiceId . '&token=' . urlencode($invoiceToken) . '&session_id={CHECKOUT_SESSION_ID}';
-        $cancelUrl = $publicBase . '/invoice-canceled.php?id=' . $invoiceId . '&token=' . urlencode($invoiceToken);
+    db_update('invoices', [
+        'stripe_payment_link' => invoice_pay_url($invoiceId),
+        'payment_method'      => $paymentMethod,
+        'updated_at'          => date('Y-m-d H:i:s'),
+    ], 'id', $invoiceId);
 
-        $session = stripe_create_invoice_checkout($invoice, $successUrl, $cancelUrl, $paymentMethod);
-        db_update('invoices', [
-            'stripe_payment_link' => $session->url,
-            'stripe_session_id'   => $session->id,
-            'payment_method'      => $paymentMethod,
-            'updated_at'          => date('Y-m-d H:i:s'),
-        ], 'id', $invoiceId);
-
-        $fresh = db_fetch('SELECT * FROM invoices WHERE id = ? LIMIT 1', [$invoiceId]);
-        if ($fresh) {
-            return $fresh;
-        }
-    } catch (\Throwable $e) {
-        error_log('[Booking approval] Invoice payment link retry failed: ' . $e->getMessage());
-    }
-
-    return $invoice;
+    $fresh = db_fetch('SELECT * FROM invoices WHERE id = ? LIMIT 1', [$invoiceId]);
+    return $fresh ?: $invoice;
 }
 
 function create_work_order_from_booking(array $booking): array
