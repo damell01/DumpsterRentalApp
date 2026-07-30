@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $unit = null;
     if (empty($errors) && $dumpster_id > 0) {
         $unit = db_fetch(
-            "SELECT id, unit_code, type, size, daily_rate, active, status
+            "SELECT id, unit_code, type, size, daily_rate, base_price, rental_days, extra_day_price, active, status
              FROM dumpsters WHERE id = ? LIMIT 1",
             [$dumpster_id]
         );
