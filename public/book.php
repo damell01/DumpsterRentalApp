@@ -415,22 +415,20 @@ $card_fee_percent = max(0, (float)get_setting('card_fee_percent', '0'));
                     $wr = (float)($u['weekly_rate'] ?? 0);
                     $mr = (float)($u['monthly_rate'] ?? 0);
                     $dr = (float)($u['daily_rate'] ?? 0);
-                    // Base Price is never shown as its own label. If a unit only
-                    // has Base Price set (no Daily Rate), display it as a computed
-                    // daily-equivalent instead — display only; the real charge
-                    // still uses Base Price + Extra Day Price server-side.
-                    $displayDaily = $dr > 0 ? $dr : ($bp > 0 && $rd > 0 ? round($bp / $rd, 2) : 0);
 
-                    // Advertise the best long-term value first: Monthly, then
-                    // Weekly, then Daily (real or computed) as a last resort.
+                    // Show whichever rate is set, in priority order: Monthly,
+                    // then Weekly, then Daily. Base Price is the last resort —
+                    // only shown when none of the other three are configured.
                     if ($mr > 0):
                     ?>
                     <div class="unit-rate">$<?= number_format($mr, 2) ?>/mo</div>
                     <?php elseif ($wr > 0): ?>
                     <div class="unit-rate">$<?= number_format($wr, 2) ?>/wk</div>
-                    <?php elseif ($displayDaily > 0): ?>
-                    <div class="unit-rate">$<?= number_format($displayDaily, 2) ?>/day</div>
-                    <?php if ($dr <= 0 && $ep > 0): ?>
+                    <?php elseif ($dr > 0): ?>
+                    <div class="unit-rate">$<?= number_format($dr, 2) ?>/day</div>
+                    <?php elseif ($bp > 0): ?>
+                    <div class="unit-rate">$<?= number_format($bp, 2) ?><?= $rd > 0 ? ' / ' . $rd . 'd' : '' ?></div>
+                    <?php if ($ep > 0): ?>
                     <div style="font-size:.72rem;color:var(--gray);margin-top:.15rem;">+$<?= number_format($ep, 2) ?>/extra day</div>
                     <?php endif; ?>
                     <?php else: ?>
@@ -441,7 +439,7 @@ $card_fee_percent = max(0, (float)get_setting('card_fee_percent', '0'));
                     // excluding whatever's already shown as the primary rate above.
                     $secondary = [];
                     if ($mr > 0 && $wr > 0) $secondary[] = '$' . number_format($wr, 2) . '/wk';
-                    if (($mr > 0 || $wr > 0) && $displayDaily > 0) $secondary[] = '$' . number_format($displayDaily, 2) . '/day';
+                    if (($mr > 0 || $wr > 0) && $dr > 0) $secondary[] = '$' . number_format($dr, 2) . '/day';
                     if (!empty($secondary)):
                     ?>
                     <div style="font-size:.72rem;color:var(--gray);margin-top:.15rem;"><?= implode(' · ', $secondary) ?></div>

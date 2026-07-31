@@ -162,11 +162,9 @@ function rentalLabel(days) {
   return `${count} day rental`;
 }
 
-// Advertise the best long-term value first: Monthly, then Weekly, then a
-// straight Daily Rate. Base Price is never shown as its own label — if a
-// unit only has Base Price configured (no Daily Rate), we display it as
-// a computed daily-equivalent instead. This is display-only: the actual
-// charge still uses the real Base Price + Extra Day Price math server-side.
+// Show whichever rate is set, in priority order: Monthly, then Weekly,
+// then Daily. Base Price is the last resort — only shown when none of
+// the other three are configured for this unit/size.
 function primaryPrice(size) {
   const monthly = Number(size.monthly_rate || 0);
   if (monthly > 0) return { amount: monthly, label: '/mo' };
@@ -179,7 +177,7 @@ function primaryPrice(size) {
 
   const base = Number(size.base_price || 0);
   const inclDays = Number(size.rental_days || 0);
-  if (base > 0 && inclDays > 0) return { amount: base / inclDays, label: '/day' };
+  if (base > 0) return { amount: base, label: inclDays > 0 ? ` / ${inclDays}d` : '' };
 
   return null;
 }
