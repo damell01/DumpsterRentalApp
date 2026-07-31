@@ -162,9 +162,11 @@ function rentalLabel(days) {
   return `${count} day rental`;
 }
 
-// Advertise the best long-term value first: Monthly, then Weekly, then the
-// flat Base Price, and only fall back to a straight Daily Rate if none of
-// the tiered rates are configured for this size.
+// Advertise the best long-term value first: Monthly, then Weekly, then a
+// straight Daily Rate. Base Price is never shown as its own label — if a
+// unit only has Base Price configured (no Daily Rate), we display it as
+// a computed daily-equivalent instead. This is display-only: the actual
+// charge still uses the real Base Price + Extra Day Price math server-side.
 function primaryPrice(size) {
   const monthly = Number(size.monthly_rate || 0);
   if (monthly > 0) return { amount: monthly, label: '/mo' };
@@ -172,11 +174,12 @@ function primaryPrice(size) {
   const weekly = Number(size.weekly_rate || 0);
   if (weekly > 0) return { amount: weekly, label: '/wk' };
 
-  const base = Number(size.base_price || 0);
-  if (base > 0) return { amount: base, label: size.rental_days ? ` / ${size.rental_days}d` : '' };
-
   const daily = Number(size.daily_rate || 0);
   if (daily > 0) return { amount: daily, label: '/day' };
+
+  const base = Number(size.base_price || 0);
+  const inclDays = Number(size.rental_days || 0);
+  if (base > 0 && inclDays > 0) return { amount: base / inclDays, label: '/day' };
 
   return null;
 }
@@ -186,10 +189,8 @@ function buildPricingLine(size) {
   if (!primary) return '';
 
   const parts = [`From ${formatMoney(primary.amount)}${primary.label}`];
-  const dailyRate = formatMoney(size.daily_rate);
   const extraDay = formatMoney(size.extra_day_price);
 
-  if (dailyRate && primary.label !== '/day') parts.push(`${dailyRate}/day`);
   if (extraDay) parts.push(`${extraDay} extra day`);
 
   return parts.join(' | ');
