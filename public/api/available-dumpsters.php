@@ -25,7 +25,8 @@ try {
     $columns = ['id', 'unit_code', 'size', 'status'];
     foreach ([
         'product_name', 'type', 'description', 'base_price', 'rental_days',
-        'extra_day_price', 'daily_rate', 'delivery_fee', 'pickup_fee', 'image', 'active'
+        'extra_day_price', 'daily_rate', 'weekly_rate', 'monthly_rate',
+        'delivery_fee', 'pickup_fee', 'image', 'active'
     ] as $optionalColumn) {
         if (db_column_exists('dumpsters', $optionalColumn)) {
             $columns[] = $optionalColumn;
@@ -73,6 +74,8 @@ foreach ($rows as $row) {
             'rental_days' => 0,
             'extra_day_price' => null,
             'daily_rate' => null,
+            'weekly_rate' => null,
+            'monthly_rate' => null,
             'delivery_fee' => null,
             'pickup_fee' => null,
             'image' => trim((string)($row['image'] ?? '')),
@@ -99,27 +102,41 @@ foreach ($rows as $row) {
         $grouped[$size]['maintenance_count']++;
     }
 
-    $basePrice = $row['base_price'] !== null ? (float)$row['base_price'] : null;
+    // All of these columns are NOT NULL DEFAULT 0.00, so a unit missing this
+    // price is indistinguishable from a genuine $0 — treat 0 as "not set" and
+    // skip it, otherwise one unconfigured unit drags the whole size's
+    // advertised price down to $0.
+    $basePrice = (float)$row['base_price'] > 0 ? (float)$row['base_price'] : null;
     if ($basePrice !== null && ($grouped[$size]['base_price'] === null || $basePrice < $grouped[$size]['base_price'])) {
         $grouped[$size]['base_price'] = $basePrice;
     }
 
-    $extraDay = $row['extra_day_price'] !== null ? (float)$row['extra_day_price'] : null;
+    $extraDay = (float)$row['extra_day_price'] > 0 ? (float)$row['extra_day_price'] : null;
     if ($extraDay !== null && ($grouped[$size]['extra_day_price'] === null || $extraDay < $grouped[$size]['extra_day_price'])) {
         $grouped[$size]['extra_day_price'] = $extraDay;
     }
 
-    $dailyRate = $row['daily_rate'] !== null ? (float)$row['daily_rate'] : null;
+    $dailyRate = (float)$row['daily_rate'] > 0 ? (float)$row['daily_rate'] : null;
     if ($dailyRate !== null && ($grouped[$size]['daily_rate'] === null || $dailyRate < $grouped[$size]['daily_rate'])) {
         $grouped[$size]['daily_rate'] = $dailyRate;
     }
 
-    $deliveryFee = $row['delivery_fee'] !== null ? (float)$row['delivery_fee'] : null;
+    $weeklyRate = (float)$row['weekly_rate'] > 0 ? (float)$row['weekly_rate'] : null;
+    if ($weeklyRate !== null && ($grouped[$size]['weekly_rate'] === null || $weeklyRate < $grouped[$size]['weekly_rate'])) {
+        $grouped[$size]['weekly_rate'] = $weeklyRate;
+    }
+
+    $monthlyRate = (float)$row['monthly_rate'] > 0 ? (float)$row['monthly_rate'] : null;
+    if ($monthlyRate !== null && ($grouped[$size]['monthly_rate'] === null || $monthlyRate < $grouped[$size]['monthly_rate'])) {
+        $grouped[$size]['monthly_rate'] = $monthlyRate;
+    }
+
+    $deliveryFee = (float)$row['delivery_fee'] > 0 ? (float)$row['delivery_fee'] : null;
     if ($deliveryFee !== null && ($grouped[$size]['delivery_fee'] === null || $deliveryFee < $grouped[$size]['delivery_fee'])) {
         $grouped[$size]['delivery_fee'] = $deliveryFee;
     }
 
-    $pickupFee = $row['pickup_fee'] !== null ? (float)$row['pickup_fee'] : null;
+    $pickupFee = (float)$row['pickup_fee'] > 0 ? (float)$row['pickup_fee'] : null;
     if ($pickupFee !== null && ($grouped[$size]['pickup_fee'] === null || $pickupFee < $grouped[$size]['pickup_fee'])) {
         $grouped[$size]['pickup_fee'] = $pickupFee;
     }

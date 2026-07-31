@@ -162,14 +162,34 @@ function rentalLabel(days) {
   return `${count} day rental`;
 }
 
+// Advertise the best long-term value first: Monthly, then Weekly, then the
+// flat Base Price, and only fall back to a straight Daily Rate if none of
+// the tiered rates are configured for this size.
+function primaryPrice(size) {
+  const monthly = Number(size.monthly_rate || 0);
+  if (monthly > 0) return { amount: monthly, label: '/mo' };
+
+  const weekly = Number(size.weekly_rate || 0);
+  if (weekly > 0) return { amount: weekly, label: '/wk' };
+
+  const base = Number(size.base_price || 0);
+  if (base > 0) return { amount: base, label: size.rental_days ? ` / ${size.rental_days}d` : '' };
+
+  const daily = Number(size.daily_rate || 0);
+  if (daily > 0) return { amount: daily, label: '/day' };
+
+  return null;
+}
+
 function buildPricingLine(size) {
-  const parts = [];
-  const basePrice = formatMoney(size.base_price);
+  const primary = primaryPrice(size);
+  if (!primary) return '';
+
+  const parts = [`From ${formatMoney(primary.amount)}${primary.label}`];
   const dailyRate = formatMoney(size.daily_rate);
   const extraDay = formatMoney(size.extra_day_price);
 
-  if (basePrice) parts.push(`From ${basePrice}`);
-  if (dailyRate) parts.push(`${dailyRate}/day`);
+  if (dailyRate && primary.label !== '/day') parts.push(`${dailyRate}/day`);
   if (extraDay) parts.push(`${extraDay} extra day`);
 
   return parts.join(' | ');
@@ -293,7 +313,7 @@ function renderSizesPage(sizes) {
               <div class="spec-item"><div class="spec-val">${available}</div><div class="spec-key">Available Now</div></div>
               <div class="spec-item"><div class="spec-val">${total}</div><div class="spec-key">Active Units</div></div>
               <div class="spec-item"><div class="spec-val">${escapeHtml(String(size.rental_days || 0))}</div><div class="spec-key">Rental Days</div></div>
-              <div class="spec-item"><div class="spec-val">${escapeHtml(formatMoney(size.base_price) || 'Call')}</div><div class="spec-key">Starting Price</div></div>
+              <div class="spec-item"><div class="spec-val">${escapeHtml((primaryPrice(size) && formatMoney(primaryPrice(size).amount)) || 'Call')}</div><div class="spec-key">Starting Price</div></div>
             </div>
             <div class="size-cols">
               <div>

@@ -414,21 +414,33 @@ $card_fee_percent = max(0, (float)get_setting('card_fee_percent', '0'));
                     $ep = (float)($u['extra_day_price'] ?? 0);
                     $wr = (float)($u['weekly_rate'] ?? 0);
                     $mr = (float)($u['monthly_rate'] ?? 0);
-                    if ($bp > 0 && $rd > 0):
+                    $dr = (float)($u['daily_rate'] ?? 0);
+
+                    // Advertise the best long-term value first: Monthly, then
+                    // Weekly, then flat Base Price, then Daily as a last resort.
+                    if ($mr > 0):
                     ?>
+                    <div class="unit-rate">$<?= number_format($mr, 2) ?>/mo</div>
+                    <?php elseif ($wr > 0): ?>
+                    <div class="unit-rate">$<?= number_format($wr, 2) ?>/wk</div>
+                    <?php elseif ($bp > 0 && $rd > 0): ?>
                     <div class="unit-rate">$<?= number_format($bp, 2) ?> / <?= $rd ?>d</div>
                     <?php if ($ep > 0): ?>
                     <div style="font-size:.72rem;color:var(--gray);margin-top:.15rem;">+$<?= number_format($ep, 2) ?>/extra day</div>
                     <?php endif; ?>
                     <?php else: ?>
-                    <div class="unit-rate">$<?= number_format((float)$u['daily_rate'], 2) ?>/day</div>
+                    <div class="unit-rate">$<?= number_format($dr, 2) ?>/day</div>
                     <?php endif; ?>
-                    <?php if ($wr > 0 || $mr > 0): ?>
-                    <div style="font-size:.72rem;color:var(--gray);margin-top:.15rem;">
-                        <?php if ($wr > 0): ?>$<?= number_format($wr, 2) ?>/wk<?php endif; ?>
-                        <?php if ($wr > 0 && $mr > 0): ?> · <?php endif; ?>
-                        <?php if ($mr > 0): ?>$<?= number_format($mr, 2) ?>/mo<?php endif; ?>
-                    </div>
+                    <?php
+                    // Secondary line: show whichever other rates are configured,
+                    // excluding whatever's already shown as the primary rate above.
+                    $secondary = [];
+                    if ($mr > 0 && $wr > 0) $secondary[] = '$' . number_format($wr, 2) . '/wk';
+                    if (($mr > 0 || $wr > 0) && $bp > 0 && $rd > 0) $secondary[] = '$' . number_format($bp, 2) . ' / ' . $rd . 'd';
+                    if (($mr > 0 || $wr > 0 || ($bp > 0 && $rd > 0)) && $dr > 0) $secondary[] = '$' . number_format($dr, 2) . '/day';
+                    if (!empty($secondary)):
+                    ?>
+                    <div style="font-size:.72rem;color:var(--gray);margin-top:.15rem;"><?= implode(' · ', $secondary) ?></div>
                     <?php endif; ?>
                     <div class="unit-type-badge"><?= htmlspecialchars(ucfirst($u['type']), ENT_QUOTES, 'UTF-8') ?></div>
                     <div class="unit-status-badge <?= $statusClass ?>" data-status-badge="<?= (int)$u['id'] ?>"><?= htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') ?></div>
