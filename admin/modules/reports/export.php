@@ -9,6 +9,7 @@
 
 require_once dirname(__DIR__, 2) . '/includes/bootstrap.php';
 require_login();
+require_role('admin', 'office');
 
 // ── Filters (same as index.php) ───────────────────────────────────────────────
 $type       = in_array(trim($_GET['type'] ?? 'bookings'), ['bookings', 'invoices', 'work_orders'], true)

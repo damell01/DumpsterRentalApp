@@ -41,6 +41,11 @@ try {
     $error = $e->getMessage();
 }
 
+$subscriptionBillingAvailable = stripe_sdk_available() && trim((string)get_setting('stripe_secret_key', '')) !== '';
+$subscriptionBillingMessage = $subscriptionBillingAvailable
+    ? ''
+    : 'Subscription changes are temporarily unavailable because secure Stripe billing is not installed or configured on this server yet.';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $customer) {
     csrf_check();
     $action = trim((string)($_POST['action'] ?? ''));
@@ -79,10 +84,6 @@ $subscriptions = $customer ? db_fetchall('SELECT * FROM subscriptions WHERE cust
 $invoices = $customer ? db_fetchall('SELECT * FROM invoices WHERE customer_id = ? ORDER BY created_at DESC LIMIT 50', [(int)$customer['id']]) : [];
 $payments = $customer ? db_fetchall('SELECT * FROM payments WHERE customer_id = ? ORDER BY created_at DESC LIMIT 50', [(int)$customer['id']]) : [];
 $paymentMethods = $customer ? db_fetchall('SELECT * FROM payment_methods WHERE customer_id = ? ORDER BY is_default DESC, updated_at DESC', [(int)$customer['id']]) : [];
-$subscriptionBillingAvailable = stripe_sdk_available() && trim((string)get_setting('stripe_secret_key', '')) !== '';
-$subscriptionBillingMessage = $subscriptionBillingAvailable
-    ? ''
-    : 'Subscription changes are temporarily unavailable because secure Stripe billing is not installed or configured on this server yet.';
 
 $active_subscription_count = 0;
 foreach ($subscriptions as $subscription) {

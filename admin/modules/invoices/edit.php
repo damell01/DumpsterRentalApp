@@ -66,7 +66,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors)) {
         $subtotal = array_sum(array_column($items, 'amount'));
-        $total    = $subtotal;
+        $card_fee_pct = in_array((string)($inv['payment_method'] ?? ''), ['stripe', 'ach', 'card'], true)
+            ? (float)get_setting('card_fee_percent', '0') : 0.0;
+        $card_fee_amount = round($subtotal * $card_fee_pct / 100, 2);
+        $total = round($subtotal + $card_fee_amount, 2);
 
         // Stripe Payment Link (re-generate if explicitly requested, or if none exists yet)
         $stripe_payment_link = $inv['stripe_payment_link']; // keep existing by default
@@ -107,6 +110,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'subtotal'            => $subtotal,
             'tax_rate'            => 0,
             'tax_amount'          => 0,
+            'card_fee_rate'       => $card_fee_pct,
+            'card_fee_amount'     => $card_fee_amount,
             'total'               => $total,
             'notes'               => $upd['notes'],
             'terms'               => $upd['terms'],

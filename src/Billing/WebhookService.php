@@ -355,17 +355,25 @@ class WebhookService
     {
         $payment = \db_fetch('SELECT * FROM payments WHERE stripe_charge_id = ? ORDER BY id DESC LIMIT 1', [(string)$charge->id]);
         if ($payment) {
+            // A charge can be refunded partially — amount_refunded is the
+            // cumulative amount refunded so far, not necessarily the full
+            // charge. Only mark the booking/invoice as fully refunded/void
+            // when the entire charge has actually come back.
+            $isFullRefund = ((int)$charge->amount_refunded) >= ((int)($charge->amount ?? $charge->amount_refunded));
+
             \db_update('payments', [
-                'payment_status' => 'refunded',
+                'payment_status' => $isFullRefund ? 'refunded' : $payment['payment_status'],
                 'refunded_amount' => ((int)$charge->amount_refunded) / 100,
                 'updated_at' => date('Y-m-d H:i:s'),
             ], 'id', (int)$payment['id']);
 
-            if (!empty($payment['booking_id'])) {
-                \db_update('bookings', ['payment_status' => 'refunded', 'updated_at' => date('Y-m-d H:i:s')], 'id', (int)$payment['booking_id']);
-            }
-            if (!empty($payment['invoice_id'])) {
-                \db_update('invoices', ['status' => 'void', 'updated_at' => date('Y-m-d H:i:s')], 'id', (int)$payment['invoice_id']);
+            if ($isFullRefund) {
+                if (!empty($payment['booking_id'])) {
+                    \db_update('bookings', ['payment_status' => 'refunded', 'updated_at' => date('Y-m-d H:i:s')], 'id', (int)$payment['booking_id']);
+                }
+                if (!empty($payment['invoice_id'])) {
+                    \db_update('invoices', ['status' => 'void', 'updated_at' => date('Y-m-d H:i:s')], 'id', (int)$payment['invoice_id']);
+                }
             }
             try {
                 \notify_payment_refunded($payment, ((int)$charge->amount_refunded) / 100);

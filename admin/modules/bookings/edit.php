@@ -479,7 +479,7 @@ function updateTotal() {
         total = Math.floor(days / 7) * weekly + (days % 7) * overage;
     } else if (base > 0) {
         var extraDays = Math.max(0, days - incl);
-        total = base + (extraDays * (extra || 0));
+        total = base + (extraDays * overage);
     } else {
         total = rate * days;
     }

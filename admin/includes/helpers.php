@@ -93,7 +93,7 @@ function calculate_unit_rental_total(array $unit, int $days): float
 
     if ($basePrice > 0) {
         $extraDays = max(0, $days - $inclDays);
-        return round($basePrice + $extraDays * ($extraDayPrice ?? 0), 2);
+        return round($basePrice + $extraDays * $overageRate, 2);
     }
 
     return round($dailyRate * $days, 2);

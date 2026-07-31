@@ -54,15 +54,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $new_dumpster_id = $old['dumpster_id'] !== '' ? (int)$old['dumpster_id'] : null;
         $old_dumpster_id = !empty($wo['dumpster_id']) ? (int)$wo['dumpster_id'] : null;
 
-        if ($old_dumpster_id !== $new_dumpster_id) {
-            if ($old_dumpster_id) {
-                $pdo->prepare('UPDATE dumpsters SET status = ? WHERE id = ?')->execute(['available', $old_dumpster_id]);
-            }
-            if ($new_dumpster_id) {
-                $pdo->prepare('UPDATE dumpsters SET status = ? WHERE id = ?')->execute(['reserved', $new_dumpster_id]);
-            }
-        }
-
         $driver_id_v   = $old['assigned_driver'] !== '' ? (int)$old['assigned_driver'] : null;
         $amount_v      = $old['amount'] !== '' ? (float)$old['amount'] : null;
         $pickup_date_v = $old['pickup_date'] !== '' ? $old['pickup_date'] : null;
@@ -84,7 +75,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $id,
         ]);
 
-        log_activity('update_work_order', 'Updated work order ' . $wo['wo_number'], $id);
+        // Reassign dumpster status after this work order's own dumpster_id
+        // has already been updated above, so release_dumpster_if_free() sees
+        // this work order pointing at its new unit (if any) rather than
+        // still counting it as holding the old one.
+        if ($old_dumpster_id !== $new_dumpster_id) {
+            if ($old_dumpster_id) {
+                release_dumpster_if_free($old_dumpster_id);
+            }
+            if ($new_dumpster_id) {
+                $pdo->prepare('UPDATE dumpsters SET status = ? WHERE id = ?')->execute(['reserved', $new_dumpster_id]);
+            }
+        }
+
+        log_activity('update_work_order', 'Updated work order ' . $wo['wo_number'], 'work_order', $id);
         flash_success('Work Order ' . $wo['wo_number'] . ' updated.');
         redirect('view.php?id=' . $id);
     }

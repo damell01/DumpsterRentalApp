@@ -17,7 +17,10 @@ class InvoiceBillingService
             return (int)$existing['id'];
         }
 
-        $amountDue = ((int)$stripeInvoice->amount_due) / 100;
+        // Use the invoice's actual total, not amount_due — amount_due reflects
+        // what's still outstanding and is 0 once the invoice is fully paid,
+        // which is exactly the case this method is called for.
+        $total = ((int)($stripeInvoice->total ?? $stripeInvoice->amount_due)) / 100;
         $taxAmount = ((int)($stripeInvoice->tax ?? 0)) / 100;
         $subtotal = ((int)$stripeInvoice->subtotal) / 100;
         $customer = \db_fetch('SELECT * FROM customers WHERE id = ? LIMIT 1', [$customerId]) ?: [];
@@ -32,7 +35,7 @@ class InvoiceBillingService
             'subtotal' => $subtotal,
             'tax_rate' => 0,
             'tax_amount' => $taxAmount,
-            'total' => $amountDue,
+            'total' => $total,
             'status' => $stripeInvoice->status === 'paid' ? 'paid' : 'open',
             'due_date' => !empty($stripeInvoice->due_date) ? date('Y-m-d', (int)$stripeInvoice->due_date) : null,
             'stripe_invoice_id' => $stripeInvoice->id,

@@ -46,7 +46,7 @@ $alltime_stripe = db_fetch(
     "SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*) AS cnt
      FROM bookings
      WHERE payment_method = 'stripe'
-       AND payment_status IN ('paid','refunded')
+       AND payment_status = 'paid'
        AND booking_status != 'canceled'"
 ) ?: ['total' => 0, 'cnt' => 0];
 
@@ -54,7 +54,7 @@ $alltime_ach = db_fetch(
     "SELECT COALESCE(SUM(total_amount),0) AS total, COUNT(*) AS cnt
      FROM bookings
      WHERE payment_method = 'ach'
-       AND payment_status IN ('paid','processing','refunded')
+       AND payment_status IN ('paid','processing')
        AND booking_status != 'canceled'"
 ) ?: ['total' => 0, 'cnt' => 0];
 

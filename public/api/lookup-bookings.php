@@ -41,6 +41,10 @@ api_rate_limit('booking_lookup_id', 5, 3600, 0, md5(strtolower($identifier)));
 // Determine if identifier is email or phone
 $is_email = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false;
 $digits   = preg_replace('/\D/', '', $identifier);
+// Normalize away an optional leading US country code so "2515551234" and
+// "12515551234" both match, without resorting to a substring match.
+$digitsNoCountry   = (strlen($digits) === 11 && $digits[0] === '1') ? substr($digits, 1) : $digits;
+$digitsWithCountry = strlen($digitsNoCountry) === 10 ? '1' . $digitsNoCountry : $digits;
 
 $invoiceColumnsAvailable = db_table_exists('invoices');
 $invoiceSelect = '';
@@ -91,9 +95,9 @@ if ($invoiceColumnsAvailable) {
                     ) AS invoice_payment_link";
 }
 
-if (!$is_email && strlen($digits) < 7) {
+if (!$is_email && strlen($digitsNoCountry) !== 10) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Please enter a valid email address or phone number.']);
+    echo json_encode(['success' => false, 'error' => 'Please enter a valid email address or 10-digit phone number.']);
     exit;
 }
 
@@ -113,7 +117,9 @@ try {
             [strtolower($identifier)]
         );
     } else {
-        // Match on digits-only phone
+        // Exact match on digits-only phone (tolerating an optional leading
+        // country code) — never a substring match, which would leak other
+        // customers' bookings to anyone guessing a shared digit sequence.
         $bookings = db_fetchall(
             "SELECT b.id, b.booking_number, b.customer_name, b.customer_email, b.customer_phone,
                     b.unit_code, b.unit_size, b.rental_start, b.rental_end, b.rental_days,
@@ -122,10 +128,10 @@ try {
                     b.booking_group_id
                     {$invoiceSelect}
                FROM bookings b
-              WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(b.customer_phone, '-', ''), '(', ''), ')', ''), ' ', ''), '.', ''), '+', ''), '/', '') LIKE ?
+              WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(b.customer_phone, '-', ''), '(', ''), ')', ''), ' ', ''), '.', ''), '+', ''), '/', '') IN (?, ?)
               ORDER BY b.rental_start DESC
               LIMIT 50",
-            ['%' . $digits . '%']
+            [$digitsNoCountry, $digitsWithCountry]
         );
     }
 } catch (\Throwable $e) {

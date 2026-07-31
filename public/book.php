@@ -880,7 +880,7 @@ function calcUnitTotal(u, days) {
     }
     if (u.basePrice > 0 && u.rentalDays > 0) {
         var extra = Math.max(0, days - u.rentalDays);
-        return u.basePrice + extra * u.extraDayPrice;
+        return u.basePrice + extra * overage;
     }
     return u.rate * days;
 }
@@ -905,9 +905,9 @@ function unitBreakdown(u, days) {
     }
     if (u.basePrice > 0 && u.rentalDays > 0) {
         var extra = Math.max(0, days - u.rentalDays);
-        var t = u.basePrice + extra * u.extraDayPrice;
+        var t = u.basePrice + extra * overage;
         var s = u.size + ' · $' + u.basePrice.toFixed(2) + ' / ' + u.rentalDays + ' day' + (u.rentalDays !== 1 ? 's' : '');
-        if (extra > 0) s += ' + ' + extra + ' extra @ $' + u.extraDayPrice.toFixed(2) + '/day';
+        if (extra > 0) s += ' + ' + extra + ' extra @ $' + overage.toFixed(2) + '/day';
         s += ' = $' + t.toFixed(2);
         return s;
     }

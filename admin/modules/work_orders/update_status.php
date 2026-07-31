@@ -76,9 +76,9 @@ if (!empty($wo['dumpster_id'])) {
         $pdo->prepare('UPDATE dumpsters SET status = ? WHERE id = ?')
             ->execute(['in_use', $dumpster_id]);
     } elseif (in_array($new_status, ['picked_up', 'completed', 'canceled'])) {
-        // Dumpster returned or job ended
-        $pdo->prepare('UPDATE dumpsters SET status = ? WHERE id = ?')
-            ->execute(['available', $dumpster_id]);
+        // Dumpster returned or job ended — only release it if no other
+        // active booking/work order still has it committed.
+        release_dumpster_if_free($dumpster_id);
     } elseif ($new_status === 'scheduled') {
         // Reverted to scheduled — mark as reserved
         $pdo->prepare('UPDATE dumpsters SET status = ? WHERE id = ?')

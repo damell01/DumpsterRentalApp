@@ -79,19 +79,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $refund = stripe_issue_refund($pid, $amount_cents, $reason);
 
-        // Update booking payment status
-        db_update('bookings', [
-            'payment_status' => 'refunded',
-            'updated_at'     => date('Y-m-d H:i:s'),
-        ], 'id', $id);
+        $refunded_amount_num = $amount_cents !== null ? $amount_cents / 100 : (float)$booking['total_amount'];
+        $is_full_refund = $amount_cents === null || $refunded_amount_num >= (float)$booking['total_amount'];
 
-        $refunded_amount = $amount_cents !== null
-            ? fmt_money($amount_cents / 100)
-            : fmt_money($booking['total_amount']);
+        // payment_status has no "partially refunded" state — only flip it to
+        // 'refunded' when the full amount was returned, so a partial refund
+        // doesn't misrepresent the booking as fully unpaid/refunded.
+        if ($is_full_refund) {
+            db_update('bookings', [
+                'payment_status' => 'refunded',
+                'updated_at'     => date('Y-m-d H:i:s'),
+            ], 'id', $id);
+        }
+
+        $refunded_amount = fmt_money($refunded_amount_num);
 
         log_activity(
             'refund',
-            "Issued {$refunded_amount} refund for booking {$booking['booking_number']} (Stripe refund {$refund->id})",
+            "Issued {$refunded_amount} refund for booking {$booking['booking_number']}"
+                . ($is_full_refund ? '' : ' (partial — booking remains marked paid)')
+                . " (Stripe refund {$refund->id})",
             'booking',
             $id
         );

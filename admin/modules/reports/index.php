@@ -7,6 +7,7 @@
 require_once dirname(__DIR__, 2) . '/includes/bootstrap.php';
 require_once TMPL_PATH . '/layout.php';
 require_login();
+require_role('admin', 'office');
 
 // ── Filters ───────────────────────────────────────────────────────────────────
 $date_from  = trim($_GET['date_from']  ?? '');

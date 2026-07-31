@@ -24,10 +24,9 @@ $pdo->prepare('DELETE FROM work_order_notes WHERE wo_id = ?')->execute([$id]);
 // Delete the work order
 $pdo->prepare('DELETE FROM work_orders WHERE id = ?')->execute([$id]);
 
-// ── Release dumpster back to available ────────────────────────────────────────
+// ── Release dumpster back to available, if nothing else still holds it ────────
 if ($dumpster_id) {
-    $pdo->prepare('UPDATE dumpsters SET status = ? WHERE id = ?')
-        ->execute(['available', $dumpster_id]);
+    release_dumpster_if_free($dumpster_id);
 }
 
 // ── Log & notify ──────────────────────────────────────────────────────────────

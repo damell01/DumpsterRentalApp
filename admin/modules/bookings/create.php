@@ -611,7 +611,7 @@ function calcUnitTotal(card, days) {
         return Math.floor(days / 7) * weekly + (days % 7) * overage;
     }
     if (base > 0) {
-        return base + Math.max(0, days - incl) * (extra || 0);
+        return base + Math.max(0, days - incl) * overage;
     }
     return rate * days;
 }
