@@ -11,7 +11,7 @@ require_once INC_PATH . '/helpers.php';
 $public_sizes = public_dumpster_sizes();
 
 $units = db_fetchall(
-    "SELECT id, unit_code, type, size, daily_rate, base_price, rental_days, extra_day_price, image, status
+    "SELECT id, unit_code, type, size, daily_rate, base_price, rental_days, extra_day_price, weekly_rate, monthly_rate, image, status
      FROM dumpsters
      WHERE active = 1 AND status != 'maintenance'
      ORDER BY COALESCE(base_price, daily_rate) ASC, size ASC, unit_code ASC"
@@ -393,6 +393,8 @@ $card_fee_percent = max(0, (float)get_setting('card_fee_percent', '0'));
                            data-base-price="<?= htmlspecialchars((string)(float)($u['base_price'] ?? 0), ENT_QUOTES, 'UTF-8') ?>"
                            data-rental-days="<?= (int)($u['rental_days'] ?? 0) ?>"
                            data-extra-day-price="<?= htmlspecialchars((string)(float)($u['extra_day_price'] ?? 0), ENT_QUOTES, 'UTF-8') ?>"
+                           data-weekly-rate="<?= htmlspecialchars((string)(float)($u['weekly_rate'] ?? 0), ENT_QUOTES, 'UTF-8') ?>"
+                           data-monthly-rate="<?= htmlspecialchars((string)(float)($u['monthly_rate'] ?? 0), ENT_QUOTES, 'UTF-8') ?>"
                            data-code="<?= htmlspecialchars($u['unit_code'], ENT_QUOTES, 'UTF-8') ?>"
                            data-size="<?= htmlspecialchars($u['size'], ENT_QUOTES, 'UTF-8') ?>"
                            data-type="<?= htmlspecialchars($u['type'], ENT_QUOTES, 'UTF-8') ?>"
@@ -410,6 +412,8 @@ $card_fee_percent = max(0, (float)get_setting('card_fee_percent', '0'));
                     $bp = (float)($u['base_price'] ?? 0);
                     $rd = (int)($u['rental_days'] ?? 0);
                     $ep = (float)($u['extra_day_price'] ?? 0);
+                    $wr = (float)($u['weekly_rate'] ?? 0);
+                    $mr = (float)($u['monthly_rate'] ?? 0);
                     if ($bp > 0 && $rd > 0):
                     ?>
                     <div class="unit-rate">$<?= number_format($bp, 2) ?> / <?= $rd ?>d</div>
@@ -418,6 +422,13 @@ $card_fee_percent = max(0, (float)get_setting('card_fee_percent', '0'));
                     <?php endif; ?>
                     <?php else: ?>
                     <div class="unit-rate">$<?= number_format((float)$u['daily_rate'], 2) ?>/day</div>
+                    <?php endif; ?>
+                    <?php if ($wr > 0 || $mr > 0): ?>
+                    <div style="font-size:.72rem;color:var(--gray);margin-top:.15rem;">
+                        <?php if ($wr > 0): ?>$<?= number_format($wr, 2) ?>/wk<?php endif; ?>
+                        <?php if ($wr > 0 && $mr > 0): ?> · <?php endif; ?>
+                        <?php if ($mr > 0): ?>$<?= number_format($mr, 2) ?>/mo<?php endif; ?>
+                    </div>
                     <?php endif; ?>
                     <div class="unit-type-badge"><?= htmlspecialchars(ucfirst($u['type']), ENT_QUOTES, 'UTF-8') ?></div>
                     <div class="unit-status-badge <?= $statusClass ?>" data-status-badge="<?= (int)$u['id'] ?>"><?= htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') ?></div>
@@ -673,6 +684,8 @@ document.querySelectorAll('input.unit-checkbox').forEach(function(cb) {
             basePrice:     parseFloat(this.dataset.basePrice) || 0,
             rentalDays:    parseInt(this.dataset.rentalDays, 10) || 0,
             extraDayPrice: parseFloat(this.dataset.extraDayPrice) || 0,
+            weeklyRate:    parseFloat(this.dataset.weeklyRate) || 0,
+            monthlyRate:   parseFloat(this.dataset.monthlyRate) || 0,
             code:          this.dataset.code,
             size:          this.dataset.size,
             type:          this.dataset.type
@@ -701,6 +714,8 @@ document.querySelectorAll('input.unit-checkbox').forEach(function(cb) {
             basePrice: parseFloat(cb.dataset.basePrice) || 0,
             rentalDays: parseInt(cb.dataset.rentalDays, 10) || 0,
             extraDayPrice: parseFloat(cb.dataset.extraDayPrice) || 0,
+            weeklyRate: parseFloat(cb.dataset.weeklyRate) || 0,
+            monthlyRate: parseFloat(cb.dataset.monthlyRate) || 0,
             code: cb.dataset.code,
             size: cb.dataset.size,
             type: cb.dataset.type
@@ -837,7 +852,18 @@ document.getElementById('rental_end').addEventListener('change', function() {
     triggerAvailCheck();
 });
 
+function unitOverageRate(u) {
+    return u.extraDayPrice > 0 ? u.extraDayPrice : u.rate;
+}
+
 function calcUnitTotal(u, days) {
+    var overage = unitOverageRate(u);
+    if (days >= 30 && u.monthlyRate > 0) {
+        return Math.floor(days / 30) * u.monthlyRate + (days % 30) * overage;
+    }
+    if (days >= 7 && u.weeklyRate > 0) {
+        return Math.floor(days / 7) * u.weeklyRate + (days % 7) * overage;
+    }
     if (u.basePrice > 0 && u.rentalDays > 0) {
         var extra = Math.max(0, days - u.rentalDays);
         return u.basePrice + extra * u.extraDayPrice;
@@ -846,6 +872,23 @@ function calcUnitTotal(u, days) {
 }
 
 function unitBreakdown(u, days) {
+    var overage = unitOverageRate(u);
+    if (days >= 30 && u.monthlyRate > 0) {
+        var months = Math.floor(days / 30), rem = days % 30;
+        var mt = months * u.monthlyRate + rem * overage;
+        var ms = u.size + ' · ' + months + ' month' + (months !== 1 ? 's' : '') + ' @ $' + u.monthlyRate.toFixed(2);
+        if (rem > 0) ms += ' + ' + rem + ' extra @ $' + overage.toFixed(2) + '/day';
+        ms += ' = $' + mt.toFixed(2);
+        return ms;
+    }
+    if (days >= 7 && u.weeklyRate > 0) {
+        var weeks = Math.floor(days / 7), wrem = days % 7;
+        var wt = weeks * u.weeklyRate + wrem * overage;
+        var ws = u.size + ' · ' + weeks + ' week' + (weeks !== 1 ? 's' : '') + ' @ $' + u.weeklyRate.toFixed(2);
+        if (wrem > 0) ws += ' + ' + wrem + ' extra @ $' + overage.toFixed(2) + '/day';
+        ws += ' = $' + wt.toFixed(2);
+        return ws;
+    }
     if (u.basePrice > 0 && u.rentalDays > 0) {
         var extra = Math.max(0, days - u.rentalDays);
         var t = u.basePrice + extra * u.extraDayPrice;

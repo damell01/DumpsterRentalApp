@@ -55,6 +55,51 @@ function fmt_money(mixed $amount): string
 }
 
 /**
+ * Compute the rental total for a unit over a given number of days, using
+ * duration-tiered pricing: 30+ days bill against Monthly Rate, 7-29 days
+ * bill against Weekly Rate, and anything shorter (or a unit missing the
+ * applicable tier rate) falls back to Base Price (+ Extra Day Price
+ * overage) or, lacking that, a straight Daily Rate.
+ *
+ * Any leftover days beyond a full week/month block are charged at
+ * Extra Day Price (falling back to Daily Rate if unset).
+ *
+ * @param array{daily_rate?:mixed,base_price?:mixed,rental_days?:mixed,extra_day_price?:mixed,weekly_rate?:mixed,monthly_rate?:mixed} $unit
+ */
+function calculate_unit_rental_total(array $unit, int $days): float
+{
+    $days = max(1, $days);
+
+    $dailyRate     = (float)($unit['daily_rate'] ?? 0);
+    $basePrice     = (float)($unit['base_price'] ?? 0);
+    $weeklyRate    = (float)($unit['weekly_rate'] ?? 0);
+    $monthlyRate   = (float)($unit['monthly_rate'] ?? 0);
+    $inclDays      = max(1, (int)($unit['rental_days'] ?? 7));
+    $extraDayPrice = isset($unit['extra_day_price']) && $unit['extra_day_price'] !== null
+        ? (float)$unit['extra_day_price'] : null;
+    $overageRate   = $extraDayPrice ?? $dailyRate;
+
+    if ($days >= 30 && $monthlyRate > 0) {
+        $months    = intdiv($days, 30);
+        $remainder = $days % 30;
+        return round($months * $monthlyRate + $remainder * $overageRate, 2);
+    }
+
+    if ($days >= 7 && $weeklyRate > 0) {
+        $weeks     = intdiv($days, 7);
+        $remainder = $days % 7;
+        return round($weeks * $weeklyRate + $remainder * $overageRate, 2);
+    }
+
+    if ($basePrice > 0) {
+        $extraDays = max(0, $days - $inclDays);
+        return round($basePrice + $extraDays * ($extraDayPrice ?? 0), 2);
+    }
+
+    return round($dailyRate * $days, 2);
+}
+
+/**
  * Format a 10-digit phone number as (251) 555-1234.
  * Returns the original string if it cannot be normalised.
  *

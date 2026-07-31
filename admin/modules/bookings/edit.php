@@ -28,7 +28,7 @@ $linked_customer = !empty($booking['customer_id'])
 $errors = [];
 
 $units = db_fetchall(
-    "SELECT id, unit_code, type, size, daily_rate, base_price, rental_days, extra_day_price
+    "SELECT id, unit_code, type, size, daily_rate, base_price, rental_days, extra_day_price, weekly_rate, monthly_rate
      FROM dumpsters
      WHERE active = 1 AND status != 'maintenance'
      ORDER BY size, unit_code"
@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $unit = null;
     if (empty($errors) && $dumpster_id > 0) {
         $unit = db_fetch(
-            "SELECT id, unit_code, type, size, daily_rate, base_price, rental_days, extra_day_price, active, status
+            "SELECT id, unit_code, type, size, daily_rate, base_price, rental_days, extra_day_price, weekly_rate, monthly_rate, active, status
              FROM dumpsters WHERE id = ? LIMIT 1",
             [$dumpster_id]
         );
@@ -117,19 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $d2         = new \DateTime($rental_end);
         $days       = max(1, (int)$d1->diff($d2)->days);
         $daily_rate = (float)$unit['daily_rate'];
-
-        // Use base_price model if configured, otherwise fall back to daily_rate
-        $base_price      = (float)($unit['base_price'] ?? 0);
-        $incl_days       = max(1, (int)($unit['rental_days'] ?? 7));
-        $extra_day_price = isset($unit['extra_day_price']) && $unit['extra_day_price'] !== null
-            ? (float)$unit['extra_day_price'] : null;
-
-        if ($base_price > 0) {
-            $extra_days = max(0, $days - $incl_days);
-            $total = round($base_price + ($extra_days * ($extra_day_price ?? 0)), 2);
-        } else {
-            $total = round($daily_rate * $days, 2);
-        }
+        $total = calculate_unit_rental_total($unit, $days);
 
         db_update('bookings', [
             'customer_name'    => $customer_name,
@@ -305,6 +293,8 @@ layout_start('Edit Booking', 'bookings');
                             data-base="<?= e($u['base_price'] ?? 0) ?>"
                             data-incl="<?= (int)($u['rental_days'] ?? 7) ?>"
                             data-extra="<?= e($u['extra_day_price'] ?? '') ?>"
+                            data-weekly="<?= e($u['weekly_rate'] ?? 0) ?>"
+                            data-monthly="<?= e($u['monthly_rate'] ?? 0) ?>"
                             <?= (int)$booking['dumpster_id'] === (int)$u['id'] ? 'selected' : '' ?>>
                         <?= e($u['unit_code']) ?> — <?= e($u['size']) ?> (<?= e(ucfirst($u['type'])) ?>)
                         <?php if ((float)($u['base_price'] ?? 0) > 0): ?>
@@ -312,6 +302,8 @@ layout_start('Edit Booking', 'bookings');
                         <?php else: ?>
                             — <?= e(fmt_money($u['daily_rate'])) ?>/day
                         <?php endif; ?>
+                        <?php if ((float)($u['weekly_rate'] ?? 0) > 0): ?> · <?= e(fmt_money($u['weekly_rate'])) ?>/wk<?php endif; ?>
+                        <?php if ((float)($u['monthly_rate'] ?? 0) > 0): ?> · <?= e(fmt_money($u['monthly_rate'])) ?>/mo<?php endif; ?>
                     </option>
                     <?php endforeach; ?>
                 </select>
@@ -470,7 +462,10 @@ function updateTotal() {
     var rate     = parseFloat(opt.dataset.rate)  || 0;
     var base     = parseFloat(opt.dataset.base)  || 0;
     var incl     = parseInt(opt.dataset.incl, 10) || 7;
-    var extra    = opt.dataset.extra !== '' ? parseFloat(opt.dataset.extra) : 0;
+    var extra    = opt.dataset.extra !== '' ? parseFloat(opt.dataset.extra) : null;
+    var weekly   = parseFloat(opt.dataset.weekly)  || 0;
+    var monthly  = parseFloat(opt.dataset.monthly) || 0;
+    var overage  = extra !== null ? extra : rate;
 
     var startUTC = Date.UTC.apply(null, start.split('-').map(function(v,i){ return i===1?parseInt(v,10)-1:parseInt(v,10); }));
     var endUTC   = Date.UTC.apply(null, end.split('-').map(function(v,i){ return i===1?parseInt(v,10)-1:parseInt(v,10); }));
@@ -478,9 +473,13 @@ function updateTotal() {
     if (days <= 0) { disp.textContent = 'Invalid dates'; return; }
 
     var total;
-    if (base > 0) {
+    if (days >= 30 && monthly > 0) {
+        total = Math.floor(days / 30) * monthly + (days % 30) * overage;
+    } else if (days >= 7 && weekly > 0) {
+        total = Math.floor(days / 7) * weekly + (days % 7) * overage;
+    } else if (base > 0) {
         var extraDays = Math.max(0, days - incl);
-        total = base + (extraDays * extra);
+        total = base + (extraDays * (extra || 0));
     } else {
         total = rate * days;
     }

@@ -14,7 +14,7 @@ $errors = [];
 
 // ── Load active dumpsters ─────────────────────────────────────────────────────
 $units = db_fetchall(
-    "SELECT id, unit_code, type, size, daily_rate, base_price, rental_days, extra_day_price
+    "SELECT id, unit_code, type, size, daily_rate, base_price, rental_days, extra_day_price, weekly_rate, monthly_rate
      FROM dumpsters
      WHERE active = 1 AND status != 'maintenance'
      ORDER BY size, unit_code"
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($errors)) {
         foreach ($selected_ids as $did) {
             $unit = db_fetch(
-                "SELECT id, unit_code, type, size, daily_rate, base_price, rental_days, extra_day_price, active, status
+                "SELECT id, unit_code, type, size, daily_rate, base_price, rental_days, extra_day_price, weekly_rate, monthly_rate, active, status
                  FROM dumpsters WHERE id = ? LIMIT 1",
                 [$did]
             );
@@ -121,17 +121,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $wo_footer = get_setting('wo_footer', '');
 
         foreach ($validated_units as $unit) {
-            $daily_rate      = (float)$unit['daily_rate'];
-            $base_price      = (float)($unit['base_price'] ?? 0);
-            $incl_days       = max(1, (int)($unit['rental_days'] ?? 7));
-            $extra_day_price = ($unit['extra_day_price'] !== null) ? (float)$unit['extra_day_price'] : null;
-
-            if ($base_price > 0) {
-                $extra_days = max(0, $days - $incl_days);
-                $total = round($base_price + ($extra_days * ($extra_day_price ?? 0)), 2);
-            } else {
-                $total = round($daily_rate * $days, 2);
-            }
+            $daily_rate = (float)$unit['daily_rate'];
+            $total = calculate_unit_rental_total($unit, $days);
 
             $booking_id = (int)db_insert('bookings', [
                 'booking_number'   => $booking_number,
@@ -340,6 +331,8 @@ layout_start('New Booking', 'bookings');
                            data-base="<?= e($u['base_price'] ?? 0) ?>"
                            data-incl="<?= (int)($u['rental_days'] ?? 7) ?>"
                            data-extra="<?= e($u['extra_day_price'] ?? '') ?>"
+                           data-weekly="<?= e($u['weekly_rate'] ?? 0) ?>"
+                           data-monthly="<?= e($u['monthly_rate'] ?? 0) ?>"
                            data-code="<?= e($u['unit_code']) ?>"
                            data-size="<?= e($u['size']) ?>">
                         <input type="checkbox" name="dumpster_ids[]"
@@ -353,6 +346,13 @@ layout_start('New Booking', 'bookings');
                                 <?= e(fmt_money($u['base_price'])) ?> / <?= (int)($u['rental_days'] ?? 7) ?> days
                             <?php else: ?>
                                 <?= e(fmt_money($u['daily_rate'])) ?>/day
+                            <?php endif; ?>
+                            <?php if ((float)($u['weekly_rate'] ?? 0) > 0 || (float)($u['monthly_rate'] ?? 0) > 0): ?>
+                            <div style="font-size:.72rem;color:var(--gl);">
+                                <?php if ((float)($u['weekly_rate'] ?? 0) > 0): ?><?= e(fmt_money($u['weekly_rate'])) ?>/wk<?php endif; ?>
+                                <?php if ((float)($u['weekly_rate'] ?? 0) > 0 && (float)($u['monthly_rate'] ?? 0) > 0): ?> · <?php endif; ?>
+                                <?php if ((float)($u['monthly_rate'] ?? 0) > 0): ?><?= e(fmt_money($u['monthly_rate'])) ?>/mo<?php endif; ?>
+                            </div>
                             <?php endif; ?>
                         </div>
                         <?php if ($u['status'] !== 'available'): ?>
@@ -596,12 +596,22 @@ function calcDays() {
 }
 
 function calcUnitTotal(card, days) {
-    var base  = parseFloat(card.dataset.base)  || 0;
-    var incl  = parseInt(card.dataset.incl, 10) || 7;
-    var extra = card.dataset.extra !== '' ? parseFloat(card.dataset.extra) : 0;
-    var rate  = parseFloat(card.dataset.rate)  || 0;
+    var base    = parseFloat(card.dataset.base)    || 0;
+    var incl    = parseInt(card.dataset.incl, 10)  || 7;
+    var extra   = card.dataset.extra !== '' ? parseFloat(card.dataset.extra) : null;
+    var rate    = parseFloat(card.dataset.rate)    || 0;
+    var weekly  = parseFloat(card.dataset.weekly)  || 0;
+    var monthly = parseFloat(card.dataset.monthly) || 0;
+    var overage = extra !== null ? extra : rate;
+
+    if (days >= 30 && monthly > 0) {
+        return Math.floor(days / 30) * monthly + (days % 30) * overage;
+    }
+    if (days >= 7 && weekly > 0) {
+        return Math.floor(days / 7) * weekly + (days % 7) * overage;
+    }
     if (base > 0) {
-        return base + Math.max(0, days - incl) * extra;
+        return base + Math.max(0, days - incl) * (extra || 0);
     }
     return rate * days;
 }
