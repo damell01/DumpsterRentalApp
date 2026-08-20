@@ -1,5 +1,6 @@
 <?php
 require_once dirname(__DIR__, 2) . '/includes/bootstrap.php';
+require_once dirname(__DIR__, 2) . '/includes/sync_invoice_workorder.php';
 require_once TMPL_PATH . '/layout.php';
 require_login();
 require_role('admin', 'office', 'dispatcher');
@@ -85,6 +86,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             if ($new_dumpster_id) {
                 $pdo->prepare('UPDATE dumpsters SET status = ? WHERE id = ?')->execute(['reserved', $new_dumpster_id]);
+            }
+        }
+
+        // Sync amount changes to related invoices
+        if ($amount_v !== null && (float)$amount_v !== (float)($wo['amount'] ?? 0)) {
+            try {
+                sync_work_order_to_invoice($id, $amount_v);
+            } catch (\Throwable $e) {
+                error_log('[Work order edit] Invoice sync failed: ' . $e->getMessage());
             }
         }
 
