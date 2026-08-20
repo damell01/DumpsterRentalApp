@@ -51,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $payment_method   = trim($_POST['payment_method']   ?? 'stripe');
     $worker_id        = (int)($_POST['worker_id']       ?? 0) ?: null;
     $notes            = trim($_POST['notes']            ?? '');
+    $custom_total     = !empty($_POST['custom_total']) ? (float)$_POST['custom_total'] : null;
 
     if ($customer_name === '') {
         $errors[] = 'Customer Name is required.';
@@ -117,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $d2         = new \DateTime($rental_end);
         $days       = max(1, (int)$d1->diff($d2)->days);
         $daily_rate = (float)$unit['daily_rate'];
-        $total = calculate_unit_rental_total($unit, $days);
+        $total = $custom_total !== null ? $custom_total : calculate_unit_rental_total($unit, $days);
 
         db_update('bookings', [
             'customer_name'    => $customer_name,
@@ -170,6 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'payment_method'   => $payment_method,
         'worker_id'        => $worker_id,
         'notes'            => $notes,
+        'custom_total'     => $custom_total,
     ]);
 }
 
@@ -320,8 +322,12 @@ layout_start('Edit Booking', 'bookings');
             </div>
             <div class="col-sm-4">
                 <label class="form-label">Estimated Total</label>
-                <div id="totalDisplay" class="form-control"
-                     style="background:var(--dk3,#111827);color:var(--or,#f97316);font-weight:700;">—</div>
+                <div style="position:relative;">
+                    <input type="number" id="custom_total" name="custom_total" class="form-control" step="0.01" min="0"
+                           value="<?= (!empty($booking['custom_total']) ? $booking['custom_total'] : '') ?>"
+                           placeholder="Auto-calculated" style="padding-right:2.5rem;">
+                    <div id="totalDisplay" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--or,#f97316);font-weight:700;font-size:0.9rem;">—</div>
+                </div>
             </div>
         </div>
     </div>
@@ -455,6 +461,7 @@ function updateTotal() {
     var sel   = document.getElementById('dumpster_id');
     var start = document.getElementById('rental_start').value;
     var end   = document.getElementById('rental_end').value;
+    var input = document.getElementById('custom_total');
     var disp  = document.getElementById('totalDisplay');
 
     if (!sel.value || !start || !end) { disp.textContent = '—'; return; }
@@ -483,7 +490,9 @@ function updateTotal() {
     } else {
         total = rate * days;
     }
-    disp.textContent = days + ' day' + (days !== 1 ? 's' : '') + ' — $' + total.toFixed(2);
+    var hint = days + ' day' + (days !== 1 ? 's' : '') + ' → $' + total.toFixed(2);
+    disp.textContent = hint;
+    input.placeholder = 'Auto: ' + hint;
 }
 document.addEventListener('DOMContentLoaded', updateTotal);
 document.addEventListener('DOMContentLoaded', function() {
