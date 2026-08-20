@@ -263,14 +263,9 @@ layout_start('Booking Detail', 'bookings');
                 <i class="fa-solid fa-pen"></i> Edit Booking
             </a>
             <?php if (has_role('admin', 'office') && ($booking['booking_status'] ?? '') === 'pending'): ?>
-            <form method="POST" action="approve_request.php">
-                <?= csrf_field() ?>
-                <input type="hidden" name="id" value="<?= $id ?>">
-                <button type="submit" class="btn-tp-primary btn-tp-sm w-100"
-                        data-confirm="Approve booking <?= e($booking['booking_number']) ?>? A work order and invoice will be created automatically.">
-                    <i class="fa-solid fa-circle-check"></i> Approve Booking
-                </button>
-            </form>
+            <a href="approve_edit_prices.php?id=<?= $id ?>" class="btn-tp-primary btn-tp-sm w-100">
+                <i class="fa-solid fa-circle-check"></i> Approve & Check Prices
+            </a>
             <?php endif; ?>
             <?php if ($booking['booking_status'] !== 'canceled'): ?>
             <form method="POST" action="cancel.php">

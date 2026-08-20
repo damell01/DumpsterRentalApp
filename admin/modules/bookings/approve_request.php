@@ -293,6 +293,19 @@ if (empty($sibling_bookings)) {
     $sibling_bookings = [$booking];
 }
 
+// Apply any edited prices from the price editing form
+$edited_prices = $_POST['prices'] ?? [];
+if (!empty($edited_prices) && is_array($edited_prices)) {
+    foreach ($sibling_bookings as $idx => $sb) {
+        if (isset($edited_prices[$idx])) {
+            $newPrice = (float)$edited_prices[$idx];
+            if ($newPrice > 0) {
+                $sibling_bookings[$idx]['total_amount'] = round($newPrice, 2);
+            }
+        }
+    }
+}
+
 $paymentMethod = (string)($booking['payment_method'] ?? 'stripe');
 $paymentStatus = match ($paymentMethod) {
     'cash' => 'pending_cash',
@@ -305,6 +318,7 @@ foreach ($sibling_bookings as $sb) {
     db_update('bookings', [
         'booking_status' => 'confirmed',
         'payment_status' => $paymentStatus,
+        'total_amount'   => (float)($sb['total_amount'] ?? 0),
         'updated_at'     => date('Y-m-d H:i:s'),
     ], 'id', (int)$sb['id']);
 
