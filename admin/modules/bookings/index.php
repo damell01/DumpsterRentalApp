@@ -265,14 +265,9 @@ layout_start('Bookings', 'bookings');
                             <i class="fa-solid fa-pencil"></i> Edit
                         </a>
                         <?php if (($b['booking_status'] ?? '') === 'pending' && has_role('admin', 'office')): ?>
-                        <form method="post" action="approve_request.php" style="display:inline;">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="id" value="<?= (int)$b['id'] ?>">
-                            <button type="submit" class="btn-tp-primary btn-tp-xs"
-                                    data-confirm="Approve booking <?= e($b['booking_number']) ?>? A work order and invoice will be created.">
-                                <i class="fa-solid fa-circle-check"></i> Approve
-                            </button>
-                        </form>
+                        <a href="approve_edit_prices.php?id=<?= (int)$b['id'] ?>" class="btn-tp-primary btn-tp-xs">
+                            <i class="fa-solid fa-circle-check"></i> Review & Approve
+                        </a>
                         <?php endif; ?>
                         <?php if ($is_unpaid && has_role('admin', 'office')): ?>
                         <form method="post" action="quick_pay.php" style="display:inline;">
