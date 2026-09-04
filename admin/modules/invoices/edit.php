@@ -71,34 +71,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $card_fee_amount = round($subtotal * $card_fee_pct / 100, 2);
         $total = round($subtotal + $card_fee_amount, 2);
 
-        // Stripe Payment Link (re-generate if explicitly requested, or if none exists yet)
+        // Stripe Payment Link — generate stable link if not yet present
+        // The actual Stripe Checkout session is created on-demand when customer clicks (see /pay-invoice.php)
+        // This ensures the 24h expiry window starts from when they click, not when invoice was created
         $stripe_payment_link = $inv['stripe_payment_link']; // keep existing by default
-        $stripe_session_id   = $inv['stripe_session_id'] ?? null;
         $stripe_key = trim(get_setting('stripe_secret_key', ''));
-        if ($stripe_key !== '' && str_starts_with($stripe_key, 'sk_') && $total > 0 && (!empty($upd['regen_stripe']) || empty($stripe_payment_link))) {
-            $autoload = dirname(__DIR__, 2) . '/vendor/autoload.php';
-            if (file_exists($autoload)) {
-                require_once $autoload;
-            }
+        if ($stripe_key !== '' && str_starts_with($stripe_key, 'sk_') && $total > 0 && empty($stripe_payment_link)) {
             require_once INC_PATH . '/stripe.php';
-            try {
-                $base_url    = rtrim(APP_URL, '/');
-                $inv_row = [
-                    'id'             => $id,
-                    'invoice_number' => $inv['invoice_number'],
-                    'cust_name'      => $upd['cust_name'],
-                    'cust_email'     => $upd['cust_email'] ?: null,
-                    'total'          => $total,
-                ];
-                $success_url = $base_url . '/modules/invoices/view.php?id=' . $id . '&paid=1';
-                $cancel_url  = $base_url . '/modules/invoices/view.php?id=' . $id;
-                $session = stripe_create_invoice_checkout($inv_row, $success_url, $cancel_url);
-                $stripe_payment_link = $session->url;
-                $stripe_session_id   = $session->id;
-            } catch (\Throwable $e) {
-                error_log('[Invoice edit] Stripe Checkout error: ' . $e->getMessage());
-                $errors[] = 'Stripe Payment Link error: ' . $e->getMessage();
-            }
+            $stripe_payment_link = invoice_pay_url($id);
         }
 
         db_update('invoices', [
@@ -118,7 +98,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'status'              => $upd['status'],
             'due_date'            => $upd['due_date'] ?: null,
             'stripe_payment_link' => $stripe_payment_link,
-            'stripe_session_id'   => $stripe_session_id,
             'updated_at'          => date('Y-m-d H:i:s'),
         ], 'id', $id);
 

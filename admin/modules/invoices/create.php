@@ -140,35 +140,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'updated_at'          => date('Y-m-d H:i:s'),
         ]);
 
-        // Auto-generate Stripe Checkout payment link if Stripe is configured
+        // Generate stable payment link if Stripe is configured
+        // The actual Stripe Checkout session is created on-demand when customer clicks (see /pay-invoice.php)
+        // This ensures the 24h expiry window starts from when they click, not when invoice was created
         $stripe_key = trim(get_setting('stripe_secret_key', ''));
         if ($stripe_key !== '' && str_starts_with($stripe_key, 'sk_') && $total > 0 && (int)$inv_id > 0) {
-            $autoload = dirname(__DIR__, 2) . '/vendor/autoload.php';
-            if (file_exists($autoload)) {
-                require_once $autoload;
-            }
             require_once INC_PATH . '/stripe.php';
-            try {
-                $base_url    = rtrim(APP_URL, '/');
-                $inv_row = [
-                    'id'             => (int)$inv_id,
-                    'invoice_number' => $invoice_number,
-                    'cust_name'      => $old['cust_name'],
-                    'cust_email'     => $old['cust_email'] ?: null,
-                    'total'          => $total,
-                ];
-                $success_url = $base_url . '/modules/invoices/view.php?id=' . (int)$inv_id . '&paid=1';
-                $cancel_url  = $base_url . '/modules/invoices/view.php?id=' . (int)$inv_id;
-                $session = stripe_create_invoice_checkout($inv_row, $success_url, $cancel_url);
-                db_update('invoices', [
-                    'stripe_payment_link' => $session->url,
-                    'stripe_session_id'   => $session->id,
-                    'updated_at'          => date('Y-m-d H:i:s'),
-                ], 'id', (int)$inv_id);
-            } catch (\Throwable $stripeEx) {
-                error_log('[Invoice create] Stripe Checkout error: ' . $stripeEx->getMessage());
-                // Non-fatal — invoice still saves without payment link
-            }
+            db_update('invoices', [
+                'stripe_payment_link' => invoice_pay_url((int)$inv_id),
+                'updated_at'          => date('Y-m-d H:i:s'),
+            ], 'id', (int)$inv_id);
         }
 
         // Insert line items
