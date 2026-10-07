@@ -13,7 +13,7 @@
 - **Stripe:** switch from "paste your secret key" to **Stripe Connect with hosted onboarding**. This is the "one-click connect" you want. You can optionally take a small platform fee on every booking.
 - **Website builder:** don't build GoHighLevel's drag-and-drop on day one. Ship **niche templates plus a section editor** (text, photos, colors, sizes and prices are pulled live from inventory). Add GrapesJS later if customers actually ask for it.
 - **Domains:** free `company.yourapp.com` subdomain on signup, custom domains via a CNAME using **Cloudflare for SaaS**, and domain *buying* later via the **Name.com reseller API**.
-- **Price:** about **$149/mo flat** (website + booking + dispatch + invoicing), with a $99 starter tier and a $299 multi-yard tier. Competitors run $59–$280+/mo, and most of them don't include a real website.
+- **Price:** start at **$39/mo** (Starter), with **$79 Pro** and **$149 Fleet**. That undercuts every competitor ($59–$280+/mo), and most of them don't include a real website.
 
 ---
 
@@ -84,9 +84,9 @@ Vendor-published industry guides put the range at **$59 to $1,500+/mo**, with pe
 
 | Plan | Price | For |
 |---|---|---|
-| Starter | $99/mo | 1 yard, up to ~15 cans, website + booking + invoicing |
-| Pro | **$149/mo** | Unlimited cans, dispatch map, subscriptions, SMS, custom domain |
-| Fleet | $299/mo | Multiple yards/locations, more staff users, priority support |
+| Starter | **$39/mo** | 1 yard, up to ~15 units, website + booking + invoicing |
+| Pro | $79/mo | Unlimited units, dispatch map, recurring service, custom domain |
+| Fleet | $149/mo | Multiple yards/locations, priority support |
 | Optional | +0.5–1% platform fee on online payments | Via Stripe Connect `application_fee_amount`, or waive it on higher tiers |
 | Setup / migration | $0 to $499 one-time | "We'll build your site for you" done-for-you, which is great early revenue |
 
@@ -114,7 +114,7 @@ Offer a 14-day trial with no card required, plus a founding-customer price locke
 | **Unlimited users** (no per-seat or per-truck fees, a selling point vs. competitors) | ✅ |
 
 ### Plans
-| | Starter $99 | **Pro $149** | Fleet $299 |
+| | **Starter $39** | Pro $79 | Fleet $149 |
 |---|---|---|---|
 | Units | up to 15 | unlimited | unlimited |
 | Business-type packs | 1 | all | all |
@@ -122,7 +122,6 @@ Offer a 14-day trial with no card required, plus a founding-customer price locke
 | Dispatch map + driver photos | — | ✅ | ✅ |
 | Recurring service contracts (e.g. weekly toilet pumping) | — | ✅ | ✅ |
 | Card on file, auto-billing for overdue/extra days | — | ✅ | ✅ |
-| SMS notifications | — | ✅ (usage-based) | ✅ |
 | Multiple yards/locations | — | — | ✅ |
 | Advanced reports + export | — | ✅ | ✅ |
 | Priority support / onboarding call | — | — | ✅ |
@@ -130,10 +129,16 @@ Offer a 14-day trial with no card required, plus a founding-customer price locke
 
 Annual billing gets 2 months free. Founding customers (first 25) get a price locked for life.
 
+### Why $39 works (and what to watch)
+- Low entry price plus "no sales call" means more signups. Upgrades come naturally once they have more than 15 units or want their own domain.
+- **The 1% platform fee on Starter matters:** a small company doing $15k/mo in online payments adds about $150/mo, so Starter can earn more than Pro.
+- Setup fees ($299+) carry the early cash flow.
+- Break-even on hosting is only about 2–6 customers, but support time is the real cost at $39. Keep Starter self-serve (help docs, email support only).
+- Raise prices for *new* customers later. That's much easier than lowering them. Founding customers keep their price.
+
 ### Add-ons (recurring revenue)
-- **SMS:** pass-through cost + margin.
 - **Domain purchase:** about $20/yr, bought in-app (later).
-- **Extra locations** on Pro: about $49/mo each.
+- **Extra locations** on Pro: about $29/mo each.
 - **Online review requests:** auto-text after pickup asking for a Google review ($19/mo or bundled into Pro).
 
 ### Done-for-you services (high margin early, and you learn what owners need)
@@ -176,7 +181,7 @@ QuickBooks sync, junk-removal and storage packs, driver route view, weight-ticke
               └────────────────────┘
                             │
                      Stripe (platform account)
-                       ├─ Billing: you charge tenants $149/mo
+                       ├─ Billing: you charge tenants $39–$149/mo
                        └─ Connect: tenants' own accounts take customer payments
 ```
 
@@ -280,7 +285,7 @@ The **email deliverability** gap: tenants will want booking emails sent from `@t
 | Payments | Stripe Connect + Billing + Customer Portal | |
 | Maps | Leaflet (already in use) + OpenStreetMap/Nominatim, with a paid geocoder at scale | Nominatim's usage policy won't cover hundreds of tenants. |
 | Transactional email | Postmark / Resend / Amazon SES | Per-tenant sending domains. |
-| SMS | Twilio, or Telnyx (cheaper) | Note: A2P 10DLC registration per tenant is a real onboarding step in the US. |
+| SMS (built in, **off at launch**) | Twilio, or Telnyx (cheaper) | Keep a `send_sms()` hook so it can be switched on per tenant later. Not sold yet, because US A2P 10DLC registration per tenant is real onboarding work. |
 | Error tracking | Sentry (has a free tier) | |
 | Object storage | Cloudflare R2 / S3 | Photos, logos, PDFs out of the web root. |
 
