@@ -94,6 +94,63 @@ Offer a 14-day trial with no card required, plus a founding-customer price locke
 
 ---
 
+## 3.5 What to offer
+
+### Included in every plan (the core promise: "your whole business, live in a day")
+| Feature | Built today? |
+|---|---|
+| Website from a business-type template + section editor | ⚠️ site exists, editor/templates to build |
+| Free `yourco.app.com` subdomain + connect your own domain | ❌ build |
+| Online booking with live availability + online payment (Stripe Connect) | ✅ (Connect to build) |
+| Cash/check/manual payments | ✅ |
+| Inventory/units, sizes, pricing rules (daily/weekly/monthly/flat + extra days, delivery fees, tax) | ✅ |
+| Calendar + work orders (deliver → service → pick up) | ✅ |
+| Invoices + payment links + PDF | ✅ |
+| Customer database + self-service portal (view bookings, request pickup, pay) | ✅ |
+| Branded email notifications | ✅ |
+| Leads/quote requests from the website | ✅ |
+| Basic reports (revenue, bookings) | ✅ |
+| Phone app (PWA) for owner and staff | ✅ |
+| **Unlimited users** (no per-seat or per-truck fees, a selling point vs. competitors) | ✅ |
+
+### Plans
+| | Starter $99 | **Pro $149** | Fleet $299 |
+|---|---|---|---|
+| Units | up to 15 | unlimited | unlimited |
+| Business-type packs | 1 | all | all |
+| Custom domain | — | ✅ | ✅ |
+| Dispatch map + driver photos | — | ✅ | ✅ |
+| Recurring service contracts (e.g. weekly toilet pumping) | — | ✅ | ✅ |
+| Card on file, auto-billing for overdue/extra days | — | ✅ | ✅ |
+| SMS notifications | — | ✅ (usage-based) | ✅ |
+| Multiple yards/locations | — | — | ✅ |
+| Advanced reports + export | — | ✅ | ✅ |
+| Priority support / onboarding call | — | — | ✅ |
+| Platform fee on online payments | 1% | 0% | 0% |
+
+Annual billing gets 2 months free. Founding customers (first 25) get a price locked for life.
+
+### Add-ons (recurring revenue)
+- **SMS:** pass-through cost + margin.
+- **Domain purchase:** about $20/yr, bought in-app (later).
+- **Extra locations** on Pro: about $49/mo each.
+- **Online review requests:** auto-text after pickup asking for a Google review ($19/mo or bundled into Pro).
+
+### Done-for-you services (high margin early, and you learn what owners need)
+- **Setup & launch:** $299–$499. You build their site, load their units and prices, and connect Stripe and the domain.
+- **Data import** from spreadsheets or another system: $99–$299.
+- **Google Business Profile setup + local SEO city pages:** $199 one-time.
+- **"Growth" managed marketing:** $299–$999/mo for Google Ads/LSA + monthly SEO pages. This is the GoHighLevel-agency style revenue, only once the software is stable.
+
+### Not at launch (say "on the roadmap")
+QuickBooks sync, junk-removal and storage packs, driver route view, weight-ticket/tonnage billing, in-app domain purchase, native iOS/Android apps, AI phone answering, residential garbage routes.
+
+### Why someone picks you (put this on the sales page)
+1. Website **included**, and it's built to rank locally, with booking built in.
+2. Live in a day, with no sales call needed to get a price.
+3. Flat price and unlimited users, with no per-truck "success tax."
+4. Built by people who run a roll-off company.
+
 ## 4. Target architecture
 
 ```
