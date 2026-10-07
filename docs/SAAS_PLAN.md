@@ -7,7 +7,7 @@
 
 ## 0. TL;DR
 
-- **Niche down to dumpster rental first.** Market only to them. Build the data model so it can stretch to adjacent "deliver it, leave it, pick it up" businesses later: junk removal, portable toilets, storage containers, and equipment trailers.
+- **Target "waste & site-service rental" companies, not all rentals.** Launch with **roll-offs, dumpster trailers and portable toilets**, each with its own template pack. Add junk removal and storage containers next. Skip garbage collection routes and general party/equipment rental.
 - **Your code is a real head start.** ~42k lines of PHP already cover booking, availability, Stripe checkout, invoices, subscriptions, work orders, a dispatch map, a customer portal and a PWA. What's missing is the *SaaS shell*: tenants, signup, platform billing, Stripe Connect, a site editor and domains.
 - **Fastest safe path to multi-tenancy is database-per-tenant**: one small "platform" DB plus one DB per customer company. That is the path that does **not** require rewriting ~500 SQL call sites.
 - **Stripe:** switch from "paste your secret key" to **Stripe Connect with hosted onboarding**. This is the "one-click connect" you want. You can optionally take a small platform fee on every booking.
@@ -46,22 +46,28 @@
 
 ---
 
-## 2. Niche: dumpsters first, "rental" second
+## 2. Niche: "waste & site-service rentals", with a template pack per business type
 
-**Recommendation: sell to dumpster/roll-off companies only for the first 12 months.**
+**Revised recommendation:** don't sell to "any rental business." Do sell to the **cluster of businesses that drop a unit at a job site or home, leave it, service or swap it, and haul it back.** Many operators run several of these lines at once (roll-off + porta-potty is very common), so supporting all of them makes the product more sellable.
 
-Why:
-- **Your story sells it.** "Built for and running a real roll-off company in Alabama" is a better pitch than any feature list. Trash Panda is your case study and live demo.
-- **Messaging and SEO get easy.** Use "dumpster rental software", "roll-off booking website", and so on. Generic "rental software" goes head to head with Booqable, Rentle and EZRentOut, which are well funded and horizontal.
-- **The niche has real specifics a generic tool fumbles:** weight/tonnage overage, swap-outs, dump fees, permit requirements, driver dispatch and haul routes, service-area pricing by ZIP code, and debris restrictions.
-- **The buyers are reachable.** Dumpster owners are a tight community (Facebook groups, "Dumpster Rental Business" YouTube and podcast crowd, WasteExpo). There are thousands of small 1–20-can operators.
+| Business type | Fit with current code | Launch? |
+|---|---|---|
+| **Roll-off dumpsters** | Native | ✅ v1 |
+| **Dumpster trailers** | Native (`type` already includes `trailer`) | ✅ v1 |
+| **Portable toilets / restroom trailers** | Good. Rentals + recurring service (weekly pumping) map onto bookings + your existing recurring subscriptions. Needs: units-per-order quantity, service-visit work orders, event vs. construction pricing. | ✅ v1, as the 2nd template pack |
+| **Junk removal** | Medium. It's a one-time job, not a rental: quote by photo/volume, same trucks and dispatch. | Phase 2 |
+| **Storage containers (Conex/PODS-style)** | Good. Long-term monthly rentals already supported. | Phase 2 |
+| **Residential/commercial garbage routes** | **Poor.** Weekly route collection, per-stop billing and cart tracking is a different software category (CurbWaste, Routeware). | ❌ Not for now |
+| General party/equipment rental | Poor positioning. It's crowded (Booqable, etc.) and has different needs (shopping-cart checkout, many small items). | ❌ |
 
-**How to keep the door open:** name things generically *in the code* while marketing narrowly.
-- `dumpsters` → treat as `units`/`assets` with a `category` (you already have `dumpster_categories` and `type ENUM('dumpster','trailer')`).
-- Put terminology in a per-tenant "vertical pack" (labels, default sizes, FAQ, email copy, site template). For example, "Dumpster" vs. "Unit" vs. "Toilet".
-- Adjacent verticals to add next, in order of fit: **junk removal** (often the same owners), **portable toilets**, **storage containers**, **equipment/trailer rental**. All use the same deliver → on site → pick up loop that your work-order statuses already model.
+**How it works in the product: "Business type packs" (your templates)**
+- At signup the owner ticks what they offer: ☑ Roll-offs ☑ Portable toilets ☐ Junk removal…
+- Each pack installs: default unit types/sizes with suggested prices, terminology ("Dumpster" vs. "Unit" vs. "Restroom"), website template sections and pages, FAQ, email templates, booking form fields (e.g. "debris type" vs. "number of guests/event length"), and work-order status flows (deliver/pick up vs. deliver/service/pick up).
+- A company with multiple lines gets one website with a section for each line, and one booking flow where customers choose what they need.
 
----
+**Marketing:** one product brand with a separate landing page and ads for each vertical ("Portable toilet rental software", "Dumpster rental software"). Each owner should feel the product was built for their business. That's how you get the bigger market without sounding generic.
+
+**Code implications:** rename `dumpsters` to generic `units` with a `unit_type` (keep the old name via a view or alias during migration). Add `quantity` to bookings, a `service_visit` work-order type, and a `vertical_packs/` folder of JSON + template files that the provisioning script applies.
 
 ## 3. Competitive landscape & pricing
 
@@ -253,7 +259,9 @@ GHL's real trick isn't the page builder. It's **"snapshots"** (a pre-built setup
 - [ ] Single platform webhook endpoint routing Connect events to tenants.
 - [ ] Optional `application_fee_amount`.
 
-### Phase 3: Website + onboarding (3–4 weeks)
+### Phase 3: Website + onboarding + business-type packs (4–6 weeks)
+- [ ] Generalize `dumpsters` → `units`; add booking quantity + service-visit work orders.
+- [ ] Packs: Roll-off, Dumpster trailer, Portable toilet.
 - [ ] Convert public pages to tenant-rendered templates; 2–3 themes.
 - [ ] Section editor (JSON-backed).
 - [ ] City landing pages + schema.org + sitemap.
@@ -268,8 +276,8 @@ GHL's real trick isn't the page builder. It's **"snapshots"** (a pre-built setup
 - [ ] QuickBooks Online sync (the #1 integration owners will ask for).
 
 ### Phase 5: Expand
-- [ ] Junk removal vertical pack (quote-by-photo, volume-based pricing).
-- [ ] Portable toilets / storage containers packs.
+- [ ] Junk removal pack (quote-by-photo, volume-based pricing).
+- [ ] Storage containers pack.
 - [ ] In-app domain purchase (Name.com).
 - [ ] Driver mobile view: route of the day, photo on drop/pick, signature.
 - [ ] Weight tickets / tonnage overage billing.
