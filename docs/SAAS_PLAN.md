@@ -84,7 +84,7 @@ Vendor-published industry guides put the range at **$59 to $1,500+/mo**, with pe
 
 | Plan | Price | For |
 |---|---|---|
-| Starter | **$39/mo** | 1 yard, up to ~15 units, website + booking + invoicing |
+| Starter | **$39/mo** | 1 yard, up to 10 units, website + booking + invoicing |
 | Pro | $79/mo | Unlimited units, dispatch map, recurring service, custom domain |
 | Fleet | $149/mo | Multiple yards/locations, priority support |
 | Optional | +0.5–1% platform fee on online payments | Via Stripe Connect `application_fee_amount`, or waive it on higher tiers |
@@ -116,7 +116,7 @@ Offer a 14-day trial with no card required, plus a founding-customer price locke
 ### Plans
 | | **Starter $39** | Pro $79 | Fleet $149 |
 |---|---|---|---|
-| Units | up to 15 | unlimited | unlimited |
+| Units | up to 10 | up to 40 | unlimited |
 | Business-type packs | 1 | all | all |
 | Custom domain | — | ✅ | ✅ |
 | Dispatch map + driver photos | — | ✅ | ✅ |
@@ -130,7 +130,7 @@ Offer a 14-day trial with no card required, plus a founding-customer price locke
 Annual billing gets 2 months free. Founding customers (first 25) get a price locked for life.
 
 ### Why $39 works (and what to watch)
-- Low entry price plus "no sales call" means more signups. Upgrades come naturally once they have more than 15 units or want their own domain.
+- Low entry price plus "no sales call" means more signups. Upgrades come naturally once they pass 10 units or want their own domain.
 - **The 1% platform fee on Starter matters:** a small company doing $15k/mo in online payments adds about $150/mo, so Starter can earn more than Pro.
 - Setup fees ($299+) carry the early cash flow.
 - Break-even on hosting is only about 2–6 customers, but support time is the real cost at $39. Keep Starter self-serve (help docs, email support only).
@@ -154,7 +154,7 @@ QuickBooks sync, junk-removal and storage packs, driver route view, weight-ticke
 1. Website **included**, and it's built to rank locally, with booking built in.
 2. Live in a day, with no sales call needed to get a price.
 3. Flat price and unlimited users, with no per-truck "success tax."
-4. Built by people who run a roll-off company.
+4. Proven on a real roll-off company (Trash Panda case study; get their permission to use the name and a testimonial).
 
 ## 4. Target architecture
 
@@ -346,6 +346,46 @@ GHL's real trick isn't the page builder. It's **"snapshots"** (a pre-built setup
 - [ ] GrapesJS custom pages; agency/white-label tier.
 
 Rough total to a sellable v1 (Phases 0–3): **~10–14 weeks** for one focused developer.
+
+---
+
+## 6.5 Running it solo: support without a support team
+
+Goal: **customers rarely need to contact you**, and when they do, it takes you minutes. Budget about 1 hour/day for support up to ~50 customers.
+
+| Layer | What | Tool / cost |
+|---|---|---|
+| 1. Product that explains itself | Onboarding checklist (reuse `launch_readiness.php`), sensible defaults from the business-type packs, empty-state hints on every page | Build |
+| 2. Help docs | ~25 short articles + 2–3 min screen-recorded videos: setup, Stripe connect, domain, pricing rules, first booking, invoices | Your existing `admin/modules/help` + Loom (free) |
+| 3. In-app "Ask" box | AI answers from your help docs first; anything it can't answer becomes an email ticket | Claude API, a few $/mo at this scale |
+| 4. Email support | "Help" button in admin → form → your shared inbox, with tenant name, plan and page auto-attached. Promise **reply within 1 business day.** | Help Scout / Crisp free tier / plain Gmail to start |
+| 5. Community | Private Facebook group for customers: they help each other, share ideas, and it's marketing | Free |
+| 6. Live help (paid only) | Fleet plan gets a 30-min onboarding call. Everyone else can buy the $299 setup. Weekly group "office hours" Zoom is optional. | Calendly free |
+| 7. Status page | So outages don't flood your inbox | UptimeRobot / Better Stack free |
+
+Rules that keep support small:
+- **No phone support** on Starter/Pro. Put it in writing on the pricing page.
+- Every repeated question becomes a doc article or a product fix within a week.
+- Write "how do I…" answers once, save them as reply templates, and link the doc.
+- Super-admin "log in as customer" (section 4.6) lets you fix their issue directly instead of going back and forth.
+- Hire a part-time VA (~10 hrs/wk) once you pass ~75–100 customers.
+
+---
+
+## 6.6 "Aren't there already enough companies doing this?"
+
+Yes, competitors exist. **That's proof people pay for this, not a reason to stop.** But be honest about where you can win:
+
+- Most competitors (Docket, CurbWaste, DRS's bigger tiers) target established companies with demos, quotes and per-truck pricing. **The low end is underserved:** new and small operators (1–10 units) who need a website *and* booking and won't pay $150–$300/mo. Thousands of people start dumpster and porta-potty side businesses every year.
+- Your edges: $39 entry price, website included and built for local SEO, live in a day without a sales call, multi-line (roll-off + toilets + trailers) in one app, and a real operating customer behind it.
+- **Your real risk is distribution, not features.** The product is already 70% built. Getting in front of new operators is the hard part: Facebook groups, YouTube channels about starting a dumpster business, "how to start a dumpster rental business" SEO content, and partnerships with dumpster/trailer manufacturers and dealers who sell to new operators.
+
+### Validate before the 14-week build (Phase 0.5, ~2–3 weeks, in parallel with cleanup)
+1. Put up a one-page site with the pitch, pricing and a "founding customer" waitlist.
+2. Talk to 15–20 owners (Facebook groups, cold calls to local companies with bad or no websites). Ask what they use now, what they pay and what annoys them.
+3. **Pre-sell:** offer 10 founding spots at $39/mo locked for life, plus free setup, with a $39 deposit or first month paid.
+4. **Go/no-go:** 5+ paid commitments → build. Fewer → adjust the pitch or niche before writing code.
+5. Cheapest fallback: sell **done-for-you sites + booking** to individual companies using today's single-company code (deploy one copy per client, $299 setup + $39/mo). This earns money and proves demand while you build the multi-tenant version.
 
 ---
 
