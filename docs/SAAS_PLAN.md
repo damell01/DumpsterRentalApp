@@ -410,7 +410,8 @@ Shared hosting (cPanel), which the README currently targets, won't handle wildca
 2. **Platform fee on payments: yes or no?** It's easy revenue, but some owners hate it. Option: 1% on Starter, 0% on Pro and up.
 3. **Keep PHP or rewrite?** Recommendation: **keep PHP.** The code works and is battle-tested on a real business. A rewrite costs 6+ months for zero customer-visible gain.
 4. **Done-for-you setup service?** Recommended early. It funds development and you learn what owners actually need.
-5. **Legal:** Terms of Service, a DPA/privacy policy (you hold *their* customers' PII), and Stripe Connect platform agreement acceptance.
+5. **Code ownership (check first):** Trash Panda is a client project. Check your contract for who owns the code. If they paid for it as work-for-hire, they may own it. Get written permission or a license to reuse it, or offer them a deal (free/discounted platform for life, a revenue share on referrals, or a small stake) in exchange for ownership rights, use of their name as a case study, and introductions to other operators.
+6. **Legal:** Terms of Service, a DPA/privacy policy (you hold *their* customers' PII), and Stripe Connect platform agreement acceptance.
 
 ---
 
