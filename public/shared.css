@@ -681,3 +681,21 @@ h1,h2,h3,h4,h5 { font-family: var(--font-display); letter-spacing: 0.01em; }
 @media (max-width: 767px) {
   .section-pad { padding: 44px 0; }
 }
+
+/* ── HEADER: always solid, sits above the ticker instead of on top of it ── */
+#nav-placeholder { height: 76px; }
+.site-nav,
+.site-nav.scrolled {
+  background: rgba(8, 8, 8, 0.97);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(249, 115, 22, 0.3);
+}
+.nav-links a { white-space: nowrap; }
+@media (max-width: 1399px) {
+  .nav-phone { display: none !important; }
+  .nav-links a { padding: 8px 12px; }
+}
+@media (max-width: 1199px) {
+  .nav-links { display: none !important; }
+  .nav-hamburger { display: flex; }
+}

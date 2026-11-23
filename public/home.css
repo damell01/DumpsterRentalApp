@@ -410,3 +410,20 @@
     display: flex;
   }
 }
+/* ── HEADER: always solid, sits above the ticker instead of on top of it ── */
+#nav-placeholder { height: 76px; }
+.site-nav,
+.site-nav.scrolled {
+  background: rgba(8, 8, 8, 0.97);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(249, 115, 22, 0.3);
+}
+.nav-links a { white-space: nowrap; }
+@media (max-width: 1399px) {
+  .nav-phone { display: none !important; }
+  .nav-links a { padding: 8px 12px; }
+}
+@media (max-width: 1199px) {
+  .nav-links { display: none !important; }
+  .nav-hamburger { display: flex; }
+}
