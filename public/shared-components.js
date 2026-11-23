@@ -24,8 +24,7 @@ const navHTML = `
       <li><a href="service-areas.html">Service Areas</a></li>
       <li><a href="about.html">About</a></li>
       <li><a href="faq.html">FAQ</a></li>
-      <li><a href="/my-bookings.php">My Bookings</a></li>
-      <li><a href="/book.php" class="nav-cta-btn">Book Now</a></li>
+      <li><a href="/book.html" class="nav-cta-btn">Book Now</a></li>
     </ul>
     <a href="tel:+12513334444" id="siteNavPhone" class="nav-phone d-none d-xl-flex"><i class="fas fa-phone"></i><span id="siteNavPhoneText">(251) 333-4444</span></a>
     <button class="nav-hamburger" id="navHamburger" aria-label="Menu">
@@ -41,8 +40,7 @@ const navHTML = `
     <li><a href="service-areas.html">Service Areas</a></li>
     <li><a href="about.html">About</a></li>
     <li><a href="faq.html">FAQ</a></li>
-    <li><a href="/my-bookings.php">My Bookings</a></li>
-    <li><a href="/book.php">Book Now</a></li>
+    <li><a href="/book.html">Book Now</a></li>
     <li><a href="tel:+12513334444" id="mobNavPhone"><i class="fas fa-phone me-2" style="color:var(--orange)"></i><span id="mobNavPhoneText">(251) 333-4444</span></a></li>
   </ul>
 </div>`;
@@ -98,7 +96,6 @@ const footerHTML = `
             <li><a href="service-areas.html">Service Areas</a></li>
             <li><a href="contact.html">Contact</a></li>
             <li><a href="sizes.html">Dumpster Sizes</a></li>
-            <li><a href="/my-bookings.php">My Bookings</a></li>
           </ul>
         </div>
         <div class="col-lg-4">
@@ -246,7 +243,7 @@ function renderHomeSizePreview(sizes) {
               <li><i class="fas fa-circle"></i> ${escapeHtml(rentalLabel(size.rental_days))}</li>
               <li><i class="fas fa-circle"></i> ${escapeHtml(priceLine)}</li>
             </ul>
-            <a href="/book.php?size=${encodeURIComponent(size.size)}" class="${buttonClass} w-100 justify-content-center">Book Now</a>
+            <a href="/book.html" class="${buttonClass} w-100 justify-content-center">Book Now</a>
           </div>
         </div>
       </div>`;
@@ -304,7 +301,7 @@ function renderSizesPage(sizes) {
               <div class="size-best-for">Best For</div>
               <div class="size-ideal-text">${description}</div>
             </div>
-            <a href="/book.php?size=${encodeURIComponent(size.size)}" ${buttonAttrs}>Book This Size</a>
+            <a href="/book.html" ${buttonAttrs}>Book This Size</a>
           </div>
           <div class="size-full-body">
             <div class="size-specs mb-3">
