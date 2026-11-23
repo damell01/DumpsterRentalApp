@@ -141,7 +141,26 @@
               <div class="form-field">
                 <label>Dumpster Size Needed</label>
                 <div class="size-selector" id="quote-size-selector">
-                  <p style="color:var(--gray-light);margin:0;font-size:.92rem;">Loading live dumpster sizes and stock...</p>
+                  <label class="size-opt">
+                    <input type="radio" name="size" value="10 Yard"/>
+                    <div class="size-opt-num">10</div>
+                    <div class="size-opt-yd">Yard</div>
+                  </label>
+                  <label class="size-opt">
+                    <input type="radio" name="size" value="20 Yard"/>
+                    <div class="size-opt-num">20</div>
+                    <div class="size-opt-yd">Yard</div>
+                  </label>
+                  <label class="size-opt">
+                    <input type="radio" name="size" value="30 Yard"/>
+                    <div class="size-opt-num">30</div>
+                    <div class="size-opt-yd">Yard</div>
+                  </label>
+                  <label class="size-opt">
+                    <input type="radio" name="size" value="40 Yard"/>
+                    <div class="size-opt-num">40</div>
+                    <div class="size-opt-yd">Yard</div>
+                  </label>
                 </div>
               </div>
               <div class="form-row">
@@ -187,7 +206,7 @@
 
 <div id="footer-placeholder"></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="shared-components.js?v=7"></script>
+<script src="shared-components.js?v=8"></script>
 <script>
 // Size selector
 document.addEventListener('click', function(e) {
