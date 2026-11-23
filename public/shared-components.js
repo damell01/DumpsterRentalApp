@@ -53,7 +53,7 @@ const tickerHTML = `
         Same-Day Delivery Available <span class="ticker-sep"></span>
         Baldwin County & Mobile Area <span class="ticker-sep"></span>
         No Hidden Fees - Ever <span class="ticker-sep"></span>
-        Live Dumpster Inventory <span class="ticker-sep"></span>
+        10–40 Yard Roll-Offs <span class="ticker-sep"></span>
         Residential & Commercial <span class="ticker-sep"></span>
         Licensed & Insured <span class="ticker-sep"></span>
         Call <span class="ticker-phone">(251) 333-4444</span> <span class="ticker-sep"></span>
